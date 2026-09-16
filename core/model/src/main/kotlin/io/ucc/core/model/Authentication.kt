@@ -18,7 +18,9 @@ public sealed class Authentication {
         val encryption: String = "none",
         /** Packet encoding hint: "xudp" or "packetaddr". */
         val packetEncoding: String? = null,
-    ) : Authentication()
+    ) : Authentication() {
+        override fun toString(): String = "Vless(uuid=***, flow=$flow, encryption=$encryption, packetEncoding=$packetEncoding)"
+    }
 
     @Serializable
     @SerialName("vmess")
@@ -27,11 +29,15 @@ public sealed class Authentication {
         val alterId: Int = 0,
         val security: String = "auto",
         val packetEncoding: String? = null,
-    ) : Authentication()
+    ) : Authentication() {
+        override fun toString(): String = "Vmess(uuid=***, alterId=$alterId, security=$security, packetEncoding=$packetEncoding)"
+    }
 
     @Serializable
     @SerialName("trojan")
-    public data class Trojan(@Secret val password: String) : Authentication()
+    public data class Trojan(@Secret val password: String) : Authentication() {
+        override fun toString(): String = "Trojan(password=***)"
+    }
 
     @Serializable
     @SerialName("shadowsocks")
@@ -43,7 +49,9 @@ public sealed class Authentication {
         val pluginOptions: String? = null,
         /** Shadowsocks UDP-over-TCP (`uot`) request. */
         val udpOverTcp: Boolean = false,
-    ) : Authentication()
+    ) : Authentication() {
+        override fun toString(): String = "Shadowsocks(method=$method, password=***, plugin=$plugin, udpOverTcp=$udpOverTcp)"
+    }
 
     @Serializable
     @SerialName("hysteria")
@@ -53,7 +61,9 @@ public sealed class Authentication {
         val downMbps: Int? = null,
         val obfs: String? = null,
         val protocol: String? = null,
-    ) : Authentication()
+    ) : Authentication() {
+        override fun toString(): String = "Hysteria(auth=${if (auth == null) "null" else "***"}, upMbps=$upMbps, downMbps=$downMbps, obfs=$obfs, protocol=$protocol)"
+    }
 
     @Serializable
     @SerialName("hysteria2")
@@ -65,7 +75,9 @@ public sealed class Authentication {
         val downMbps: Int? = null,
         /** Port hopping range, e.g. "20000-30000". */
         val ports: String? = null,
-    ) : Authentication()
+    ) : Authentication() {
+        override fun toString(): String = "Hysteria2(password=***, obfsType=$obfsType, obfsPassword=${if (obfsPassword == null) "null" else "***"}, upMbps=$upMbps, downMbps=$downMbps, ports=$ports)"
+    }
 
     @Serializable
     @SerialName("tuic")
@@ -76,7 +88,9 @@ public sealed class Authentication {
         val udpRelayMode: String = "native",
         val zeroRttHandshake: Boolean = false,
         val heartbeatMs: Int? = null,
-    ) : Authentication()
+    ) : Authentication() {
+        override fun toString(): String = "Tuic(uuid=***, password=***, congestionControl=$congestionControl, udpRelayMode=$udpRelayMode, zeroRttHandshake=$zeroRttHandshake, heartbeatMs=$heartbeatMs)"
+    }
 
     @Serializable
     @SerialName("wireguard")
@@ -87,14 +101,18 @@ public sealed class Authentication {
         val localAddresses: List<String>,
         val reserved: List<Int> = emptyList(),
         val mtu: Int = 1408,
-    ) : Authentication()
+    ) : Authentication() {
+        override fun toString(): String = "WireGuard(privateKey=***, peerPublicKey=$peerPublicKey, preSharedKey=${if (preSharedKey == null) "null" else "***"}, localAddresses=$localAddresses, reserved=$reserved, mtu=$mtu)"
+    }
 
     @Serializable
     @SerialName("userpass")
     public data class UserPassword(
         val username: String? = null,
         @Secret val password: String? = null,
-    ) : Authentication()
+    ) : Authentication() {
+        override fun toString(): String = "UserPassword(username=$username, password=${if (password == null) "null" else "***"})"
+    }
 
     @Serializable
     @SerialName("none")
