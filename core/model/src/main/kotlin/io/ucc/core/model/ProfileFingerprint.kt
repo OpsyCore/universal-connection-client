@@ -8,8 +8,10 @@ import java.security.MessageDigest
  * Deterministic content hash over the *connection-relevant* parts of a profile.
  *
  * Two profiles with the same fingerprint reach the same server with the same
- * credentials and transport; they differ only in name/metadata. Used for
- * duplicate detection at import and for subscription merge.
+ * credentials and transport; they differ only in name, metadata or the user's
+ * per-profile overrides ([ProfileRouting], [ProfileDns]), which are edits that
+ * must survive a subscription merge and therefore cannot be part of identity.
+ * Used for duplicate detection at import and for subscription merge.
  */
 public object ProfileFingerprint {
     private val json = Json {
@@ -22,6 +24,8 @@ public object ProfileFingerprint {
             id = "",
             name = "",
             metadata = ProfileMetadata(),
+            routing = ProfileRouting(),
+            dns = ProfileDns(),
             address = profile.address.trim().lowercase(),
         )
         val bytes = json.encodeToString(canonical).encodeToByteArray()

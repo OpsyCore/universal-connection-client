@@ -60,7 +60,7 @@ class SubscriptionRefresherTest {
         val before = store.current()
         fetcher.error = SubscriptionFetchError.Http(503)
         val o = assertIs<SubscriptionRefresher.Outcome.Failed>(refresher.refresh("s1"))
-        assertEquals(503, o.error.code)
+        assertEquals(503, assertIs<SubscriptionFetchError.Http>(o.error).code)
         assertEquals(before, store.current())
         val err = assertNotNull(subs.saved["s1"]!!.lastError)
         assertEquals("http:503", err)

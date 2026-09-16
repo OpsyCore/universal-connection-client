@@ -132,7 +132,7 @@
     <string name="servers_rename_title">تغییر نام سرور</string>
     <string name="servers_delete_title">حذف شود؟</string>
     <plurals name="servers_delete_body">
-        <item quantity="one">این سرور حذف شود؟ این کار قابل بازگشت نیست.</item>
+        <item quantity="one">%1$d سرور حذف شود؟ این کار قابل بازگشت نیست.</item>
         <item quantity="other">%1$d سرور حذف شوند؟ این کار قابل بازگشت نیست.</item>
     </plurals>
     <string name="servers_delete_sub_body">اشتراک «%1$s» و %2$d سرور آن حذف شوند؟ علاقه‌مندی‌های این گروه هم حذف می‌شوند.</string>

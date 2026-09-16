@@ -119,9 +119,10 @@ class DefaultConnectionManagerTest {
         manager.connect("p1")
         manager.state.awaitValue { it is ConnectionState.Connected }
         manager.disconnect()
+        // Wait on the non-conflated transition log: `state` can reach Disconnected before the collector has recorded Stopping.
+        awaitSeen { it is ConnectionState.Stopping }
+        awaitSeen { it is ConnectionState.Disconnected }
         manager.state.awaitValue { it is ConnectionState.Disconnected }
-        val names = synchronized(seen) { seen.map { it::class.simpleName } }
-        assertTrue(names.contains("Stopping"), names.toString())
         assertEquals(1, core.stopCount)
         assertEquals(1, host.releaseCount)
     }
