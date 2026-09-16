@@ -8,7 +8,7 @@ package io.ucc.app.data
  */
 object LogSanitizer {
     private val uuid = Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
-    private val kv = Regex("(?i)\\b(password|passwd|pass|pwd|uuid|user_id|private_key|privatekey|pre_shared_key|preshared_key|psk|auth_str|auth|token|secret|key|obfs_password|obfs-password)(\\s*[:=]\\s*\"?)([^\\s\",;}&]+)")
+    private val kv = Regex("(?i)\\b(password|passwd|pass|pwd|uuid|user_id|private_key|privatekey|pre_shared_key|preshared_key|psk|auth_str|auth|token|secret|key|obfs_password|obfs-password)(\"?\\s*[:=]\\s*\"?)([^\\s\",;}&]+)")
     private val urlUserInfo = Regex("(?i)([a-z][a-z0-9+.-]*://)([^/\\s@]+)@")
     private val query = Regex("(?i)([?&](?:password|pass|pwd|token|secret|key|auth|psk|privateKey|presharedKey|publicKey|sid|pbk)=)([^&\\s#]+)")
     private val shareLink = Regex("(?i)\\b(vmess|ss|ssr|trojan-go)://[A-Za-z0-9+/=_-]{16,}")

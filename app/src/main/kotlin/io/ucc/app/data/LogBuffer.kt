@@ -66,7 +66,11 @@ class LogBuffer(
         "${iso(it.epochMs)} ${it.level.name.padEnd(5)} ${it.source.name.padEnd(4)} ${it.category.name.padEnd(9)} ${LogSanitizer.sanitize(it.message)}"
     }
 
-    private fun iso(ms: Long): String = java.time.Instant.ofEpochMilli(ms).toString()
+    private fun iso(ms: Long): String {
+        val f = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US)
+        f.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        return f.format(java.util.Date(ms))
+    }
 
     private companion object {
         /** sing-box/libbox levels: 0 panic,1 fatal,2 error,3 warn,4 info,5 debug,6 trace. */
