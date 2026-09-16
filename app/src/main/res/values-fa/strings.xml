@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">اتصال یونیورسال</string>
+
+    <string name="state_disconnected">قطع</string>
+    <string name="state_starting">در حال شروع…</string>
+    <string name="state_connecting">در حال اتصال…</string>
+    <string name="state_connected">متصل</string>
+    <string name="state_reconnecting">اتصال مجدد (تلاش %1$d)…</string>
+    <string name="state_stopping">در حال توقف…</string>
+    <string name="state_error">خطا</string>
+
+    <string name="action_connect">اتصال</string>
+    <string name="action_disconnect">قطع اتصال</string>
+    <string name="action_retry">تلاش دوباره</string>
+
+    <string name="home_no_profiles_title">هنوز پروفایلی وجود ندارد</string>
+    <string name="home_no_profiles_body">برای شروع یک پیکربندی وارد کنید. وارد کردن از لینک، QR، کلیپ‌بورد، فایل و اشتراک همراه موتور پیکربندی ارائه می‌شود.</string>
+    <string name="home_selected_profile">پروفایل انتخاب‌شده</string>
+    <string name="home_none_selected">انتخاب نشده</string>
+    <string name="home_core">هسته</string>
+    <string name="home_duration">مدت</string>
+    <string name="home_upload">آپلود</string>
+    <string name="home_download">دانلود</string>
+    <string name="home_events">رویدادهای اخیر</string>
+
+    <string name="vpn_permission_rationale">اندروید برای ایجاد تونل VPN به اجازهٔ شما نیاز دارد.</string>
+
+    <string name="error_invalid_configuration">پیکربندی نامعتبر است.</string>
+    <string name="error_unsupported_protocol">این پروتکل یا ترنسپورت توسط هستهٔ فعلی پشتیبانی نمی‌شود.</string>
+    <string name="error_vpn_permission">اجازهٔ VPN داده نشد.</string>
+    <string name="error_vpn_revoked">VPN توسط سیستم یا برنامهٔ VPN دیگری قطع شد.</string>
+    <string name="error_network_unavailable">اتصال شبکه وجود ندارد.</string>
+    <string name="error_dns">حل نام دامنه (DNS) ناموفق بود.</string>
+    <string name="error_timeout">زمان اتصال به پایان رسید.</string>
+    <string name="error_authentication">احراز هویت ناموفق بود. اطلاعات ورود را بررسی کنید.</string>
+    <string name="error_tls">اتصال امن (TLS) ناموفق بود.</string>
+    <string name="error_core">هستهٔ اتصال دچار خطا شد.</string>
+    <string name="error_unknown">خطای غیرمنتظره‌ای رخ داد.</string>
+</resources>

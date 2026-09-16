@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Universal Connection</string>
+
+    <string name="state_disconnected">Disconnected</string>
+    <string name="state_starting">Starting…</string>
+    <string name="state_connecting">Connecting…</string>
+    <string name="state_connected">Connected</string>
+    <string name="state_reconnecting">Reconnecting (attempt %1$d)…</string>
+    <string name="state_stopping">Stopping…</string>
+    <string name="state_error">Error</string>
+
+    <string name="action_connect">Connect</string>
+    <string name="action_disconnect">Disconnect</string>
+    <string name="action_retry">Retry</string>
+
+    <string name="home_no_profiles_title">No profiles yet</string>
+    <string name="home_no_profiles_body">Import a configuration to get started. Import from link, QR code, clipboard, file or subscription arrives with the configuration engine.</string>
+    <string name="home_selected_profile">Selected profile</string>
+    <string name="home_none_selected">None selected</string>
+    <string name="home_core">Core</string>
+    <string name="home_duration">Duration</string>
+    <string name="home_upload">Upload</string>
+    <string name="home_download">Download</string>
+    <string name="home_events">Recent events</string>
+
+    <string name="vpn_permission_rationale">Android requires your permission to create a VPN tunnel.</string>
+
+    <string name="error_invalid_configuration">The configuration is invalid.</string>
+    <string name="error_unsupported_protocol">This protocol or transport is not supported by the current core.</string>
+    <string name="error_vpn_permission">VPN permission was not granted.</string>
+    <string name="error_vpn_revoked">The VPN was disconnected by the system or another VPN app.</string>
+    <string name="error_network_unavailable">No network connection.</string>
+    <string name="error_dns">DNS resolution failed.</string>
+    <string name="error_timeout">Connection timed out.</string>
+    <string name="error_authentication">Authentication failed. Check the credentials.</string>
+    <string name="error_tls">Secure connection (TLS) failed.</string>
+    <string name="error_core">The connection core failed.</string>
+    <string name="error_unknown">An unexpected error occurred.</string>
+</resources>
