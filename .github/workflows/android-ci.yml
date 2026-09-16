@@ -53,13 +53,36 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Unit tests (JVM modules + Android unit tests)
-        run: ./gradlew --no-daemon --stacktrace test testDebugUnitTest
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --continue test testDebugUnitTest 2>&1 | tee build/gradle-test.log
 
       - name: Assemble debug APK
-        run: ./gradlew --no-daemon --stacktrace :app:assembleDebug
+        if: always()
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon :app:assembleDebug 2>&1 | tee build/gradle-assemble.log
 
       - name: Lint
-        run: ./gradlew --no-daemon :app:lintDebug
+        if: always()
+        run: ./gradlew --no-daemon :app:lintDebug 2>&1 | tee build/gradle-lint.log
+
+      - name: Summarise errors (readable without log download)
+        if: always()
+        run: |
+          {
+            echo "## Gradle errors"
+            for f in build/gradle-test.log build/gradle-assemble.log build/gradle-lint.log; do
+              [ -f "$f" ] || continue
+              echo "### $f"; echo '```'
+              grep -E "^e: |error:|FAILED|What went wrong|Could not resolve|Unresolved reference|> Task .* FAILED|tests completed|BUILD " "$f" | head -150
+              echo '```'
+            done
+            echo "### Failed tests"; echo '```'
+            grep -rl -E "<failure|<error" --include='TEST-*.xml' . 2>/dev/null | head -50
+            grep -rh -A3 -E "<failure|<error" --include='TEST-*.xml' . 2>/dev/null | head -200
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload APK
         if: always()
