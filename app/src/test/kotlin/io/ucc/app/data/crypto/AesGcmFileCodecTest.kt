@@ -20,7 +20,7 @@ class AesGcmFileCodecTest {
 
     @Test fun `ciphertext contains neither plaintext nor is it deterministic`() {
         val a = codec.encode(plain); val b = codec.encode(plain)
-        assertFalse(a.decodeToString(Charsets.ISO_8859_1).contains("hunter2"))
+        assertFalse(a.toString(Charsets.ISO_8859_1).contains("hunter2"))
         assertFalse(a.contentEquals(b), "IV must differ per write")
         assertTrue(AesGcmFileCodec.isEncrypted(a)); assertFalse(AesGcmFileCodec.isEncrypted(plain))
     }

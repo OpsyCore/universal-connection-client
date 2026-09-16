@@ -26,7 +26,7 @@ class EncryptedStoresTest {
     @Test fun `profiles survive a restart and never touch disk in plaintext`() = runTest {
         val ps = testImporter().import("trojan://hunter2@1.2.3.4:443#A\ntrojan://hunter2@1.2.3.5:443#B", ProfileSource.Manual).profiles
         profileStore().apply { load(); upsertAll(ps); delete(ps[1].id) }
-        val disk = File(dir, "profiles.enc").readBytes().decodeToString(Charsets.ISO_8859_1)
+        val disk = File(dir, "profiles.enc").readBytes().toString(Charsets.ISO_8859_1)
         assertFalse(disk.contains("hunter2")); assertFalse(disk.contains("1.2.3.4"))
         assertFalse(File(dir, "profiles.json").exists())
         val reloaded = profileStore().apply { load() }
@@ -66,7 +66,7 @@ class EncryptedStoresTest {
     @Test fun `subscriptions round trip with all fields and delete`() = runTest {
         val s = Subscription("s1", "https://example.com/secret-token", "S", 1L, 2L, io.ucc.core.config.subscription.SubscriptionInfo(1, 2, 3, 4), autoUpdate = false, updateIntervalHours = 24, lastError = "http:503")
         subStore().apply { load(); upsert(s); upsert(Subscription("s2", "https://x/2", "T", 1L)); delete("s2") }
-        assertFalse(File(dir, "subscriptions.enc").readBytes().decodeToString(Charsets.ISO_8859_1).contains("secret-token"))
+        assertFalse(File(dir, "subscriptions.enc").readBytes().toString(Charsets.ISO_8859_1).contains("secret-token"))
         val re = subStore().apply { load() }
         assertEquals(listOf(s), re.all.value)
     }
