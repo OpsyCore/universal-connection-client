@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import io.ucc.app.data.SelectionStore
 import io.ucc.app.data.ServerRepository
+import io.ucc.app.data.ServerRepository.Companion.boundProfileId
 import io.ucc.app.data.SubscriptionRefresher
 import io.ucc.core.config.subscription.Subscription
 import io.ucc.core.engine.ConnectionState
@@ -85,7 +86,7 @@ class ServersViewModel(
     val state: StateFlow<ServersUiState> = combine(
         repo.groups, preferences.selectedProfileIdFlow, manager.state, combine(query, favoritesOnly, refreshing) { q, f, r -> Triple(q, f, r) }, local,
     ) { groups, selectedId, conn, (q, favOnly, busy), loc ->
-        val activeId = (conn as? ConnectionState.Connected)?.profileId ?: conn.profileIdOrNull
+        val activeId = conn.boundProfileId
         val needle = q.trim().lowercase()
         val total = groups.sumOf { it.profiles.size }
         val visible = groups.map { g ->

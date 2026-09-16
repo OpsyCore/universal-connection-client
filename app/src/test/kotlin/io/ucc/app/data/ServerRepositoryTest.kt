@@ -52,6 +52,13 @@ class ServerRepositoryTest {
         assertTrue(store.current().isEmpty())
     }
 
+    @Test fun `a profile whose last connection failed can be deleted`() = runTest {
+        val (a) = seed("trojan://pw@1.2.3.4:443#A")
+        manager.state.value = ConnectionState.Error(a.id, io.ucc.core.engine.ConnectionError.ConnectionTimeout("probe"))
+        val r = repo.delete(setOf(a.id))
+        assertEquals(1, r.deleted); assertFalse(r.blockedActive)
+    }
+
     @Test fun `deleteSubscription removes members and the record, favorites included`() = runTest {
         val sub = io.ucc.core.config.subscription.Subscription("s1", "https://x/sub", "S", 1L)
         subs.upsert(sub)

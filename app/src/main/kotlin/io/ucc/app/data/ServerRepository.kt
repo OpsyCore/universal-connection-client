@@ -2,6 +2,7 @@ package io.ucc.app.data
 
 import io.ucc.core.config.export.ShareLinkExporter
 import io.ucc.core.config.subscription.Subscription
+import io.ucc.core.engine.ConnectionState
 import io.ucc.core.engine.manager.ConnectionManager
 import io.ucc.core.model.ConnectionProfile
 import kotlinx.coroutines.flow.Flow
@@ -55,7 +56,7 @@ class ServerRepository(
      * runs on a profile that no longer exists.
      */
     suspend fun delete(ids: Collection<String>): DeleteResult {
-        val active = manager.state.value.profileIdOrNull
+        val active = manager.state.value.boundProfileId
         val (blocked, ok) = ids.toSet().partition { it == active }
         if (ok.isNotEmpty()) profiles.deleteAll(ok)
         return DeleteResult(deleted = ok.size, blockedActive = blocked.isNotEmpty())
@@ -88,5 +89,11 @@ class ServerRepository(
     fun byId(id: String): ConnectionProfile? = profiles.current().firstOrNull { it.id == id }
 
     data class DeleteResult(val deleted: Int, val blockedActive: Boolean)
+
+    companion object {
+        /** Profile the tunnel is bound to right now (Starting…Stopping). Error/Disconnected bind nothing. */
+        val ConnectionState.boundProfileId: String?
+            get() = if (this is ConnectionState.Error || this is ConnectionState.Disconnected) null else profileIdOrNull
+    }
     data class Export(val text: String, val exported: Int, val skipped: Int)
 }

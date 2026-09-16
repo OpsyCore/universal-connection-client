@@ -5,6 +5,7 @@ import io.ucc.core.config.subscription.Subscription
 import io.ucc.core.config.subscription.SubscriptionFetchError
 import io.ucc.core.config.subscription.SubscriptionFetcher
 import io.ucc.core.config.subscription.SubscriptionMerger
+import io.ucc.app.data.ServerRepository.Companion.boundProfileId
 import io.ucc.core.engine.manager.ConnectionManager
 import io.ucc.core.model.ProfileSource
 import kotlinx.coroutines.CoroutineDispatcher
@@ -59,7 +60,7 @@ class SubscriptionRefresher(
         }
         val all = profiles.current()
         val (inGroup, elsewhere) = all.partition { it.metadata.groupId == subscriptionId }
-        val pinned = setOfNotNull(manager.state.value.profileIdOrNull)
+        val pinned = setOfNotNull(manager.state.value.boundProfileId)
         val result = merger.merge(subscriptionId, inGroup, elsewhere, report.profiles, now(), pinnedIds = pinned)
         if (result.hasChanges) profiles.apply(result.toUpsert, result.toDeleteIds)
         val updated = sub.copy(
