@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  checks: write
 
 concurrency:
   group: android-ci-${{ github.ref }}
@@ -67,17 +68,29 @@ jobs:
         if: always()
         run: ./gradlew --no-daemon :app:lintDebug 2>&1 | tee build/gradle-lint.log
 
-      - name: Publish errors as annotations (readable via API)
+      - name: Publish error excerpt as check-run output (readable via API)
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          for f in build/gradle-test.log build/gradle-assemble.log build/gradle-lint.log; do
-            [ -f "$f" ] || continue
-            grep -E "^e: |Unresolved reference|What went wrong|Could not resolve|Could not find|> Task .* FAILED|tests completed|BUILD (SUCCESSFUL|FAILED)" "$f" \
-              | sed 's/%/%25/g' | head -60 | while IFS= read -r line; do echo "::error title=$(basename "$f")::${line:0:600}"; done
-          done
-          grep -rh -B1 -A2 -E "<failure|<error" --include='TEST-*.xml' . 2>/dev/null | tr -d '\r' | head -80 \
-            | while IFS= read -r line; do echo "::error title=test::${line:0:600}"; done
-          true
+          {
+            for f in build/gradle-test.log build/gradle-assemble.log build/gradle-lint.log; do
+              [ -f "$f" ] || continue
+              echo "===== $f"
+              grep -E "^e: |^w: .*deprecated|Unresolved reference|What went wrong|Could not resolve|Could not find|> Task .* FAILED|tests completed|BUILD (SUCCESSFUL|FAILED)" "$f" | head -120
+              echo "--- context after 'What went wrong':"
+              grep -A 25 "What went wrong" "$f" | head -80
+            done
+            echo "===== failed tests"
+            grep -rh -B1 -A3 -E "<failure|<error" --include='TEST-*.xml' . 2>/dev/null | tr -d '\r' | head -120
+          } > build/error-excerpt.txt || true
+          python3 - <<'PY'
+          import json, os, subprocess
+          text = open("build/error-excerpt.txt", errors="replace").read()[:60000]
+          body = {"name": "gradle-errors", "head_sha": os.environ["GITHUB_SHA"], "status": "completed", "conclusion": "neutral",
+                  "output": {"title": "Gradle error excerpt", "summary": "see text", "text": "```\n" + text + "\n```"}}
+          subprocess.run(["gh", "api", f"repos/{os.environ['GITHUB_REPOSITORY']}/check-runs", "--input", "-"], input=json.dumps(body).encode(), check=False)
+          PY
 
       - name: Upload APK
         if: always()
