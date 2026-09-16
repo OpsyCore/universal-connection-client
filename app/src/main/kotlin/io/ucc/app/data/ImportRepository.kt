@@ -63,6 +63,8 @@ class ImportRepository(
                     addedAtEpochMs = subscriptions.byId(subscription.subscriptionId)?.addedAtEpochMs ?: now(),
                     lastFetchedAtEpochMs = now(),
                     lastInfo = subscription.fetched.info,
+                    autoUpdate = subscriptions.byId(subscription.subscriptionId)?.autoUpdate ?: true,
+                    updateIntervalHours = subscription.fetched.updateIntervalHours,
                 ),
             )
         }
@@ -76,12 +78,18 @@ data class CommitResult(val savedIds: List<String>, val skipped: Int)
 
 /** Storage contracts the repository needs; implemented by JsonProfileStore / JsonSubscriptionStore today, Room later. */
 interface ProfileStore {
+    val profiles: kotlinx.coroutines.flow.StateFlow<List<ConnectionProfile>>
     fun current(): List<ConnectionProfile>
     suspend fun upsertAll(profiles: List<ConnectionProfile>)
+    suspend fun deleteAll(ids: Collection<String>)
+    /** One atomic write: apply [upserts] then remove [deleteIds]. */
+    suspend fun apply(upserts: List<ConnectionProfile>, deleteIds: Collection<String>)
 }
 
 interface SubscriptionStore {
+    val all: kotlinx.coroutines.flow.StateFlow<List<Subscription>>
     suspend fun byId(id: String): Subscription?
     suspend fun upsert(subscription: Subscription)
+    suspend fun delete(id: String)
 }
 

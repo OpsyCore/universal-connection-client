@@ -24,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,6 +48,7 @@ fun HomeScreen(
     onDisconnect: () -> Unit,
     onSelectProfile: (String) -> Unit,
     onAddConfig: () -> Unit = {},
+    onOpenServers: () -> Unit = {},
 ) {
     val context = LocalContext.current
     Scaffold(
@@ -66,7 +68,10 @@ fun HomeScreen(
             if (state.profiles.isEmpty()) {
                 EmptyProfiles()
             } else {
-                Text(stringResource(R.string.home_selected_profile), style = MaterialTheme.typography.labelLarge)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.home_selected_profile), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                    TextButton(onClick = onOpenServers) { Text(stringResource(R.string.home_servers) + " (${state.profiles.size})") }
+                }
                 LazyColumn(modifier = Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(state.profiles, key = { it.id }) { p ->
                         val selected = p.id == state.selectedProfile?.id

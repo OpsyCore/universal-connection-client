@@ -9,25 +9,68 @@ import io.ucc.core.config.subscription.SubscriptionFetchError
 import io.ucc.core.config.subscription.SubscriptionFetchResult
 import io.ucc.core.config.subscription.SubscriptionFetcher
 import io.ucc.core.config.subscription.SubscriptionInfo
+import io.ucc.core.engine.ConnectionState
 import io.ucc.core.engine.CoreCapabilities
+import io.ucc.core.engine.CoreStartOptions
+import io.ucc.core.engine.CoreStatistics
+import io.ucc.core.engine.manager.ConnectionEvent
+import io.ucc.core.engine.manager.ConnectionManager
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import io.ucc.core.model.ConnectionProfile
 import io.ucc.core.model.Protocol
 
 class FakeProfileStore : ProfileStore {
     val saved = LinkedHashMap<String, ConnectionProfile>()
     var failNextWrite = false
+    var writes = 0
+    private val _flow = MutableStateFlow<List<ConnectionProfile>>(emptyList())
+    override val profiles: StateFlow<List<ConnectionProfile>> = _flow
     override fun current(): List<ConnectionProfile> = saved.values.toList()
-    override suspend fun upsertAll(profiles: List<ConnectionProfile>) {
+    override suspend fun upsertAll(profiles: List<ConnectionProfile>) = apply(profiles, emptyList())
+    override suspend fun deleteAll(ids: Collection<String>) = apply(emptyList(), ids)
+    override suspend fun apply(upserts: List<ConnectionProfile>, deleteIds: Collection<String>) {
         if (failNextWrite) { failNextWrite = false; throw java.io.IOException("disk full") }
-        profiles.forEach { saved[it.id] = it }
+        writes++
+        upserts.forEach { saved[it.id] = it }
+        deleteIds.forEach { saved.remove(it) }
+        _flow.value = current()
     }
 }
 
 class FakeSubscriptionStore : SubscriptionStore {
     val saved = LinkedHashMap<String, Subscription>()
+    private val _flow = MutableStateFlow<List<Subscription>>(emptyList())
+    override val all: StateFlow<List<Subscription>> = _flow
     override suspend fun byId(id: String): Subscription? = saved[id]
-    override suspend fun upsert(subscription: Subscription) { saved[subscription.id] = subscription }
+    override suspend fun upsert(subscription: Subscription) { saved[subscription.id] = subscription; _flow.value = saved.values.toList() }
+    override suspend fun delete(id: String) { saved.remove(id); _flow.value = saved.values.toList() }
 }
+
+/** Minimal manager: only [state] matters for the data layer; commands record calls. */
+class FakeConnectionManager(initial: ConnectionState = ConnectionState.Disconnected) : ConnectionManager {
+    override val state = MutableStateFlow(initial)
+    override val transitions: Flow<ConnectionState> = state
+    override val statistics = MutableStateFlow<CoreStatistics?>(null)
+    override val events: Flow<ConnectionEvent> = emptyFlow()
+    val connected = ArrayList<String>()
+    override fun connect(profileId: String, options: CoreStartOptions) { connected += profileId }
+    override fun disconnect() {}
+    override fun attachRunningTunnel(profileId: String, sinceEpochMs: Long) {}
+}
+
+class FakeSelection : SelectionStore {
+    private val _f = MutableStateFlow<String?>(null)
+    override val selectedProfileIdFlow: StateFlow<String?> = _f
+    override var selectedProfileId: String?
+        get() = _f.value
+        set(value) { _f.value = value }
+}
+
+fun testImporter(ids: Iterator<String> = generateSequence(1) { it + 1 }.map { "id-$it" }.iterator()) =
+    ConfigImporter(LinkParser({ ids.next() }, { 1_000L }))
 
 class FakeFetcher : SubscriptionFetcher {
     var body: String = ""

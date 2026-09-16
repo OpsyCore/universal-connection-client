@@ -29,7 +29,7 @@ class JsonProfileStore(context: Context) : ProfileProvider, ProfileStore {
     private val mutex = Mutex()
 
     private val _profiles = MutableStateFlow<List<ConnectionProfile>>(emptyList())
-    val profiles: StateFlow<List<ConnectionProfile>> = _profiles
+    override val profiles: StateFlow<List<ConnectionProfile>> = _profiles
 
     suspend fun load() = withContext(Dispatchers.IO) {
         mutex.withLock {
@@ -49,10 +49,15 @@ class JsonProfileStore(context: Context) : ProfileProvider, ProfileStore {
 
     override fun current(): List<ConnectionProfile> = _profiles.value
 
-    override suspend fun upsertAll(profiles: List<ConnectionProfile>) = mutate { list ->
-        val byId = LinkedHashMap<String, ConnectionProfile>(list.size + profiles.size)
+    override suspend fun upsertAll(profiles: List<ConnectionProfile>) = apply(profiles, emptyList())
+
+    override suspend fun deleteAll(ids: Collection<String>) = apply(emptyList(), ids)
+
+    override suspend fun apply(upserts: List<ConnectionProfile>, deleteIds: Collection<String>) = mutate { list ->
+        val byId = LinkedHashMap<String, ConnectionProfile>(list.size + upserts.size)
         list.forEach { byId[it.id] = it }
-        profiles.forEach { byId[it.id] = it }
+        upserts.forEach { byId[it.id] = it }
+        deleteIds.forEach { byId.remove(it) }
         byId.values.toList()
     }
 

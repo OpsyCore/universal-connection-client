@@ -60,7 +60,7 @@ INPUT (paste | clipboard | QR | document picker | https subscription URL)
 
 - **Duplicate detection** uses `ConnectionProfile.fingerprint` (SHA-256 of canonical content minus id/name/metadata), never the display name; duplicates within one batch are collapsed too.
 - **Capabilities** come from the selected `CoreFactory.capabilities` — the UI hard-codes no protocol or transport list. Profiles the current core cannot carry are flagged `Unsupported(reason)` and may still be stored (another core/flavour may carry them).
-- **Subscriptions** (Phase 2b scope): one-shot fetch over **https only**, 4 MiB cap, `subscription-userinfo` (usage/expiry shown; expired/exhausted flagged), `profile-title`; the record is persisted with a URL-derived stable id. Scheduled refresh and merge-preserving-user-edits are Phase 3.
+- **Subscriptions**: fetch over **https only**, 4 MiB cap, `subscription-userinfo` (usage/expiry shown; expired/exhausted flagged), `profile-title`, `profile-update-interval`; the record is persisted with a URL-derived stable id. Refresh and merge rules: see `docs/SUBSCRIPTIONS.md`.
 - **QR**: CameraX + ML Kit barcode scanning (bundled on-device model, QR format only). ML Kit is distributed under Google's ML Kit terms (not OSS); recorded in `Notices` as an application dependency. Payload is handed to the importer and never logged.
 - **Files**: `ActivityResultContracts.OpenDocument`, any MIME, UTF-8, 4 MiB cap.
 - **Clipboard**: `ClipboardManager.primaryClip` read on user tap only (Android 12+ shows the system paste toast).
@@ -71,5 +71,7 @@ INPUT (paste | clipboard | QR | document picker | https subscription URL)
 - Xray/v2ray JSON configs (planned: outbound extraction only, same as sing-box).
 - Clash YAML (planned: proxies section).
 - WireGuard `.conf`.
-- Scheduled subscription refresh + merge without destroying user edits (Phase 3).
-- Servers list screen with edit/delete/groups (Phase 3) — imported profiles appear in the Home profile list today.
+
+## Export (Phase 3)
+
+`ShareLinkExporter` (`core:config`) turns a profile back into a standard share link: `vless://`, `vmess://` (v2rayN base64-JSON; URI form only when REALITY/packetEncoding is set), `trojan://`, `ss://` (SIP002, base64 userinfo), `hysteria2://`, `hysteria://`, `tuic://`, `wireguard://`, `socks5://`, `http(s)://`. `export(parse(x))` re-parses to the **same fingerprint** for every protocol (covered by `ShareLinkExporterTest`). Exported text contains credentials; the Servers screen hands it straight to the Android share sheet and never keeps it in UI state or logs.

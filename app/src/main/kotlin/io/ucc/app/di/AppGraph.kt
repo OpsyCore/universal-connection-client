@@ -7,6 +7,9 @@ import io.ucc.app.MainActivity
 import io.ucc.app.data.ImportRepository
 import io.ucc.app.data.JsonProfileStore
 import io.ucc.app.data.JsonSubscriptionStore
+import io.ucc.app.data.ServerRepository
+import io.ucc.app.data.SubscriptionRefresher
+import io.ucc.app.work.SubscriptionRefreshWorker
 import io.ucc.core.config.CapabilityCheck
 import io.ucc.core.config.ConfigImporter
 import io.ucc.core.config.ImportPlanner
@@ -55,13 +58,15 @@ class AppGraph(context: Context) {
 
     val subscriptionStore = JsonSubscriptionStore(app)
 
+    private val subscriptionFetcher = HttpSubscriptionFetcher(userAgent = "UniversalConnectionClient/${BuildConfig.VERSION_NAME} (${coreFactory.descriptor.displayName}/${coreFactory.descriptor.version})")
+
     /** Config Engine wiring: parsers from :core:config, capabilities from the selected core. No engine types involved. */
     val importRepository = ImportRepository(
         importer = ConfigImporter(),
         planner = ImportPlanner(CapabilityCheck(core.capabilities)),
         profiles = profileStore,
         subscriptions = subscriptionStore,
-        fetcher = HttpSubscriptionFetcher(userAgent = "UniversalConnectionClient/${BuildConfig.VERSION_NAME} (${coreFactory.descriptor.displayName}/${coreFactory.descriptor.version})"),
+        fetcher = subscriptionFetcher,
     )
 
     val connectionManager: ConnectionManager = DefaultConnectionManager(
@@ -73,6 +78,16 @@ class AppGraph(context: Context) {
         clock = object : Clock { override fun nowMs(): Long = System.currentTimeMillis() },
     )
 
+    /** Servers screen use-cases and subscription refresh (manual + WorkManager). */
+    val serverRepository = ServerRepository(profileStore, subscriptionStore, connectionManager)
+    val subscriptionRefresher = SubscriptionRefresher(
+        importer = ConfigImporter(),
+        fetcher = subscriptionFetcher,
+        profiles = profileStore,
+        subscriptions = subscriptionStore,
+        manager = connectionManager,
+    )
+
     init {
         VpnServiceRegistry.connectionManager = connectionManager
         VpnServiceRegistry.stateForNotification = connectionManager.state
@@ -82,5 +97,6 @@ class AppGraph(context: Context) {
             Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         appScope.launch { profileStore.load(); subscriptionStore.load() }
+        SubscriptionRefreshWorker.schedule(app)
     }
 }

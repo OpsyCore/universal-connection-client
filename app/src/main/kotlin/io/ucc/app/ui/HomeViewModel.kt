@@ -10,7 +10,6 @@ import io.ucc.core.engine.CoreStatistics
 import io.ucc.core.engine.manager.ConnectionEvent
 import io.ucc.core.engine.manager.ConnectionManager
 import io.ucc.core.model.ConnectionProfile
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -35,7 +34,7 @@ class HomeViewModel(
     coreVersion: String,
 ) : ViewModel() {
 
-    private val selectedId = MutableStateFlow(preferences.selectedProfileId)
+    private val selectedId = preferences.selectedProfileIdFlow
 
     private val recentEvents = manager.events
         .scan(emptyList<ConnectionEvent>()) { acc, e -> (acc + e).takeLast(MAX_EVENTS) }
@@ -55,7 +54,6 @@ class HomeViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState(coreName = coreName, coreVersion = coreVersion))
 
     fun select(profileId: String) {
-        selectedId.value = profileId
         preferences.selectedProfileId = profileId
     }
 

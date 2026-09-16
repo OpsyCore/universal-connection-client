@@ -49,7 +49,7 @@
     <string name="add_action_file">باز کردن فایل</string>
     <string name="add_subscription_label">آدرس اشتراک (https)</string>
     <string name="add_subscription_fetch">دریافت و پیش‌نمایش</string>
-    <string name="add_subscription_no_auto_update">اشتراک فقط یک بار اینجا دریافت می‌شود. به‌روزرسانی خودکار در مرحلهٔ بعد اضافه می‌شود.</string>
+    <string name="add_subscription_no_auto_update">اشتراک‌ها هر ۱۲ ساعت به‌صورت خودکار (اگر به‌روزرسانی خودکار روشن باشد) و همچنین به‌صورت دستی از صفحهٔ سرورها به‌روز می‌شوند.</string>
 
     <string name="add_error_empty">چیزی برای وارد کردن نیست.</string>
     <string name="add_error_nothing_recognised">هیچ پیکربندی‌ای در ورودی شناسایی نشد.</string>
@@ -111,4 +111,43 @@
     <string name="config_error_unsupported">گزینهٔ پشتیبانی‌نشده</string>
 
     <string name="home_add_config">افزودن</string>
+
+    <!-- Servers screen (Phase 3) -->
+    <string name="action_cancel">انصراف</string>
+    <string name="action_save">ذخیره</string>
+    <string name="home_servers">سرورها</string>
+    <string name="servers_title">سرورها</string>
+    <string name="servers_search">جستجوی نام، هاست، پروتکل، برچسب</string>
+    <string name="servers_filter_favorites">فقط علاقه‌مندی‌ها</string>
+    <string name="servers_empty">هنوز سروری وجود ندارد. برای افزودن پیکربندی + را بزنید.</string>
+    <string name="servers_no_match">موردی با جستجوی شما مطابقت ندارد.</string>
+    <string name="servers_group_manual">افزوده‌شده به‌صورت دستی</string>
+    <string name="servers_active">متصل</string>
+    <string name="servers_selected_count">%1$d انتخاب شده</string>
+    <string name="servers_action_favorite">علاقه‌مندی</string>
+    <string name="servers_action_rename">تغییر نام</string>
+    <string name="servers_action_share">اشتراک‌گذاری لینک</string>
+    <string name="servers_action_delete">حذف</string>
+    <string name="servers_action_refresh">به‌روزرسانی اشتراک</string>
+    <string name="servers_rename_title">تغییر نام سرور</string>
+    <string name="servers_delete_title">حذف شود؟</string>
+    <plurals name="servers_delete_body">
+        <item quantity="one">این سرور حذف شود؟ این کار قابل بازگشت نیست.</item>
+        <item quantity="other">%1$d سرور حذف شوند؟ این کار قابل بازگشت نیست.</item>
+    </plurals>
+    <string name="servers_delete_sub_body">اشتراک «%1$s» و %2$d سرور آن حذف شوند؟ علاقه‌مندی‌های این گروه هم حذف می‌شوند.</string>
+    <plurals name="servers_deleted">
+        <item quantity="one">%1$d سرور حذف شد</item>
+        <item quantity="other">%1$d سرور حذف شدند</item>
+    </plurals>
+    <string name="servers_delete_blocked_active">سرور متصل حذف نشد. ابتدا اتصال را قطع کنید.</string>
+    <string name="servers_refreshed">%1$s: %2$d افزوده، %3$d به‌روز، %4$d حذف شد</string>
+    <string name="servers_refresh_failed">%1$s: به‌روزرسانی ناموفق بود (%2$s). سرورهای موجود حفظ شدند.</string>
+    <string name="servers_refresh_empty">پاسخ هیچ سروری نداشت</string>
+    <string name="servers_sub_updated_at">به‌روزرسانی %1$s</string>
+    <string name="servers_sub_expired">منقضی شده</string>
+    <string name="servers_sub_last_error">آخرین به‌روزرسانی ناموفق بود</string>
+    <string name="servers_sub_auto_update">به‌روزرسانی خودکار</string>
+    <string name="servers_sub_auto_update_off">به‌روزرسانی خودکار خاموش</string>
+    <string name="servers_sub_delete">حذف اشتراک</string>
 </resources>

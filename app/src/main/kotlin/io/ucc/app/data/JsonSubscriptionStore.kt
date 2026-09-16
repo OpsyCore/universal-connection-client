@@ -21,12 +21,15 @@ class JsonSubscriptionStore(context: Context) : SubscriptionStore {
         val id: String, val url: String, val name: String, val addedAtEpochMs: Long,
         val lastFetchedAtEpochMs: Long? = null,
         val upload: Long? = null, val download: Long? = null, val total: Long? = null, val expire: Long? = null,
+        val autoUpdate: Boolean = true, val updateIntervalHours: Int? = null, val lastError: String? = null,
     ) {
         fun toModel() = Subscription(id, url, name, addedAtEpochMs, lastFetchedAtEpochMs,
-            if (upload == null && download == null && total == null && expire == null) null else SubscriptionInfo(upload, download, total, expire))
+            if (upload == null && download == null && total == null && expire == null) null else SubscriptionInfo(upload, download, total, expire),
+            autoUpdate, updateIntervalHours, lastError)
         companion object {
             fun of(s: Subscription) = Row(s.id, s.url, s.name, s.addedAtEpochMs, s.lastFetchedAtEpochMs,
-                s.lastInfo?.uploadBytes, s.lastInfo?.downloadBytes, s.lastInfo?.totalBytes, s.lastInfo?.expireEpochSeconds)
+                s.lastInfo?.uploadBytes, s.lastInfo?.downloadBytes, s.lastInfo?.totalBytes, s.lastInfo?.expireEpochSeconds,
+                s.autoUpdate, s.updateIntervalHours, s.lastError)
         }
     }
 
@@ -36,7 +39,7 @@ class JsonSubscriptionStore(context: Context) : SubscriptionStore {
     private val serializer = ListSerializer(Row.serializer())
     private val mutex = Mutex()
     private val _all = MutableStateFlow<List<Subscription>>(emptyList())
-    val all: StateFlow<List<Subscription>> = _all
+    override val all: StateFlow<List<Subscription>> = _all
 
     suspend fun load() = withContext(Dispatchers.IO) {
         mutex.withLock {
@@ -48,9 +51,13 @@ class JsonSubscriptionStore(context: Context) : SubscriptionStore {
 
     override suspend fun byId(id: String): Subscription? = _all.value.firstOrNull { it.id == id }
 
-    override suspend fun upsert(subscription: Subscription) = withContext(Dispatchers.IO) {
+    override suspend fun upsert(subscription: Subscription) = write { it.filterNot { s -> s.id == subscription.id } + subscription }
+
+    override suspend fun delete(id: String) = write { it.filterNot { s -> s.id == id } }
+
+    private suspend fun write(block: (List<Subscription>) -> List<Subscription>) = withContext(Dispatchers.IO) {
         mutex.withLock {
-            val next = _all.value.filterNot { it.id == subscription.id } + subscription
+            val next = block(_all.value)
             tmp.writeText(json.encodeToString(serializer, next.map { Row.of(it) }))
             if (!tmp.renameTo(file)) { file.delete(); tmp.renameTo(file) }
             _all.value = next

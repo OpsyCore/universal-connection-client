@@ -2,7 +2,7 @@ package io.ucc.core.config.subscription
 
 import java.security.MessageDigest
 
-/** Stored record of a subscription source. The full merge engine arrives in Phase 3; this is the minimal persisted shape. */
+/** Stored record of a subscription source. Merging is done by [SubscriptionMerger]. */
 public data class Subscription(
     val id: String,
     val url: String,
@@ -10,6 +10,12 @@ public data class Subscription(
     val addedAtEpochMs: Long,
     val lastFetchedAtEpochMs: Long? = null,
     val lastInfo: SubscriptionInfo? = null,
+    /** User toggle; scheduled refresh skips subscriptions with this off. */
+    val autoUpdate: Boolean = true,
+    /** Server-suggested `profile-update-interval` (hours); null = app default. */
+    val updateIntervalHours: Int? = null,
+    /** Last refresh failure, already redacted (never contains the URL). */
+    val lastError: String? = null,
 ) {
     public companion object {
         /** Stable id derived from the normalized URL so re-adding the same URL maps to the same subscription. */

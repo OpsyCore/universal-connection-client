@@ -9,12 +9,23 @@ import io.ucc.core.vpn.LastProfileStore
  * its main thread during `onStartCommand` (DataStore would require blocking).
  * Only non-secret identifiers are stored here.
  */
-class Preferences(context: Context) : LastProfileStore {
+/** Selection state shared by Home and Servers; abstracted so view-models are testable without a Context. */
+interface SelectionStore {
+    val selectedProfileIdFlow: kotlinx.coroutines.flow.StateFlow<String?>
+    var selectedProfileId: String?
+}
+
+class Preferences(context: Context) : LastProfileStore, SelectionStore {
     private val prefs: SharedPreferences = context.applicationContext.getSharedPreferences("ucc_prefs", Context.MODE_PRIVATE)
 
-    var selectedProfileId: String?
-        get() = prefs.getString(KEY_SELECTED, null)
-        set(value) = prefs.edit().putString(KEY_SELECTED, value).apply()
+    private val _selected = kotlinx.coroutines.flow.MutableStateFlow(prefs.getString(KEY_SELECTED, null))
+
+    /** Observed by Home and Servers so a selection made on one screen shows on the other. */
+    override val selectedProfileIdFlow: kotlinx.coroutines.flow.StateFlow<String?> = _selected
+
+    override var selectedProfileId: String?
+        get() = _selected.value
+        set(value) { _selected.value = value; prefs.edit().putString(KEY_SELECTED, value).apply() }
 
     override fun write(profileId: String?) {
         prefs.edit().putString(KEY_LAST_ACTIVE, profileId).commit()

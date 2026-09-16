@@ -27,6 +27,8 @@ import io.ucc.app.ui.HomeViewModel
 import io.ucc.app.ui.import.AddConfigScreen
 import io.ucc.app.ui.import.AddConfigViewModel
 import io.ucc.app.ui.scan.QrScanScreen
+import io.ucc.app.ui.servers.ServersScreen
+import io.ucc.app.ui.servers.ServersViewModel
 
 class MainActivity : ComponentActivity() {
 
@@ -39,7 +41,12 @@ class MainActivity : ComponentActivity() {
         AddConfigViewModel.Factory(UccApplication.graph(this).importRepository)
     }
 
-    private object Routes { const val HOME = "home"; const val ADD = "add"; const val SCAN = "scan" }
+    private val serversViewModel: ServersViewModel by viewModels {
+        val g = UccApplication.graph(this)
+        ServersViewModel.Factory(g.serverRepository, g.subscriptionRefresher, g.preferences, g.connectionManager)
+    }
+
+    private object Routes { const val HOME = "home"; const val ADD = "add"; const val SCAN = "scan"; const val SERVERS = "servers" }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,6 +80,16 @@ class MainActivity : ComponentActivity() {
                             },
                             onDisconnect = viewModel::disconnect,
                             onSelectProfile = viewModel::select,
+                            onAddConfig = { addConfigViewModel.cancelPreview(); nav.navigate(Routes.ADD) },
+                            onOpenServers = { nav.navigate(Routes.SERVERS) },
+                        )
+                    }
+                    composable(Routes.SERVERS) {
+                        val state by serversViewModel.state.collectAsStateWithLifecycle()
+                        ServersScreen(
+                            state = state,
+                            vm = serversViewModel,
+                            onBack = { nav.popBackStack() },
                             onAddConfig = { addConfigViewModel.cancelPreview(); nav.navigate(Routes.ADD) },
                         )
                     }

@@ -50,7 +50,7 @@
     <string name="add_action_file">Open file</string>
     <string name="add_subscription_label">Subscription URL (https)</string>
     <string name="add_subscription_fetch">Fetch &amp; preview</string>
-    <string name="add_subscription_no_auto_update">Subscriptions are fetched once here. Automatic updates arrive in a later phase.</string>
+    <string name="add_subscription_no_auto_update">Subscriptions are refreshed automatically every 12 hours (when auto-update is on) and manually from the Servers screen.</string>
 
     <string name="add_error_empty">Nothing to import.</string>
     <string name="add_error_nothing_recognised">No configuration was recognised in the input.</string>
@@ -112,4 +112,43 @@
     <string name="config_error_unsupported">Unsupported option</string>
 
     <string name="home_add_config">Add</string>
+
+    <!-- Servers screen (Phase 3) -->
+    <string name="action_cancel">Cancel</string>
+    <string name="action_save">Save</string>
+    <string name="home_servers">Servers</string>
+    <string name="servers_title">Servers</string>
+    <string name="servers_search">Search name, host, protocol, tag</string>
+    <string name="servers_filter_favorites">Favorites only</string>
+    <string name="servers_empty">No servers yet. Tap + to add a configuration.</string>
+    <string name="servers_no_match">Nothing matches your search.</string>
+    <string name="servers_group_manual">Manually added</string>
+    <string name="servers_active">Connected</string>
+    <string name="servers_selected_count">%1$d selected</string>
+    <string name="servers_action_favorite">Favorite</string>
+    <string name="servers_action_rename">Rename</string>
+    <string name="servers_action_share">Share link</string>
+    <string name="servers_action_delete">Delete</string>
+    <string name="servers_action_refresh">Refresh subscription</string>
+    <string name="servers_rename_title">Rename server</string>
+    <string name="servers_delete_title">Delete?</string>
+    <plurals name="servers_delete_body">
+        <item quantity="one">Delete this server? This cannot be undone.</item>
+        <item quantity="other">Delete %1$d servers? This cannot be undone.</item>
+    </plurals>
+    <string name="servers_delete_sub_body">Remove subscription “%1$s” and its %2$d server(s)? Favorites in this group are removed too.</string>
+    <plurals name="servers_deleted">
+        <item quantity="one">%1$d server deleted</item>
+        <item quantity="other">%1$d servers deleted</item>
+    </plurals>
+    <string name="servers_delete_blocked_active">The connected server was not deleted. Disconnect first.</string>
+    <string name="servers_refreshed">%1$s: %2$d added, %3$d updated, %4$d removed</string>
+    <string name="servers_refresh_failed">%1$s: update failed (%2$s). Existing servers were kept.</string>
+    <string name="servers_refresh_empty">no servers in the response</string>
+    <string name="servers_sub_updated_at">Updated %1$s</string>
+    <string name="servers_sub_expired">Expired</string>
+    <string name="servers_sub_last_error">Last update failed</string>
+    <string name="servers_sub_auto_update">Auto-update</string>
+    <string name="servers_sub_auto_update_off">Auto-update off</string>
+    <string name="servers_sub_delete">Remove subscription</string>
 </resources>
