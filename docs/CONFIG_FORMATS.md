@@ -45,9 +45,31 @@ tuic wireguard socks http`) become profiles; `selector`, `urltest`, `direct`,
 the app owns those. WireGuard is read from `endpoints` (1.11+) or legacy
 outbound form.
 
+## Import flow (Phase 2b, `:app`)
+
+`AddConfigScreen` → `AddConfigViewModel` → `ImportRepository` → `core:config`:
+
+```
+INPUT (paste | clipboard | QR | document picker | https subscription URL)
+  → ConfigImporter.import(text, source)        format detection + parsing (core:config)
+  → ImportPlanner.plan(report, existing)        ProfileValidator + CapabilityCheck(CoreCapabilities) + fingerprint dedupe
+  → Preview (ProfilePreview: secret-free)       user ticks items; unsupported items savable but not preselected
+  → ImportRepository.commit(plan, selected)     atomic JSON store; subscription record saved only here
+  → Done                                        never connects automatically
+```
+
+- **Duplicate detection** uses `ConnectionProfile.fingerprint` (SHA-256 of canonical content minus id/name/metadata), never the display name; duplicates within one batch are collapsed too.
+- **Capabilities** come from the selected `CoreFactory.capabilities` — the UI hard-codes no protocol or transport list. Profiles the current core cannot carry are flagged `Unsupported(reason)` and may still be stored (another core/flavour may carry them).
+- **Subscriptions** (Phase 2b scope): one-shot fetch over **https only**, 4 MiB cap, `subscription-userinfo` (usage/expiry shown; expired/exhausted flagged), `profile-title`; the record is persisted with a URL-derived stable id. Scheduled refresh and merge-preserving-user-edits are Phase 3.
+- **QR**: CameraX + ML Kit barcode scanning (bundled on-device model, QR format only). ML Kit is distributed under Google's ML Kit terms (not OSS); recorded in `Notices` as an application dependency. Payload is handed to the importer and never logged.
+- **Files**: `ActivityResultContracts.OpenDocument`, any MIME, UTF-8, 4 MiB cap.
+- **Clipboard**: `ClipboardManager.primaryClip` read on user tap only (Android 12+ shows the system paste toast).
+- **Errors**: every failure is a typed `AddConfigError`/`ConfigError`; snippets shown to the user have `userinfo` replaced by `***` and are capped at 80 chars.
+
 ## Not yet implemented
 
 - Xray/v2ray JSON configs (planned: outbound extraction only, same as sing-box).
 - Clash YAML (planned: proxies section).
 - WireGuard `.conf`.
-- Subscription fetching + merge (Phase 3).
+- Scheduled subscription refresh + merge without destroying user edits (Phase 3).
+- Servers list screen with edit/delete/groups (Phase 3) — imported profiles appear in the Home profile list today.

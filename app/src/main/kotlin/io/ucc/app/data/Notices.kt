@@ -12,7 +12,8 @@ import io.ucc.core.engine.ThirdPartyNotice
 class Notices(private val coreFactory: CoreFactory) {
     val application: List<ThirdPartyNotice> = listOf(
         ThirdPartyNotice("Kotlin & kotlinx libraries", "see gradle/libs.versions.toml", "Apache-2.0", "https://kotlinlang.org"),
-        ThirdPartyNotice("AndroidX / Jetpack Compose / Material 3", "see gradle/libs.versions.toml", "Apache-2.0", "https://developer.android.com/jetpack"),
+        ThirdPartyNotice("AndroidX / Jetpack Compose / Material 3 / CameraX", "see gradle/libs.versions.toml", "Apache-2.0", "https://developer.android.com/jetpack"),
+        ThirdPartyNotice("ML Kit Barcode Scanning (bundled)", "see gradle/libs.versions.toml", "Google ML Kit Terms of Service (proprietary)", "https://developers.google.com/ml-kit/terms"),
     )
 
     val engine: List<ThirdPartyNotice> get() = coreFactory.notices
