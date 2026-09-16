@@ -36,11 +36,14 @@ class JsonProfileStore internal constructor(
     dir: File,
     codec: FileCodec,
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    /** Redacted messages only (counts, file names). Injected so JVM tests need no android.util.Log. */
+    private val log: (String) -> Unit = {},
 ) : ProfileProvider, ProfileStore {
 
     constructor(context: Context) : this(
         context.applicationContext.filesDir,
         AesGcmFileCodec({ KeystoreKeys.aesKey(KeystoreKeys.PROFILES_ALIAS) }),
+        log = { Log.i(TAG, it) },
     )
 
     private val file = SecureFile(dir, "profiles", codec)
@@ -63,10 +66,10 @@ class JsonProfileStore internal constructor(
                 SecureFile.ReadResult.Missing -> Unit
                 is SecureFile.ReadResult.Ok -> {
                     _profiles.value = runCatching { json.decodeFromString(serializer, r.bytes.decodeToString()) }.getOrElse { emptyList() }
-                    if (r.migratedFromPlaintext) Log.i(TAG, "migrated ${_profiles.value.size} profiles to encrypted storage")
+                    if (r.migratedFromPlaintext) log("migrated ${_profiles.value.size} profiles to encrypted storage")
                 }
                 is SecureFile.ReadResult.Unreadable -> {
-                    Log.w(TAG, "profile store unreadable; quarantined as ${r.quarantined.name}")
+                    log("profile store unreadable; quarantined as ${r.quarantined.name}")
                     _lastLoadProblem.value = LoadProblem(r.quarantined.name)
                 }
             }
