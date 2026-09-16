@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vpn_notification_channel">Connection status</string>
+    <string name="vpn_notification_channel_description">Shows the state of the tunnel while it is running.</string>
+    <string name="vpn_notification_title_starting">Starting…</string>
+    <string name="vpn_notification_title_connected">Connected</string>
+    <string name="vpn_notification_title_reconnecting">Reconnecting…</string>
+    <string name="vpn_notification_title_stopping">Stopping…</string>
+    <string name="vpn_notification_action_disconnect">Disconnect</string>
+</resources>
