@@ -5,12 +5,16 @@ import android.content.Intent
 import io.ucc.app.BuildConfig
 import io.ucc.app.MainActivity
 import io.ucc.app.data.JsonProfileStore
+import io.ucc.app.data.Notices
 import io.ucc.app.data.Preferences
 import io.ucc.core.engine.CoreAdapter
 import io.ucc.core.engine.manager.Clock
 import io.ucc.core.engine.manager.ConnectionManager
 import io.ucc.core.engine.manager.DefaultConnectionManager
-import io.ucc.core.singbox.android.SingBoxCoreAdapter
+import io.ucc.app.core.CoreFactories
+import io.ucc.core.engine.CoreFactory
+import io.ucc.core.engine.InterfaceObserver
+import io.ucc.core.vpn.AndroidCorePlatform
 import io.ucc.core.vpn.AndroidNetworkMonitor
 import io.ucc.core.vpn.AndroidTunnelHost
 import io.ucc.core.vpn.VpnServiceRegistry
@@ -32,14 +36,16 @@ class AppGraph(context: Context) {
     val profileStore = JsonProfileStore(app)
     val networkMonitor = AndroidNetworkMonitor(app)
 
-    val core: CoreAdapter = SingBoxCoreAdapter(
-        context = app,
-        debug = BuildConfig.DEBUG,
-        defaultNetwork = { networkMonitor.current.value },
-    ).also { adapter ->
-        networkMonitor.onInterface = adapter::onDefaultInterface
-        networkMonitor.onInterfaceLost = adapter::onDefaultInterfaceLost
+    /** Selected via BuildConfig.CORE_ID; the only engine-specific reference lives in [CoreFactories]. */
+    val coreFactory: CoreFactory = CoreFactories.selected(app)
+    val corePlatform = AndroidCorePlatform(app, debug = BuildConfig.DEBUG, networkMonitor = networkMonitor)
+
+    val core: CoreAdapter = coreFactory.create(corePlatform).also { adapter ->
+        // Optional capability: engines that track the underlying interface opt in by implementing InterfaceObserver.
+        (adapter as? InterfaceObserver)?.let { networkMonitor.interfaceObserver = it }
     }
+
+    val notices = Notices(coreFactory)
 
     val connectionManager: ConnectionManager = DefaultConnectionManager(
         scope = appScope,

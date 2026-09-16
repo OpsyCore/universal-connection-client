@@ -16,7 +16,6 @@ android {
 
 dependencies {
     api(project(":core:engine-api"))
-    implementation(project(":core:engine-singbox"))
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.service)

@@ -7,6 +7,8 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Build
+import io.ucc.core.engine.InterfaceObserver
+import io.ucc.core.engine.UnderlyingNetwork
 import io.ucc.core.engine.manager.NetworkEvent
 import io.ucc.core.engine.manager.NetworkMonitor
 import kotlinx.coroutines.channels.awaitClose
@@ -28,6 +30,13 @@ public class AndroidNetworkMonitor(context: Context) : NetworkMonitor {
     private val _current = MutableStateFlow<Network?>(null)
     /** The current underlying network, or null when none. */
     public val current: StateFlow<Network?> = _current
+
+    private val _underlying = MutableStateFlow<UnderlyingNetwork?>(null)
+    /** Core-agnostic view of [current] for [io.ucc.core.engine.CorePlatform]. */
+    public val underlying: StateFlow<UnderlyingNetwork?> = _underlying
+
+    /** Optional engine hook; set by the application after the core is created. */
+    public var interfaceObserver: InterfaceObserver? = null
 
     /** Interface details of the current network for the core's interface monitor. */
     public var onInterface: ((name: String, index: Int, expensive: Boolean) -> Unit)? = null
@@ -57,8 +66,10 @@ public class AndroidNetworkMonitor(context: Context) : NetworkMonitor {
             override fun onLost(network: Network) {
                 if (network == _current.value) {
                     _current.value = null
+                    _underlying.value = null
                     lastKey = null
                     onInterfaceLost?.invoke()
+                    interfaceObserver?.onDefaultInterfaceLost()
                     trySend(NetworkEvent.Lost)
                 }
             }
@@ -69,10 +80,12 @@ public class AndroidNetworkMonitor(context: Context) : NetworkMonitor {
                 val transport = transportName(c)
                 val ifName = l.interfaceName ?: return
                 val key = "$transport:$ifName:${network.hashCode()}"
-                _current.value = network
                 val index = runCatching { java.net.NetworkInterface.getByName(ifName)?.index ?: -1 }.getOrDefault(-1)
                 val expensive = !c.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+                _current.value = network
+                _underlying.value = UnderlyingNetwork(network, ifName, index, expensive)
                 onInterface?.invoke(ifName, index, expensive)
+                interfaceObserver?.onDefaultInterface(ifName, index, expensive)
                 if (key != lastKey) {
                     lastKey = key
                     trySend(NetworkEvent.DefaultChanged(key, transport))

@@ -53,20 +53,23 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
+      - name: Core boundary check (no engine leakage into core-agnostic modules)
+        run: tools/check-core-boundary.sh
+
       - name: Unit tests (JVM modules + Android unit tests)
         run: |
           set -o pipefail; mkdir -p build
-          ./gradlew --no-daemon --continue test testDebugUnitTest 2>&1 | tee build/gradle-test.log
+          ./gradlew --no-daemon --continue test testSingboxDebugUnitTest 2>&1 | tee build/gradle-test.log
 
       - name: Assemble debug APK
         if: always()
         run: |
           set -o pipefail
-          ./gradlew --no-daemon :app:assembleDebug 2>&1 | tee build/gradle-assemble.log
+          ./gradlew --no-daemon :app:assembleSingboxDebug 2>&1 | tee build/gradle-assemble.log
 
       - name: Lint
         if: always()
-        run: ./gradlew --no-daemon :app:lintDebug 2>&1 | tee build/gradle-lint.log
+        run: ./gradlew --no-daemon :app:lintSingboxDebug 2>&1 | tee build/gradle-lint.log
 
       - name: Publish error excerpt as check-run output (readable via API)
         if: always()
@@ -98,7 +101,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/singbox/debug/*.apk
           if-no-files-found: ignore
 
       - name: Upload reports

@@ -20,6 +20,17 @@ android {
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
 
+    // Core selection. One flavour per engine; the flavour decides which engine
+    // module is compiled in (see dependencies{} below) and which CORE_ID
+    // CoreFactories.selected() resolves. Only the sing-box flavour exists today.
+    flavorDimensions += "core"
+    productFlavors {
+        create("singbox") {
+            dimension = "core"
+            buildConfigField("String", "CORE_ID", "\"singbox\"")
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
@@ -53,9 +64,9 @@ android {
 dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:engine-api"))
-    implementation(project(":core:singbox-config"))
-    implementation(project(":core:engine-singbox"))
     implementation(project(":core:vpn"))
+    // Engine modules are flavour-scoped: nothing in src/main may import them except io.ucc.app.core.CoreFactories.
+    "singboxImplementation"(project(":core:engine-singbox"))
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)

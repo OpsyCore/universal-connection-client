@@ -18,6 +18,7 @@ import io.nekohasekai.libbox.StringIterator
 import io.nekohasekai.libbox.SystemProxyStatus
 import io.ucc.core.engine.ConnectionError
 import io.ucc.core.engine.CoreAdapter
+import io.ucc.core.engine.InterfaceObserver
 import io.ucc.core.engine.CoreCapabilities
 import io.ucc.core.engine.CoreDescriptor
 import io.ucc.core.engine.CoreEvent
@@ -56,7 +57,7 @@ public class SingBoxCoreAdapter(
     private val defaultNetwork: () -> Network?,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val generator: SingBoxConfigGenerator = SingBoxConfigGenerator(),
-) : CoreAdapter {
+) : CoreAdapter, InterfaceObserver {
 
     private companion object {
         const val TAG = "SingBoxCore"
@@ -86,11 +87,11 @@ public class SingBoxCoreAdapter(
     override val capabilities: CoreCapabilities = SingBoxCapabilities.capabilities
 
     /** Called by the VPN layer's network monitor; forwarded to the core's interface monitor. */
-    public fun onDefaultInterface(name: String, index: Int, expensive: Boolean) {
+    override fun onDefaultInterface(name: String, index: Int, expensive: Boolean) {
         interfaceBridge.update(name, index, expensive)
     }
 
-    public fun onDefaultInterfaceLost() {
+    override fun onDefaultInterfaceLost() {
         interfaceBridge.lost()
     }
 
