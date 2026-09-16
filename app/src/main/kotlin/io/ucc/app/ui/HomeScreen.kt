@@ -49,6 +49,7 @@ fun HomeScreen(
     onSelectProfile: (String) -> Unit,
     onAddConfig: () -> Unit = {},
     onOpenServers: () -> Unit = {},
+    onDismissStoreProblem: () -> Unit = {},
 ) {
     val context = LocalContext.current
     Scaffold(
@@ -63,6 +64,15 @@ fun HomeScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            state.storeProblem?.let { problem ->
+                Card(modifier = Modifier.fillMaxWidth(), colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.home_store_unreadable_title), style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.home_store_unreadable_body, problem.quarantinedFileName), style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = onDismissStoreProblem) { Text(stringResource(R.string.action_dismiss)) }
+                    }
+                }
+            }
             StatusCard(state, onConnect, onDisconnect)
 
             if (state.profiles.isEmpty()) {

@@ -3,10 +3,26 @@
 Status: Phase 1. Reviewed items only; the full review is Phase 8.
 
 ## Data at rest
-- Profiles are stored in `filesDir/profiles.json` (app-private, mode 0600) —
-  **temporary**; Phase 4 moves credentials into Room columns encrypted with an
-  Android-Keystore-backed AES-GCM key. Fields to encrypt are marked `@Secret`
-  in `core/model`.
+- Profiles (`filesDir/profiles.enc`) and subscription records
+  (`filesDir/subscriptions.enc`) are **AES-256-GCM encrypted at rest** with an
+  Android-Keystore key (alias `ucc.profiles.v1`, hardware-backed where the
+  device supports it, randomised IV per write, file magic bound as AAD). The
+  whole document is encrypted, not only `@Secret` fields: host/SNI/path
+  identify the user's server just as much as the password. See
+  `app/.../data/crypto/` and `EncryptedStoresTest`.
+- Phase-1 plaintext `profiles.json` / `subscriptions.json` are migrated on the
+  first load after upgrade, then overwritten with random bytes and deleted.
+- If the file cannot be decrypted (key lost after factory reset / restore,
+  tampering) it is moved to `*.corrupt-<ts>` — never silently deleted — the
+  store starts empty and the UI shows a one-time notice.
+- The key does **not** require user authentication: `UcVpnService` must read
+  profiles unattended (boot, network change, system-restarted service).
+- Decision: whole-file JSON + Keystore instead of Room + SQLCipher. The data set
+  is small (hundreds of rows), access is whole-list, and SQLCipher adds a large
+  native dependency; Room remains the plan only if per-row queries become
+  necessary.
+- `Authentication.toString()` masks every `@Secret` field, so accidental
+  `"$profile"` in a log line cannot leak credentials (`AuthenticationToStringTest`).
 - Cloud backup and device-to-device transfer are disabled for all domains
   (`data_extraction_rules.xml`, `allowBackup=false`).
 

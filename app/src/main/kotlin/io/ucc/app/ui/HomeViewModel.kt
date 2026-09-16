@@ -24,6 +24,8 @@ data class HomeUiState(
     val events: List<ConnectionEvent> = emptyList(),
     val coreName: String = "",
     val coreVersion: String = "",
+    /** Set once when the encrypted profile store could not be read at startup; cleared by the user. */
+    val storeProblem: JsonProfileStore.LoadProblem? = null,
 )
 
 class HomeViewModel(
@@ -39,7 +41,7 @@ class HomeViewModel(
     private val recentEvents = manager.events
         .scan(emptyList<ConnectionEvent>()) { acc, e -> (acc + e).takeLast(MAX_EVENTS) }
 
-    val uiState: StateFlow<HomeUiState> = combine(
+    private val base = combine(
         manager.state, store.profiles, selectedId, manager.statistics, recentEvents,
     ) { state, profiles, selected, stats, events ->
         HomeUiState(
@@ -51,7 +53,10 @@ class HomeViewModel(
             coreName = coreName,
             coreVersion = coreVersion,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState(coreName = coreName, coreVersion = coreVersion))
+    }
+
+    val uiState: StateFlow<HomeUiState> = combine(base, store.lastLoadProblem) { b, problem -> b.copy(storeProblem = problem) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState(coreName = coreName, coreVersion = coreVersion))
 
     fun select(profileId: String) {
         preferences.selectedProfileId = profileId
@@ -64,6 +69,8 @@ class HomeViewModel(
     }
 
     fun disconnect() = manager.disconnect()
+
+    fun dismissStoreProblem() = store.clearLoadProblem()
 
     private companion object {
         const val MAX_EVENTS = 50

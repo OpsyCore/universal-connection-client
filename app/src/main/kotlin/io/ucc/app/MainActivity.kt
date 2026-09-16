@@ -82,6 +82,7 @@ class MainActivity : ComponentActivity() {
                             onSelectProfile = viewModel::select,
                             onAddConfig = { addConfigViewModel.cancelPreview(); nav.navigate(Routes.ADD) },
                             onOpenServers = { nav.navigate(Routes.SERVERS) },
+                            onDismissStoreProblem = viewModel::dismissStoreProblem,
                         )
                     }
                     composable(Routes.SERVERS) {

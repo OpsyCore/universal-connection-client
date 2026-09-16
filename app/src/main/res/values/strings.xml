@@ -151,4 +151,7 @@
     <string name="servers_sub_auto_update">Auto-update</string>
     <string name="servers_sub_auto_update_off">Auto-update off</string>
     <string name="servers_sub_delete">Remove subscription</string>
+    <string name="action_dismiss">Dismiss</string>
+    <string name="home_store_unreadable_title">Saved servers could not be read</string>
+    <string name="home_store_unreadable_body">The encrypted server list could not be decrypted (this happens after a device restore or factory reset, because the key lives in the device’s secure hardware). The old file was kept as %1$s in app storage. Re-import your configurations.</string>
 </resources>

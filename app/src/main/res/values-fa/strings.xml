@@ -150,4 +150,7 @@
     <string name="servers_sub_auto_update">به‌روزرسانی خودکار</string>
     <string name="servers_sub_auto_update_off">به‌روزرسانی خودکار خاموش</string>
     <string name="servers_sub_delete">حذف اشتراک</string>
+    <string name="action_dismiss">بستن</string>
+    <string name="home_store_unreadable_title">سرورهای ذخیره‌شده قابل خواندن نیستند</string>
+    <string name="home_store_unreadable_body">فهرست رمزگذاری‌شدهٔ سرورها رمزگشایی نشد (بعد از بازیابی یا ریست کارخانه‌ای رخ می‌دهد، چون کلید در سخت‌افزار امن دستگاه است). فایل قدیمی با نام %1$s در حافظهٔ برنامه نگه داشته شد. پیکربندی‌ها را دوباره وارد کنید.</string>
 </resources>
