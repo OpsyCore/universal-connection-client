@@ -33,6 +33,18 @@ class DefaultConnectionManagerTest {
         }
 
         fun close() = scope.cancel()
+
+        fun seenCount(predicate: (ConnectionState) -> Boolean): Int = synchronized(seen) { seen.count(predicate) }
+
+        /** Waits on the non-conflated transition log; `state` may skip transient states on fast machines. */
+        suspend fun awaitSeen(timeoutMs: Long = 5_000, predicate: (ConnectionState) -> Boolean): ConnectionState =
+            kotlinx.coroutines.withTimeout(timeoutMs) {
+                while (true) {
+                    synchronized(seen) { seen.firstOrNull(predicate) }?.let { return@withTimeout it }
+                    delay(5)
+                }
+                @Suppress("UNREACHABLE_CODE") throw IllegalStateException()
+            }
     }
 
     private fun withHarness(block: suspend Harness.() -> Unit) = runBlocking {
@@ -139,8 +151,8 @@ class DefaultConnectionManagerTest {
         manager.connect("p1")
         manager.state.awaitValue { it is ConnectionState.Connected }
         network.events.emit(NetworkEvent.DefaultChanged("cell:2", "cellular"))
-        manager.state.awaitValue { it is ConnectionState.Reconnecting }
-        val s = manager.state.awaitValue { it is ConnectionState.Connected }
+        awaitSeen { it is ConnectionState.Reconnecting }
+        val s = awaitSeen { it is ConnectionState.Connected && seenCount { st -> st is ConnectionState.Connected } >= 2 }
         assertIs<ConnectionState.Connected>(s)
         assertEquals(1, core.networkChangedCount)
         assertEquals(1, core.startCount, "network change must not restart the core")
@@ -162,7 +174,7 @@ class DefaultConnectionManagerTest {
         manager.connect("p1")
         manager.state.awaitValue { it is ConnectionState.Connected }
         network.events.emit(NetworkEvent.Lost)
-        val r = manager.state.awaitValue { it is ConnectionState.Reconnecting }
+        val r = awaitSeen { it is ConnectionState.Reconnecting }
         assertEquals(0, (r as ConnectionState.Reconnecting).attempt)
         network.events.emit(NetworkEvent.DefaultChanged("cell:2", "cellular"))
         manager.state.awaitValue { it is ConnectionState.Connected }
@@ -175,8 +187,8 @@ class DefaultConnectionManagerTest {
         manager.connect("p1")
         manager.state.awaitValue { it is ConnectionState.Connected }
         core.events.emit(CoreEvent.Fatal(ConnectionError.CoreFailure("boom")))
-        manager.state.awaitValue { it is ConnectionState.Reconnecting }
-        manager.state.awaitValue { it is ConnectionState.Connected }
+        awaitSeen { it is ConnectionState.Reconnecting }
+        awaitSeen { it is ConnectionState.Connected && seenCount { st -> st is ConnectionState.Connected } >= 2 }
         assertEquals(2, core.startCount)
     }
 
