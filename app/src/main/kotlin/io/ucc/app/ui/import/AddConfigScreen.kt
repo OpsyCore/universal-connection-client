@@ -221,7 +221,7 @@ private fun SourceLabel.res(): Int = when (this) {
 
 internal fun AddConfigError.message(c: Context): String = when (this) {
     AddConfigError.EmptyInput -> c.getString(R.string.add_error_empty)
-    AddConfigError.NothingRecognised -> c.getString(R.string.add_error_nothing_recognised)
+    is AddConfigError.NothingRecognised -> c.getString(R.string.add_error_nothing_recognised) + if (unreadable > 0) " (" + c.getString(R.string.preview_failures_title).lowercase() + ": $unreadable)" else ""
     AddConfigError.ClipboardEmpty -> c.getString(R.string.add_error_clipboard_empty)
     is AddConfigError.FileUnreadable -> c.getString(R.string.add_error_file_unreadable, reason)
     is AddConfigError.FileTooLarge -> c.getString(R.string.add_error_file_too_large, formatBytes(limitBytes))

@@ -44,7 +44,8 @@ enum class SourceLabel { PASTE, CLIPBOARD, QR, FILE, SUBSCRIPTION }
 
 sealed class AddConfigError {
     data object EmptyInput : AddConfigError()
-    data object NothingRecognised : AddConfigError()
+    /** No profile could be built; [unreadable] fragments were rejected (details never contain secrets). */
+    data class NothingRecognised(val unreadable: Int) : AddConfigError()
     data object ClipboardEmpty : AddConfigError()
     data class FileUnreadable(val reason: String) : AddConfigError()
     data class FileTooLarge(val limitBytes: Long) : AddConfigError()
@@ -84,7 +85,7 @@ class AddConfigViewModel(private val repo: ImportRepository) : ViewModel() {
         viewModelScope.launch {
             try {
                 val sp = repo.planFromSubscription(url)
-                if (sp.plan.isEmpty) { backToInput(AddConfigError.NothingRecognised); return@launch }
+                if (sp.plan.items.isEmpty()) { backToInput(AddConfigError.NothingRecognised(sp.plan.failures.size)); return@launch }
                 showPreview(sp.plan, sp, SourceLabel.SUBSCRIPTION)
             } catch (e: SubscriptionFetchError) {
                 backToInput(AddConfigError.Subscription(e))
@@ -129,7 +130,7 @@ class AddConfigViewModel(private val repo: ImportRepository) : ViewModel() {
         viewModelScope.launch {
             try {
                 val plan = repo.planFromText(text, source)
-                if (plan.isEmpty) { backToInput(AddConfigError.NothingRecognised, keep = prev); return@launch }
+                if (plan.items.isEmpty()) { backToInput(AddConfigError.NothingRecognised(plan.failures.size), keep = prev); return@launch }
                 showPreview(plan, null, label)
             } catch (e: Exception) {
                 backToInput(AddConfigError.Unexpected(e.javaClass.simpleName), keep = prev)
