@@ -56,7 +56,7 @@ class AddConfigViewModelTest {
         assertEquals("hello there", s.text, "user text is preserved on failure")
     }
 
-    @Test fun `clipboard empty is reported; clipboard text is imported with clipboard label`() = runTest(dispatcher) {
+    @Test fun `clipboard empty is reported and clipboard text is imported with clipboard label`() = runTest(dispatcher) {
         val vm = AddConfigViewModel(newRepository())
         vm.importClipboard(null); advanceUntilIdle()
         assertIs<AddConfigError.ClipboardEmpty>((vm.state.value as AddConfigUiState.Input).error)
