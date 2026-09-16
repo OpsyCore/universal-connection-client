@@ -72,11 +72,23 @@ public data class CoreCapabilities(
 public data class CoreStartOptions(
     val mtu: Int = 9000,
     val ipv6: Boolean = true,
+    /**
+     * Leak protection while the tunnel is up: the core rejects traffic that
+     * would bypass it (sing-box `strict_route`). This is *not* a system kill
+     * switch — when the VPN is down, only Android's "Block connections without
+     * VPN" (always-on) setting blocks traffic. The UI must say so.
+     */
     val strictRoute: Boolean = true,
     val includePackages: List<String> = emptyList(),
     val excludePackages: List<String> = emptyList(),
     val logLevel: String = "info",
-    /** Extra JSON fragments the routing/DNS layers contribute (Phase 6). */
+    /** Remote (through-tunnel) DNS override; null = profile's own or the core default. */
+    val remoteDns: String? = null,
+    /** DNS used for direct traffic and for resolving the proxy server itself; null = system resolver. */
+    val directDns: String? = null,
+    /** Private/LAN destinations go direct instead of through the proxy. */
+    val bypassPrivate: Boolean = true,
+    /** Extra JSON fragments the routing/DNS layers contribute (rule-sets, Phase 6). Override the typed fields when set. */
     val routingConfig: String? = null,
     val dnsConfig: String? = null,
 )

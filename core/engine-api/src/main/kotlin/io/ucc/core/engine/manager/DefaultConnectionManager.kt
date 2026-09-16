@@ -42,6 +42,7 @@ public class DefaultConnectionManager(
     private val networkMonitor: NetworkMonitor,
     private val clock: Clock,
     private val policy: ReconnectPolicy = ReconnectPolicy(),
+    private val startOptions: StartOptionsProvider = StartOptionsProvider.Defaults,
 ) : ConnectionManager {
 
     private val _state = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
@@ -87,9 +88,9 @@ public class DefaultConnectionManager(
 
     // ---------------------------------------------------------------- commands
 
-    override fun connect(profileId: String, options: CoreStartOptions) {
+    override fun connect(profileId: String, options: CoreStartOptions?) {
         scope.launch {
-            commandMutex.withLock { doConnect(profileId, options) }
+            commandMutex.withLock { doConnect(profileId, options ?: startOptions.current()) }
         }
     }
 

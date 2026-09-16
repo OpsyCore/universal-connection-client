@@ -64,6 +64,7 @@ internal class FakeCore : CoreAdapter {
     /** Each call to urlTest pops the head; null = success with 50ms, else throws. */
     val probeScript = ArrayDeque<ConnectionError?>()
     var running = false
+    var lastOptions: CoreStartOptions? = null
 
     override val descriptor = CoreDescriptor("fake", "Fake", "0")
     override val capabilities = CoreCapabilities(
@@ -76,6 +77,7 @@ internal class FakeCore : CoreAdapter {
 
     override suspend fun start(profile: ConnectionProfile, options: CoreStartOptions, tun: TunProvider) {
         startCount++
+        lastOptions = options
         startError?.let { throw CoreException(it) }
         running = true
     }

@@ -2,6 +2,7 @@ package io.ucc.core.engine.manager
 
 import io.ucc.core.engine.ConnectionError
 import io.ucc.core.engine.ConnectionState
+import io.ucc.core.engine.CoreStartOptions
 import io.ucc.core.engine.CoreEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -125,6 +126,27 @@ class DefaultConnectionManagerTest {
         manager.state.awaitValue { it is ConnectionState.Disconnected }
         assertEquals(1, core.stopCount)
         assertEquals(1, host.releaseCount)
+    }
+
+    @Test
+    fun `connect without options asks the StartOptionsProvider, explicit options win`() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val core = FakeCore()
+        var provided = CoreStartOptions(mtu = 1400, remoteDns = "tls://9.9.9.9")
+        val manager = DefaultConnectionManager(
+            scope, core, FakeTunnelHost(), FakeProfiles(mapOf("p1" to profile("p1"))), FakeNetwork(), FakeClock(), fastPolicy,
+            startOptions = { provided },
+        )
+        try {
+            manager.connect("p1")
+            manager.state.awaitValue { it is ConnectionState.Connected }
+            assertEquals(1400, core.lastOptions?.mtu); assertEquals("tls://9.9.9.9", core.lastOptions?.remoteDns)
+            manager.disconnect(); manager.state.awaitValue { it is ConnectionState.Disconnected }
+            provided = CoreStartOptions(mtu = 1300)
+            manager.connect("p1", CoreStartOptions(mtu = 1500))
+            manager.state.awaitValue { it is ConnectionState.Connected }
+            assertEquals(1500, core.lastOptions?.mtu)
+        } finally { scope.cancel() }
     }
 
     @Test

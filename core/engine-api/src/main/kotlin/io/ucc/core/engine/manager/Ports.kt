@@ -1,5 +1,7 @@
 package io.ucc.core.engine.manager
 
+import io.ucc.core.engine.CoreStartOptions
+
 import io.ucc.core.engine.TunProvider
 import io.ucc.core.model.ConnectionProfile
 import kotlinx.coroutines.flow.Flow
@@ -58,5 +60,14 @@ public data class ReconnectPolicy(
     public fun backoffFor(attempt: Int): Long {
         val shift = (attempt - 1).coerceIn(0, 20)
         return (backoffBaseMs shl shift).coerceAtMost(maxBackoffMs)
+    }
+}
+
+/** Supplies the user's current connection settings as core options. Read once per connect/reconnect. */
+public fun interface StartOptionsProvider {
+    public fun current(): CoreStartOptions
+
+    public companion object {
+        public val Defaults: StartOptionsProvider = StartOptionsProvider { CoreStartOptions() }
     }
 }

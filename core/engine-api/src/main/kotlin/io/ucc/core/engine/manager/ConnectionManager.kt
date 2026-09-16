@@ -26,8 +26,12 @@ public interface ConnectionManager {
     /** Human-readable, redacted timeline of what the manager did (bounded). */
     public val events: Flow<ConnectionEvent>
 
-    /** Connects to [profileId]. If already connected to another profile, performs a switch. */
-    public fun connect(profileId: String, options: CoreStartOptions = CoreStartOptions())
+    /**
+     * Connects to [profileId]. If already connected to another profile, performs a switch.
+     * [options] = null means "use the current user settings" (see [StartOptionsProvider]);
+     * every caller — UI, service restart, boot — should pass null unless it has a specific reason.
+     */
+    public fun connect(profileId: String, options: CoreStartOptions? = null)
 
     public fun disconnect()
 

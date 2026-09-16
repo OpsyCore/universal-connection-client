@@ -156,6 +156,23 @@ class SingBoxConfigGeneratorTest {
     }
 
     @Test
+    fun `global DNS and routing options are honoured, profile DNS override wins`() {
+        val p = base(Protocol.TROJAN, Authentication.Trojan("pw"), TlsSettings(enabled = true, serverName = "s"))
+        val opts = CoreStartOptions(remoteDns = "tls://9.9.9.9", directDns = "udp://192.168.1.1", bypassPrivate = false, strictRoute = false)
+        val doc = gen.generateDocument(p, opts)
+        val servers = doc["dns"]!!.jsonObject["servers"]!!.jsonArray.map { it.jsonObject }
+        assertEquals("tls", servers[0]["type"]!!.jsonPrimitive.content); assertEquals("9.9.9.9", servers[0]["server"]!!.jsonPrimitive.content)
+        assertEquals("udp", servers[1]["type"]!!.jsonPrimitive.content); assertEquals("192.168.1.1", servers[1]["server"]!!.jsonPrimitive.content)
+        val rules = doc["route"]!!.jsonObject["rules"]!!.jsonArray
+        assertEquals(2, rules.size, "no ip_is_private rule when bypassPrivate=false")
+        assertFalse(doc["inbounds"]!!.jsonArray[0].jsonObject["strict_route"]!!.jsonPrimitive.boolean)
+
+        val withProfileDns = p.copy(dns = p.dns.copy(remoteDns = "https://dns.google/dns-query"))
+        val s2 = gen.generateDocument(withProfileDns, opts)["dns"]!!.jsonObject["servers"]!!.jsonArray[0].jsonObject
+        assertEquals("dns.google", s2["server"]!!.jsonPrimitive.content)
+    }
+
+    @Test
     fun `generate is deterministic`() {
         val p = base(Protocol.VLESS, Authentication.Vless("u"), TlsSettings(enabled = true, serverName = "s"), Transport.Grpc("svc"))
         assertEquals(gen.generate(p, CoreStartOptions()), gen.generate(p, CoreStartOptions()))

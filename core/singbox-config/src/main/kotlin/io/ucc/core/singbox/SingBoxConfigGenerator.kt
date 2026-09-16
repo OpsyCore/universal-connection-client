@@ -61,14 +61,14 @@ public class SingBoxConfigGenerator(
                 put("level", options.logLevel)
                 put("timestamp", true)
             }
-            put("dns", options.dnsConfig?.let(::parseObject) ?: defaultDns(profile))
+            put("dns", options.dnsConfig?.let(::parseObject) ?: defaultDns(profile, options))
             putJsonArray("inbounds") { add(tunInbound(options)) }
             putJsonArray("outbounds") {
                 if (!isEndpoint) add(outboundOrEndpoint)
                 add(buildJsonObject { put("type", "direct"); put("tag", DIRECT_TAG) })
             }
             if (isEndpoint) putJsonArray("endpoints") { add(outboundOrEndpoint) }
-            put("route", options.routingConfig?.let(::parseObject) ?: defaultRoute())
+            put("route", options.routingConfig?.let(::parseObject) ?: defaultRoute(options))
             putJsonObject("experimental") {
                 putJsonObject("cache_file") { put("enabled", true) }
             }
@@ -96,11 +96,13 @@ public class SingBoxConfigGenerator(
         }
     }
 
-    private fun defaultDns(profile: ConnectionProfile): JsonObject = buildJsonObject {
-        val remote = profile.dns.remoteDns ?: DEFAULT_REMOTE_DNS
+    private fun defaultDns(profile: ConnectionProfile, options: CoreStartOptions): JsonObject = buildJsonObject {
+        // Precedence: per-profile override → global setting → default (profile overrides are explicit user intent).
+        val remote = profile.dns.remoteDns ?: options.remoteDns ?: DEFAULT_REMOTE_DNS
+        val direct = options.directDns ?: DEFAULT_DIRECT_DNS
         putJsonArray("servers") {
             add(dnsServer(DNS_REMOTE_TAG, remote, detour = PROXY_TAG))
-            add(dnsServer(DNS_DIRECT_TAG, DEFAULT_DIRECT_DNS, detour = null))
+            add(dnsServer(DNS_DIRECT_TAG, direct, detour = null))
         }
         putJsonArray("rules") {
             // Resolve the proxy server's own hostname directly so DNS is not a chicken-and-egg problem.
@@ -142,11 +144,11 @@ public class SingBoxConfigGenerator(
         if (detour != null) put("detour", detour)
     }
 
-    private fun defaultRoute(): JsonObject = buildJsonObject {
+    private fun defaultRoute(options: CoreStartOptions): JsonObject = buildJsonObject {
         putJsonArray("rules") {
             add(buildJsonObject { put("action", "sniff") })
             add(buildJsonObject { put("protocol", "dns"); put("action", "hijack-dns") })
-            add(buildJsonObject { put("ip_is_private", true); put("outbound", DIRECT_TAG) })
+            if (options.bypassPrivate) add(buildJsonObject { put("ip_is_private", true); put("outbound", DIRECT_TAG) })
         }
         put("final", PROXY_TAG)
         put("auto_detect_interface", true)
