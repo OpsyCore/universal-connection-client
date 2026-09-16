@@ -68,9 +68,21 @@ public class UcVpnService : VpnService(), TunProvider {
         super.onCreate()
         createChannel()
         VpnServiceRegistry.onServiceCreated(this)
+        publishLockdownStatus()
+    }
+
+    /** Reads the real always-on/lockdown flags; re-read on every start so a settings change is picked up. */
+    private fun publishLockdownStatus() {
+        val status = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            LockdownStatus(supported = true, alwaysOn = isAlwaysOn, lockdown = isLockdownEnabled, observedAtEpochMs = System.currentTimeMillis())
+        } else {
+            LockdownStatus(supported = false, alwaysOn = false, lockdown = false, observedAtEpochMs = System.currentTimeMillis())
+        }
+        VpnServiceRegistry.lockdownStatus.value = status
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        publishLockdownStatus()
         when (intent?.action) {
             ACTION_STOP -> {
                 VpnServiceRegistry.connectionManager?.disconnect()

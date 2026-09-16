@@ -43,4 +43,7 @@ public data class ConnectionEvent(
     val epochMs: Long,
     val message: String,
     val error: ConnectionError? = null,
-)
+    val category: Category = if (error != null) Category.ERROR else Category.LIFECYCLE,
+) {
+    public enum class Category { LIFECYCLE, RECONNECT, NETWORK, ERROR, CORE }
+}

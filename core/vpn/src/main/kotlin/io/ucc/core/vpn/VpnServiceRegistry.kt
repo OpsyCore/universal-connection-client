@@ -24,6 +24,14 @@ public object VpnServiceRegistry {
     @Volatile public var lastProfileStore: LastProfileStore? = null
     @Volatile public var launchIntentFactory: ((android.content.Context) -> android.content.Intent)? = null
 
+    /**
+     * What Android reports about always-on / lockdown ("Block connections
+     * without VPN") for this app. Only knowable from inside a running
+     * [android.net.VpnService] on API 29+; null until the service has run once
+     * in this process, and never guessed.
+     */
+    public val lockdownStatus: kotlinx.coroutines.flow.MutableStateFlow<LockdownStatus?> = kotlinx.coroutines.flow.MutableStateFlow(null)
+
     /** Emits when the system revokes our VPN. */
     public val revoked: MutableSharedFlow<Unit> = MutableSharedFlow(extraBufferCapacity = 1)
 
@@ -37,6 +45,15 @@ public object VpnServiceRegistry {
         if (instance === service) instance = null
     }
 }
+
+/** Snapshot of Android's always-on VPN state for this app (API 29+; [supported]=false below that). */
+public data class LockdownStatus(
+    val supported: Boolean,
+    val alwaysOn: Boolean,
+    /** "Block connections without VPN" — the only true kill switch on Android. */
+    val lockdown: Boolean,
+    val observedAtEpochMs: Long,
+)
 
 /** Minimal persistence for "which profile was active" so a system restart of the service can resume. */
 public interface LastProfileStore {

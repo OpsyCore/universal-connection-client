@@ -88,10 +88,29 @@ public data class CoreStartOptions(
     val directDns: String? = null,
     /** Private/LAN destinations go direct instead of through the proxy. */
     val bypassPrivate: Boolean = true,
+    /** User routing rules, evaluated in order before the final (proxy) route. */
+    val rules: List<RoutingRule> = emptyList(),
     /** Extra JSON fragments the routing/DNS layers contribute (rule-sets, Phase 6). Override the typed fields when set. */
     val routingConfig: String? = null,
     val dnsConfig: String? = null,
 )
+
+/**
+ * One core-agnostic routing rule: all non-empty matchers are OR-ed by the core
+ * (sing-box semantics: items inside one rule of the same kind are OR-ed; kinds
+ * are AND-ed — we therefore emit one rule per matcher kind).
+ */
+public data class RoutingRule(
+    val action: RouteAction,
+    val domains: List<String> = emptyList(),
+    val domainSuffixes: List<String> = emptyList(),
+    val domainKeywords: List<String> = emptyList(),
+    val ipCidrs: List<String> = emptyList(),
+) {
+    val isEmpty: Boolean get() = domains.isEmpty() && domainSuffixes.isEmpty() && domainKeywords.isEmpty() && ipCidrs.isEmpty()
+}
+
+public enum class RouteAction { DIRECT, PROXY, BLOCK }
 
 public data class CoreStatistics(
     val uplinkBytesPerSecond: Long,

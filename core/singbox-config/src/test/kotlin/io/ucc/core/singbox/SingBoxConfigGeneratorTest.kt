@@ -2,6 +2,8 @@ package io.ucc.core.singbox
 
 import io.ucc.core.engine.CoreException
 import io.ucc.core.engine.CoreStartOptions
+import io.ucc.core.engine.RouteAction
+import io.ucc.core.engine.RoutingRule
 import io.ucc.core.model.Authentication
 import io.ucc.core.model.ConnectionProfile
 import io.ucc.core.model.Protocol
@@ -170,6 +172,28 @@ class SingBoxConfigGeneratorTest {
         val withProfileDns = p.copy(dns = p.dns.copy(remoteDns = "https://dns.google/dns-query"))
         val s2 = gen.generateDocument(withProfileDns, opts)["dns"]!!.jsonObject["servers"]!!.jsonArray[0].jsonObject
         assertEquals("dns.google", s2["server"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `user routing rules are emitted in order, domains and cidrs split, block maps to reject`() {
+        val p = base(Protocol.TROJAN, Authentication.Trojan("pw"))
+        val opts = CoreStartOptions(
+            bypassPrivate = true,
+            rules = listOf(
+                RoutingRule(RouteAction.DIRECT, domainSuffixes = listOf(".ir"), ipCidrs = listOf("10.10.0.0/16")),
+                RoutingRule(RouteAction.BLOCK, domainKeywords = listOf("ads")),
+                RoutingRule(RouteAction.PROXY, domains = listOf("example.com")),
+                RoutingRule(RouteAction.DIRECT), // empty → dropped
+            ),
+        )
+        val rules = gen.generateDocument(p, opts)["route"]!!.jsonObject["rules"]!!.jsonArray.map { it.jsonObject }
+        // sniff, hijack-dns, ip_is_private, then: .ir domain rule, .ir cidr rule, ads reject, example.com proxy
+        assertEquals(7, rules.size)
+        assertEquals(".ir", rules[3]["domain_suffix"]!!.jsonArray[0].jsonPrimitive.content); assertEquals("direct", rules[3]["outbound"]!!.jsonPrimitive.content)
+        assertNull(rules[3]["ip_cidr"])
+        assertEquals("10.10.0.0/16", rules[4]["ip_cidr"]!!.jsonArray[0].jsonPrimitive.content); assertEquals("direct", rules[4]["outbound"]!!.jsonPrimitive.content)
+        assertEquals("reject", rules[5]["action"]!!.jsonPrimitive.content); assertNull(rules[5]["outbound"])
+        assertEquals("proxy", rules[6]["outbound"]!!.jsonPrimitive.content)
     }
 
     @Test

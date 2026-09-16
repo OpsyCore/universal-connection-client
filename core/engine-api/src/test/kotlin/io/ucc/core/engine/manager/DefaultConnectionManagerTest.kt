@@ -182,6 +182,24 @@ class DefaultConnectionManagerTest {
     }
 
     @Test
+    fun `network and reconnect events carry their category`() = withHarness {
+        val events = mutableListOf<ConnectionEvent>()
+        val job = scope.launch { manager.events.collect { synchronized(events) { events += it } } }
+        delay(20)
+        network.events.emit(NetworkEvent.DefaultChanged("wifi:1", "wifi"))
+        manager.connect("p1")
+        manager.state.awaitValue { it is ConnectionState.Connected }
+        network.events.emit(NetworkEvent.DefaultChanged("cell:2", "cellular"))
+        awaitSeen { it is ConnectionState.Connected && seenCount { st -> st is ConnectionState.Connected } >= 2 }
+        delay(20)
+        val cats = synchronized(events) { events.map { it.category } }
+        assertTrue(ConnectionEvent.Category.NETWORK in cats, "network change must be a NETWORK event: $cats")
+        assertTrue(ConnectionEvent.Category.RECONNECT in cats, "successful reconnect must be a RECONNECT event: $cats")
+        assertTrue(cats.first() == ConnectionEvent.Category.LIFECYCLE)
+        job.cancel()
+    }
+
+    @Test
     fun `first network report does not trigger a reconnect`() = withHarness {
         manager.connect("p1")
         manager.state.awaitValue { it is ConnectionState.Connected }

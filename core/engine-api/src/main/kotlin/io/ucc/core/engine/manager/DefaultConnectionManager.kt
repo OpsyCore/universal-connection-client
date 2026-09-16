@@ -223,7 +223,7 @@ public class DefaultConnectionManager(
                     val waitingForNetwork = s is ConnectionState.Reconnecting && s.attempt == 0
                     val switched = previous != null && previous != event.networkKey && s is ConnectionState.Connected
                     if (waitingForNetwork || switched) {
-                        log("Default network ${if (waitingForNetwork) "restored" else "changed"} (${previous ?: "none"} → ${event.networkKey}); reconnecting")
+                        log("Default network ${if (waitingForNetwork) "restored" else "changed"} (${previous ?: "none"} → ${event.networkKey}); reconnecting", ConnectionEvent.Category.NETWORK)
                         reconnectLoop(s.profileIdOrNull!!, reason = "network changed to ${event.transport}", restartCore = false)
                     }
                 }
@@ -231,7 +231,7 @@ public class DefaultConnectionManager(
                     currentNetworkKey = null
                     val s = _state.value
                     if (s is ConnectionState.Connected) {
-                        log("Default network lost; waiting for a new network")
+                        log("Default network lost; waiting for a new network", ConnectionEvent.Category.NETWORK)
                         transition(ConnectionState.Reconnecting(s.profileId, attempt = 0, reason = "network lost"))
                     }
                 }
@@ -244,7 +244,7 @@ public class DefaultConnectionManager(
             val s = _state.value
             val id = s.profileIdOrNull ?: return@withLock
             if (!s.isActive) return@withLock
-            log("Core reported fatal error: $error")
+            log("Core reported fatal error: $error", ConnectionEvent.Category.CORE)
             if (error.retryable) {
                 reconnectLoop(id, reason = "core error", restartCore = true)
             } else {
@@ -258,7 +258,7 @@ public class DefaultConnectionManager(
         commandMutex.withLock {
             val id = _state.value.profileIdOrNull
             if (_state.value is ConnectionState.Disconnected) return@withLock
-            log("VPN revoked by system")
+            log("VPN revoked by system", ConnectionEvent.Category.CORE)
             stopEverything()
             fail(id, ConnectionError.VpnRevoked())
         }
@@ -287,12 +287,12 @@ public class DefaultConnectionManager(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
-                log("reconnect attempt $attempt failed: ${e.message}")
+                log("reconnect attempt $attempt failed: ${e.message}", ConnectionEvent.Category.RECONNECT)
                 false
             }
             if (ok) {
                 transition(ConnectionState.Connected(profileId, clock.nowMs()))
-                log("Reconnected after $attempt attempt(s)")
+                log("Reconnected after $attempt attempt(s)", ConnectionEvent.Category.RECONNECT)
                 return
             }
         }
@@ -332,7 +332,7 @@ public class DefaultConnectionManager(
         _transitions.tryEmit(next)
     }
 
-    private suspend fun log(message: String) {
-        _events.emit(ConnectionEvent(clock.nowMs(), message))
+    private suspend fun log(message: String, category: ConnectionEvent.Category = ConnectionEvent.Category.LIFECYCLE) {
+        _events.emit(ConnectionEvent(clock.nowMs(), message, category = category))
     }
 }

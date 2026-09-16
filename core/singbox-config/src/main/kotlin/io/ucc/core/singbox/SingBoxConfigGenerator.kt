@@ -3,6 +3,8 @@ package io.ucc.core.singbox
 import io.ucc.core.engine.ConnectionError
 import io.ucc.core.engine.CoreException
 import io.ucc.core.engine.CoreStartOptions
+import io.ucc.core.engine.RouteAction
+import io.ucc.core.engine.RoutingRule
 import io.ucc.core.model.Authentication
 import io.ucc.core.model.ConnectionProfile
 import io.ucc.core.model.Protocol
@@ -149,10 +151,35 @@ public class SingBoxConfigGenerator(
             add(buildJsonObject { put("action", "sniff") })
             add(buildJsonObject { put("protocol", "dns"); put("action", "hijack-dns") })
             if (options.bypassPrivate) add(buildJsonObject { put("ip_is_private", true); put("outbound", DIRECT_TAG) })
+            options.rules.filter { !it.isEmpty }.forEach { rule ->
+                // domain matchers may share one rule (OR); ip_cidr must be separate or it would be AND-ed with domains.
+                if (rule.domains.isNotEmpty() || rule.domainSuffixes.isNotEmpty() || rule.domainKeywords.isNotEmpty()) {
+                    add(buildJsonObject {
+                        if (rule.domains.isNotEmpty()) putJsonArray("domain") { rule.domains.forEach { add(JsonPrimitive(it)) } }
+                        if (rule.domainSuffixes.isNotEmpty()) putJsonArray("domain_suffix") { rule.domainSuffixes.forEach { add(JsonPrimitive(it)) } }
+                        if (rule.domainKeywords.isNotEmpty()) putJsonArray("domain_keyword") { rule.domainKeywords.forEach { add(JsonPrimitive(it)) } }
+                        putAction(rule.action)
+                    })
+                }
+                if (rule.ipCidrs.isNotEmpty()) {
+                    add(buildJsonObject {
+                        putJsonArray("ip_cidr") { rule.ipCidrs.forEach { add(JsonPrimitive(it)) } }
+                        putAction(rule.action)
+                    })
+                }
+            }
         }
         put("final", PROXY_TAG)
         put("auto_detect_interface", true)
         put("default_domain_resolver", DNS_DIRECT_TAG)
+    }
+
+    private fun kotlinx.serialization.json.JsonObjectBuilder.putAction(action: RouteAction) {
+        when (action) {
+            RouteAction.DIRECT -> put("outbound", DIRECT_TAG)
+            RouteAction.PROXY -> put("outbound", PROXY_TAG)
+            RouteAction.BLOCK -> put("action", "reject")
+        }
     }
 
     public fun buildOutbound(profile: ConnectionProfile): JsonObject {
