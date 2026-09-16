@@ -75,7 +75,7 @@ fun HomeScreen(
                     }
                 }
             }
-            StatusCard(state, onConnect, onDisconnect)
+            StatusCard(state, onConnect, onDisconnect, onOpenLogs)
 
             if (state.profiles.isEmpty()) {
                 EmptyProfiles()
@@ -113,7 +113,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun StatusCard(state: HomeUiState, onConnect: () -> Unit, onDisconnect: () -> Unit) {
+private fun StatusCard(state: HomeUiState, onConnect: () -> Unit, onDisconnect: () -> Unit, onOpenLogs: () -> Unit) {
     val context = LocalContext.current
     val conn = state.connection
     Card(modifier = Modifier.fillMaxWidth()) {
