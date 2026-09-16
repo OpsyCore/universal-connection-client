@@ -102,7 +102,8 @@ class ServersViewModelTest {
         val (vm, job) = vm()
         val effects = ArrayList<ServersEffect>()
         val ej = vm.effects.onEach { effects += it }.launchIn(this)
-        vm.enterSelection(a.id); vm.toggleChecked(b.id)
+        vm.enterSelection(a.id); vm.toggleChecked(b.id); advanceUntilIdle()
+        assertEquals(setOf(a.id, b.id), vm.state.value.checked)
         vm.requestDelete(vm.state.value.checked); advanceUntilIdle()
         assertIs<PendingDelete.Profiles>(vm.state.value.confirmDelete)
         assertEquals(2, store.current().size, "nothing deleted before confirmation")
@@ -123,7 +124,8 @@ class ServersViewModelTest {
         vm.share(setOf(a.id)); advanceUntilIdle()
         val share = assertIs<ServersEffect.Share>(effects.single())
         assertTrue(share.text.startsWith("trojan://pw@1.2.3.4:443"))
-        assertFalse(vm.state.value.toString().contains("pw@"))
+        assertTrue(vm.effects.replayCache.isEmpty(), "export text must not be replayed to late collectors")
+        assertFalse(vm.state.value.selectionMode)
         ej.cancel(); job.cancel()
     }
 
