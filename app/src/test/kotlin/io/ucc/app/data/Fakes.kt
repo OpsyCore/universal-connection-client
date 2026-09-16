@@ -53,6 +53,7 @@ fun newRepository(
     subs: FakeSubscriptionStore = FakeSubscriptionStore(),
     fetcher: FakeFetcher = FakeFetcher(),
     ids: Iterator<String> = generateSequence(1) { it + 1 }.map { "id-$it" }.iterator(),
+    dispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
 ): ImportRepository = ImportRepository(
     importer = ConfigImporter(LinkParser({ ids.next() }, { 1_000L })),
     planner = ImportPlanner(CapabilityCheck(testCapabilities)),
@@ -60,4 +61,5 @@ fun newRepository(
     subscriptions = subs,
     fetcher = fetcher,
     now = { 5_000L },
+    parseDispatcher = dispatcher,
 )

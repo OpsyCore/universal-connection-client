@@ -9,6 +9,7 @@ import io.ucc.core.config.subscription.SubscriptionFetchResult
 import io.ucc.core.config.subscription.SubscriptionFetcher
 import io.ucc.core.model.ConnectionProfile
 import io.ucc.core.model.ProfileSource
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -24,9 +25,10 @@ class ImportRepository(
     private val subscriptions: SubscriptionStore,
     private val fetcher: SubscriptionFetcher,
     private val now: () -> Long = System::currentTimeMillis,
+    private val parseDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     /** Text from paste / clipboard / QR / file. Runs on Default because base64 + JSON parsing can be sizeable. */
-    suspend fun planFromText(text: String, source: ProfileSource): ImportPlan = withContext(Dispatchers.Default) {
+    suspend fun planFromText(text: String, source: ProfileSource): ImportPlan = withContext(parseDispatcher) {
         val report = importer.import(text, source)
         planner.plan(report, profiles.current())
     }
@@ -35,7 +37,7 @@ class ImportRepository(
     suspend fun planFromSubscription(url: String): SubscriptionPlan {
         val fetched = fetcher.fetch(url) // throws SubscriptionFetchError
         val subId = Subscription.idFor(url)
-        val report: ImportReport = withContext(Dispatchers.Default) { importer.import(fetched.body, ProfileSource.Subscription(subId)) }
+        val report: ImportReport = withContext(parseDispatcher) { importer.import(fetched.body, ProfileSource.Subscription(subId)) }
         val plan = planner.plan(report, profiles.current())
         return SubscriptionPlan(url = url.trim(), subscriptionId = subId, fetched = fetched, plan = plan)
     }
