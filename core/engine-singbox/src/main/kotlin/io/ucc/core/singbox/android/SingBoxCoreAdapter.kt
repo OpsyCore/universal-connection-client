@@ -264,7 +264,6 @@ public class SingBoxCoreAdapter(
     // ------------------------------------------------------------------ helpers
 
     private fun classifyStartFailure(e: Exception): ConnectionError = ErrorClassifier.classifyStart(e.message, "sing-box")
-    }
 
     /** Best-effort scrubbing of credential-looking tokens from core messages before they reach logs. */
     private fun redact(text: String?): String? {

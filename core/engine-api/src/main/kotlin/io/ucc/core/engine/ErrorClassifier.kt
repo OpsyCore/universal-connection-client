@@ -14,9 +14,9 @@ public object ErrorClassifier {
         val detail = "$corePrefix start: ${redact(raw)}"
         return when {
             "permission" in m || "not prepared" in m || "revoked" in m -> ConnectionError.VpnPermissionDenied()
-            "auth" in m && ("fail" in m || "reject" in m || "invalid" in m) -> ConnectionError.AuthenticationFailure(detail)
             "certificate" in m || "x509" in m || "tls handshake" in m || "handshake failure" in m || "bad record mac" in m ->
                 ConnectionError.TlsFailure(detail)
+            "auth" in m && ("fail" in m || "reject" in m || "invalid" in m) -> ConnectionError.AuthenticationFailure(detail)
             "parse config" in m || "decode config" in m || "unknown field" in m || "invalid" in m || "missing" in m ->
                 ConnectionError.InvalidConfiguration(detail)
             "network is unreachable" in m || "no route to host" in m -> ConnectionError.NetworkUnavailable()
@@ -32,5 +32,7 @@ public object ErrorClassifier {
     )
 
     /** Scrubs `key=value` / `"key": "value"` pairs whose key looks credential-like. */
-    public fun redact(text: String): String = text.replace(secretPattern, "$1$2***")
+    public fun redact(text: String): String = text.replace(secretPattern, "$1$2***").replace(uuidPattern, "<uuid>")
+
+    private val uuidPattern = Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 }
