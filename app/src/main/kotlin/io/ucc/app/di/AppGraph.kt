@@ -7,6 +7,9 @@ import io.ucc.app.MainActivity
 import io.ucc.app.data.ImportRepository
 import io.ucc.app.data.JsonProfileStore
 import io.ucc.app.data.JsonSubscriptionStore
+import io.ucc.app.data.LogBuffer
+import io.ucc.app.data.PrefsSettingsStore
+import io.ucc.app.data.SettingsStore
 import io.ucc.app.data.ServerRepository
 import io.ucc.app.data.SubscriptionRefresher
 import io.ucc.app.work.SubscriptionRefreshWorker
@@ -42,6 +45,7 @@ class AppGraph(context: Context) {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val preferences = Preferences(app)
+    val settingsStore: SettingsStore = PrefsSettingsStore(app)
     val profileStore = JsonProfileStore(app)
     val networkMonitor = AndroidNetworkMonitor(app)
 
@@ -76,7 +80,11 @@ class AppGraph(context: Context) {
         profiles = profileStore,
         networkMonitor = networkMonitor,
         clock = object : Clock { override fun nowMs(): Long = System.currentTimeMillis() },
+        startOptions = { settingsStore.settings.value.toStartOptions(core.capabilities) },
     )
+
+    /** Bounded in-memory log buffer (core lines are already redacted by the adapter; manager events are redacted by design). */
+    val logBuffer = LogBuffer(appScope, core.logs, connectionManager.events)
 
     /** Servers screen use-cases and subscription refresh (manual + WorkManager). */
     val serverRepository = ServerRepository(profileStore, subscriptionStore, connectionManager)

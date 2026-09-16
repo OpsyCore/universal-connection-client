@@ -50,6 +50,8 @@ fun HomeScreen(
     onAddConfig: () -> Unit = {},
     onOpenServers: () -> Unit = {},
     onDismissStoreProblem: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    onOpenLogs: () -> Unit = {},
 ) {
     val context = LocalContext.current
     Scaffold(
@@ -96,11 +98,16 @@ fun HomeScreen(
 
             EventsList(state)
 
-            Text(
-                text = "${stringResource(R.string.home_core)}: ${state.coreName} ${state.coreVersion}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "${stringResource(R.string.home_core)}: ${state.coreName} ${state.coreVersion}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onOpenLogs) { Text(stringResource(R.string.logs_title)) }
+                TextButton(onClick = onOpenSettings) { Text(stringResource(R.string.home_settings)) }
+            }
         }
     }
 }

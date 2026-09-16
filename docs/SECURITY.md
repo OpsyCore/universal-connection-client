@@ -54,3 +54,24 @@ Status: Phase 1. Reviewed items only; the full review is Phase 8.
 - `libbox.aar` is built by CI from a pinned upstream tag; the SHA-256 pin in
   `core/engine-singbox/libbox.sha256` is checked at build time (currently
   `unpinned` until the first CI build publishes the hash).
+
+## Kill switch and "strict routing" (Phase 5)
+
+`strict_route` in the sing-box TUN inbound only prevents traffic from bypassing the
+tunnel **while the tunnel is up**. It is **not** a kill switch: if the VPN process
+dies, is stopped, or has not started yet, the OS routes traffic normally.
+
+The only OS-enforced kill switch on Android is the system setting
+*Settings → Network → VPN → (this app) → Always-on VPN + Block connections without
+VPN* (API 24+, `VpnService` opts in via `android:supportsAlwaysOn`, our manifest
+does not disable it). The Settings screen wording reflects this; the app never
+claims to provide a kill switch of its own.
+
+## DNS
+
+When connected, the TUN inbound captures port-53 traffic and the sing-box DNS
+module answers via the configured remote server through the proxy (`detour`).
+This is the standard design, but it has **not been independently leak-tested on a
+device in this project** (device verification is NOT AVAILABLE in CI). We do not
+advertise "DNS leak protection". Private DNS (DoT set by the OS) is handled by
+Android outside the tunnel's control on some versions.

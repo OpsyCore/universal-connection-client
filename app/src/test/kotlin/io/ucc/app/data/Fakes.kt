@@ -56,7 +56,7 @@ class FakeConnectionManager(initial: ConnectionState = ConnectionState.Disconnec
     override val statistics = MutableStateFlow<CoreStatistics?>(null)
     override val events: Flow<ConnectionEvent> = emptyFlow()
     val connected = ArrayList<String>()
-    override fun connect(profileId: String, options: CoreStartOptions) { connected += profileId }
+    override fun connect(profileId: String, options: CoreStartOptions?) { connected += profileId }
     override fun disconnect() {}
     override fun attachRunningTunnel(profileId: String, sinceEpochMs: Long) {}
 }

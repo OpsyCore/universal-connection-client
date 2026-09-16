@@ -27,7 +27,11 @@ import io.ucc.app.ui.HomeViewModel
 import io.ucc.app.ui.import.AddConfigScreen
 import io.ucc.app.ui.import.AddConfigViewModel
 import io.ucc.app.ui.scan.QrScanScreen
+import io.ucc.app.ui.logs.LogsScreen
+import io.ucc.app.ui.logs.LogsViewModel
 import io.ucc.app.ui.servers.ServersScreen
+import io.ucc.app.ui.settings.SettingsScreen
+import io.ucc.app.ui.settings.SettingsViewModel
 import io.ucc.app.ui.servers.ServersViewModel
 
 class MainActivity : ComponentActivity() {
@@ -46,7 +50,14 @@ class MainActivity : ComponentActivity() {
         ServersViewModel.Factory(g.serverRepository, g.subscriptionRefresher, g.preferences, g.connectionManager)
     }
 
-    private object Routes { const val HOME = "home"; const val ADD = "add"; const val SCAN = "scan"; const val SERVERS = "servers" }
+    private val settingsViewModel: SettingsViewModel by viewModels {
+        val g = UccApplication.graph(this)
+        SettingsViewModel.Factory(g.settingsStore, g.connectionManager, g.core.capabilities, "${g.core.descriptor.displayName} ${g.core.descriptor.version}")
+    }
+
+    private val logsViewModel: LogsViewModel by viewModels { LogsViewModel.Factory(UccApplication.graph(this).logBuffer) }
+
+    private object Routes { const val HOME = "home"; const val ADD = "add"; const val SCAN = "scan"; const val SERVERS = "servers"; const val SETTINGS = "settings"; const val LOGS = "logs" }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,7 +94,17 @@ class MainActivity : ComponentActivity() {
                             onAddConfig = { addConfigViewModel.cancelPreview(); nav.navigate(Routes.ADD) },
                             onOpenServers = { nav.navigate(Routes.SERVERS) },
                             onDismissStoreProblem = viewModel::dismissStoreProblem,
+                            onOpenSettings = { nav.navigate(Routes.SETTINGS) },
+                            onOpenLogs = { nav.navigate(Routes.LOGS) },
                         )
+                    }
+                    composable(Routes.SETTINGS) {
+                        val state by settingsViewModel.state.collectAsStateWithLifecycle()
+                        SettingsScreen(state = state, vm = settingsViewModel, onBack = { nav.popBackStack() }, onOpenLogs = { nav.navigate(Routes.LOGS) })
+                    }
+                    composable(Routes.LOGS) {
+                        val state by logsViewModel.state.collectAsStateWithLifecycle()
+                        LogsScreen(state = state, vm = logsViewModel, onBack = { nav.popBackStack() })
                     }
                     composable(Routes.SERVERS) {
                         val state by serversViewModel.state.collectAsStateWithLifecycle()
