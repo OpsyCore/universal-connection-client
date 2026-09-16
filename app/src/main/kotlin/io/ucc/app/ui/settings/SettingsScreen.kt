@@ -49,12 +49,25 @@ import io.ucc.app.R
 import io.ucc.app.data.ConnectionSettings
 import io.ucc.app.data.ConnectionSettings.PerAppMode
 import io.ucc.app.data.ConnectionSettings.Problem
+import io.ucc.app.data.ThemeMode
+import io.ucc.core.engine.RouteAction
+import io.ucc.core.vpn.LockdownStatus
+import android.content.Intent
+import android.provider.Settings
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(state: SettingsUiState, vm: SettingsViewModel, onBack: () -> Unit, onOpenLogs: () -> Unit) {
     val s = state.settings
+    val context = LocalContext.current
     var showApps by remember { mutableStateOf(false) }
+    var ruleEditor by remember { mutableStateOf<ConnectionSettings.Rule?>(null) }
+    var newRule by remember { mutableStateOf(false) }
+    var showLicences by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -71,30 +84,8 @@ fun SettingsScreen(state: SettingsUiState, vm: SettingsViewModel, onBack: () -> 
                 }
             }
 
-            Section(stringResource(R.string.settings_section_dns))
-            OutlinedTextField(
-                value = s.remoteDns, onValueChange = vm::setRemoteDns, modifier = Modifier.fillMaxWidth(), singleLine = true,
-                label = { Text(stringResource(R.string.settings_remote_dns)) },
-                isError = Problem.RemoteDnsInvalid in state.problems,
-                supportingText = { Text(stringResource(if (Problem.RemoteDnsInvalid in state.problems) R.string.settings_dns_invalid else R.string.settings_remote_dns_help)) },
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                ConnectionSettings.REMOTE_DNS_PRESETS.forEach { (label, spec) ->
-                    FilterChip(selected = s.remoteDns == spec, onClick = { vm.setRemoteDns(spec) }, label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall) })
-                }
-            }
-            OutlinedTextField(
-                value = s.directDns.orEmpty(), onValueChange = vm::setDirectDns, modifier = Modifier.fillMaxWidth(), singleLine = true,
-                label = { Text(stringResource(R.string.settings_direct_dns)) },
-                placeholder = { Text(stringResource(R.string.settings_direct_dns_placeholder)) },
-                isError = Problem.DirectDnsInvalid in state.problems,
-                supportingText = { Text(stringResource(if (Problem.DirectDnsInvalid in state.problems) R.string.settings_dns_invalid else R.string.settings_direct_dns_help)) },
-            )
-            Text(stringResource(R.string.settings_dns_no_leak_claim), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-            Section(stringResource(R.string.settings_section_routing))
-            SwitchRow(stringResource(R.string.settings_bypass_private), stringResource(R.string.settings_bypass_private_help), s.bypassPrivate, vm::setBypassPrivate)
-            SwitchRow(stringResource(R.string.settings_strict_route), stringResource(R.string.settings_strict_route_help), s.strictRoute, vm::setStrictRoute)
+            // ---------------------------------------------------------------- Connection
+            Section(stringResource(R.string.settings_section_connection))
             SwitchRow(stringResource(R.string.settings_ipv6), stringResource(R.string.settings_ipv6_help), s.ipv6, vm::setIpv6)
             OutlinedTextField(
                 value = s.mtu.toString(), onValueChange = vm::setMtu, modifier = Modifier.fillMaxWidth(), singleLine = true,
@@ -103,8 +94,20 @@ fun SettingsScreen(state: SettingsUiState, vm: SettingsViewModel, onBack: () -> 
                 supportingText = { Text(stringResource(R.string.settings_mtu_help, ConnectionSettings.MTU_RANGE.first, ConnectionSettings.MTU_RANGE.last)) },
             )
 
+            // ---------------------------------------------------------------- Routing
+            Section(stringResource(R.string.settings_section_routing))
+            SwitchRow(stringResource(R.string.settings_bypass_private), stringResource(R.string.settings_bypass_private_help), s.bypassPrivate, vm::setBypassPrivate)
+            Text(stringResource(R.string.settings_rules_title), style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.settings_rules_help), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            s.rules.forEachIndexed { index, rule ->
+                val invalid = state.problems.filterIsInstance<Problem.RuleItemInvalid>().filter { it.ruleId == rule.id }.map { it.item }
+                RuleCard(rule, index, s.rules.size, invalid, vm, onEdit = { ruleEditor = rule })
+            }
+            OutlinedButton(onClick = { newRule = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.settings_rule_add)) }
+            Text(stringResource(R.string.settings_rules_final), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
             if (state.capabilities?.perAppRouting == true) {
-                Section(stringResource(R.string.settings_section_per_app))
+                Text(stringResource(R.string.settings_section_per_app), style = MaterialTheme.typography.bodyLarge)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     PerAppMode.entries.forEachIndexed { i, mode ->
                         SegmentedButton(selected = s.perAppMode == mode, onClick = { vm.setPerAppMode(mode) }, shape = SegmentedButtonDefaults.itemShape(i, PerAppMode.entries.size)) {
@@ -120,6 +123,47 @@ fun SettingsScreen(state: SettingsUiState, vm: SettingsViewModel, onBack: () -> 
                 }
             }
 
+            // ---------------------------------------------------------------- DNS
+            Section(stringResource(R.string.settings_section_dns))
+            val remoteProblem = when {
+                Problem.RemoteDnsInvalid in state.problems -> R.string.settings_dns_invalid
+                Problem.RemoteDnsPrivate in state.problems -> R.string.settings_dns_remote_private
+                else -> null
+            }
+            OutlinedTextField(
+                value = s.remoteDns, onValueChange = vm::setRemoteDns, modifier = Modifier.fillMaxWidth(), singleLine = true,
+                label = { Text(stringResource(R.string.settings_remote_dns)) },
+                isError = remoteProblem != null,
+                supportingText = { Text(stringResource(remoteProblem ?: R.string.settings_remote_dns_help)) },
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                ConnectionSettings.REMOTE_DNS_PRESETS.forEach { (label, spec) ->
+                    FilterChip(selected = s.remoteDns == spec, onClick = { vm.setRemoteDns(spec) }, label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall) })
+                }
+            }
+            val directProblem = when {
+                Problem.DirectDnsInvalid in state.problems -> R.string.settings_dns_invalid
+                Problem.RemoteEqualsDirect in state.problems -> R.string.settings_dns_same_warning
+                else -> null
+            }
+            OutlinedTextField(
+                value = s.directDns.orEmpty(), onValueChange = vm::setDirectDns, modifier = Modifier.fillMaxWidth(), singleLine = true,
+                label = { Text(stringResource(R.string.settings_direct_dns)) },
+                placeholder = { Text(stringResource(R.string.settings_direct_dns_placeholder)) },
+                isError = Problem.DirectDnsInvalid in state.problems,
+                supportingText = { Text(stringResource(directProblem ?: R.string.settings_direct_dns_help)) },
+            )
+            Text(stringResource(R.string.settings_dns_hijack_info), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.settings_dns_no_leak_claim), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            // ---------------------------------------------------------------- VPN
+            Section(stringResource(R.string.settings_section_vpn))
+            SwitchRow(stringResource(R.string.settings_strict_route), stringResource(R.string.settings_strict_route_help), s.strictRoute, vm::setStrictRoute)
+            KillSwitchCard(state.lockdown) {
+                runCatching { context.startActivity(Intent(Settings.ACTION_VPN_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            }
+
+            // ---------------------------------------------------------------- Diagnostics
             Section(stringResource(R.string.settings_section_diagnostics))
             Text(stringResource(R.string.settings_log_level), style = MaterialTheme.typography.bodyMedium)
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -127,11 +171,114 @@ fun SettingsScreen(state: SettingsUiState, vm: SettingsViewModel, onBack: () -> 
                     SegmentedButton(selected = s.logLevel == lvl, onClick = { vm.setLogLevel(lvl) }, shape = SegmentedButtonDefaults.itemShape(i, ConnectionSettings.LogLevel.entries.size)) { Text(lvl.name.lowercase()) }
                 }
             }
-            OutlinedButton(onClick = onOpenLogs, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.settings_open_logs)) }
+            OutlinedButton(onClick = onOpenLogs, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.settings_open_logs) + " (${state.logCount})") }
+
+            // ---------------------------------------------------------------- Appearance
+            Section(stringResource(R.string.settings_section_appearance))
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                ThemeMode.entries.forEachIndexed { i, mode ->
+                    SegmentedButton(selected = state.theme == mode, onClick = { vm.setTheme(mode) }, shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size)) {
+                        Text(stringResource(when (mode) { ThemeMode.SYSTEM -> R.string.settings_theme_system; ThemeMode.LIGHT -> R.string.settings_theme_light; ThemeMode.DARK -> R.string.settings_theme_dark }))
+                    }
+                }
+            }
+            Text(stringResource(R.string.settings_language_help), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            // ---------------------------------------------------------------- Data
+            Section(stringResource(R.string.settings_section_data))
+            Text(stringResource(R.string.settings_data_storage_info), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick = vm::clearLogs, enabled = state.logCount > 0, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.logs_clear)) }
+
+            // ---------------------------------------------------------------- About
+            Section(stringResource(R.string.settings_section_about))
+            Text(stringResource(R.string.app_name) + " " + state.appVersion, style = MaterialTheme.typography.bodyMedium)
             Text(stringResource(R.string.home_core) + ": " + state.coreLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick = { showLicences = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.settings_licences)) }
         }
     }
     if (showApps) AppPickerDialog(selected = s.perAppPackages, onToggle = vm::togglePackage, onClose = { showApps = false })
+    if (newRule) RuleDialog(null, onDismiss = { newRule = false }) { action, text -> vm.addRule(action, text); newRule = false }
+    ruleEditor?.let { r -> RuleDialog(r, onDismiss = { ruleEditor = null }) { action, text -> vm.editRule(r.id, action, text); ruleEditor = null } }
+    if (showLicences) {
+        AlertDialog(
+            onDismissRequest = { showLicences = false },
+            title = { Text(stringResource(R.string.settings_licences)) },
+            confirmButton = { TextButton(onClick = { showLicences = false }) { Text(stringResource(R.string.done_action_close)) } },
+            text = { Text(vm.notices.renderPlainText(), style = MaterialTheme.typography.bodySmall, modifier = Modifier.verticalScroll(rememberScrollState())) },
+        )
+    }
+}
+
+@Composable
+private fun KillSwitchCard(status: LockdownStatus?, onOpenSystemSettings: () -> Unit) {
+    val (title, body, container) = when {
+        status == null -> Triple(R.string.settings_killswitch_unknown_title, R.string.settings_killswitch_unknown_body, MaterialTheme.colorScheme.surfaceVariant)
+        !status.supported -> Triple(R.string.settings_killswitch_unsupported_title, R.string.settings_killswitch_unsupported_body, MaterialTheme.colorScheme.surfaceVariant)
+        status.lockdown -> Triple(R.string.settings_killswitch_on_title, R.string.settings_killswitch_on_body, MaterialTheme.colorScheme.primaryContainer)
+        status.alwaysOn -> Triple(R.string.settings_killswitch_alwayson_title, R.string.settings_killswitch_alwayson_body, MaterialTheme.colorScheme.tertiaryContainer)
+        else -> Triple(R.string.settings_killswitch_off_title, R.string.settings_killswitch_off_body, MaterialTheme.colorScheme.errorContainer)
+    }
+    Card(colors = CardDefaults.cardColors(containerColor = container)) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(stringResource(title), style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(body), style = MaterialTheme.typography.bodySmall)
+            TextButton(onClick = onOpenSystemSettings) { Text(stringResource(R.string.settings_killswitch_open_system)) }
+        }
+    }
+}
+
+@Composable
+private fun RuleCard(rule: ConnectionSettings.Rule, index: Int, count: Int, invalidItems: List<String>, vm: SettingsViewModel, onEdit: () -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(when (rule.action) { RouteAction.DIRECT -> R.string.settings_rule_direct; RouteAction.PROXY -> R.string.settings_rule_proxy; RouteAction.BLOCK -> R.string.settings_rule_block }),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = when (rule.action) { RouteAction.BLOCK -> MaterialTheme.colorScheme.error; else -> MaterialTheme.colorScheme.primary },
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = { vm.moveRule(rule.id, up = true) }, enabled = index > 0) { Icon(Icons.Filled.KeyboardArrowUp, null) }
+                IconButton(onClick = { vm.moveRule(rule.id, up = false) }, enabled = index < count - 1) { Icon(Icons.Filled.KeyboardArrowDown, null) }
+                IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, stringResource(R.string.servers_action_rename)) }
+                IconButton(onClick = { vm.removeRule(rule.id) }) { Icon(Icons.Filled.Delete, stringResource(R.string.servers_action_delete)) }
+                Switch(checked = rule.enabled, onCheckedChange = { vm.toggleRule(rule.id) })
+            }
+            Text(rule.items.joinToString(", "), style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            if (invalidItems.isNotEmpty()) Text(stringResource(R.string.settings_rule_invalid_items, invalidItems.joinToString(", ")), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+    }
+}
+
+@Composable
+private fun RuleDialog(existing: ConnectionSettings.Rule?, onDismiss: () -> Unit, onSave: (RouteAction, String) -> Unit) {
+    var action by remember { mutableStateOf(existing?.action ?: RouteAction.DIRECT) }
+    var text by remember { mutableStateOf(existing?.items?.joinToString("\n").orEmpty()) }
+    val parsed = SettingsViewModel.parseItems(text)
+    val invalid = parsed.filter { ConnectionSettings.Rule.classify(it) == ConnectionSettings.Rule.Item.Invalid }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(if (existing == null) R.string.settings_rule_add else R.string.settings_rule_edit)) },
+        confirmButton = { TextButton(onClick = { onSave(action, text) }, enabled = parsed.isNotEmpty() && invalid.isEmpty()) { Text(stringResource(R.string.action_save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    RouteAction.entries.forEachIndexed { i, a ->
+                        SegmentedButton(selected = action == a, onClick = { action = a }, shape = SegmentedButtonDefaults.itemShape(i, RouteAction.entries.size)) {
+                            Text(stringResource(when (a) { RouteAction.DIRECT -> R.string.settings_rule_direct; RouteAction.PROXY -> R.string.settings_rule_proxy; RouteAction.BLOCK -> R.string.settings_rule_block }))
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = text, onValueChange = { text = it }, modifier = Modifier.fillMaxWidth(), minLines = 3,
+                    label = { Text(stringResource(R.string.settings_rule_items)) },
+                    isError = invalid.isNotEmpty(),
+                    supportingText = { Text(if (invalid.isEmpty()) stringResource(R.string.settings_rule_items_help) else stringResource(R.string.settings_rule_invalid_items, invalid.joinToString(", "))) },
+                )
+            }
+        },
+    )
 }
 
 @Composable

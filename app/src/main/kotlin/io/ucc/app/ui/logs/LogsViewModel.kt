@@ -26,7 +26,7 @@ class LogsViewModel(private val buffer: LogBuffer) : ViewModel() {
     fun setMinLevel(level: LogBuffer.Level) { minLevel.value = level }
     fun clear() = buffer.clear()
     /** Full buffer as text for the share sheet / clipboard (already redacted at the source). */
-    fun exportText(): String = buffer.renderPlainText()
+    fun exportText(): String = buffer.renderPlainText(minLevel.value)
 
     class Factory(private val buffer: LogBuffer) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")

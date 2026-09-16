@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,6 +46,10 @@ fun LogsScreen(state: LogsUiState, vm: LogsViewModel, onBack: () -> Unit) {
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) } },
                 actions = {
                     IconButton(onClick = {
+                        val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        cm.setPrimaryClip(android.content.ClipData.newPlainText("logs", vm.exportText()))
+                    }, enabled = state.total > 0) { Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.logs_copy)) }
+                    IconButton(onClick = {
                         val send = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, vm.exportText()) }
                         context.startActivity(Intent.createChooser(send, context.getString(R.string.logs_share)))
                     }, enabled = state.total > 0) { Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.logs_share)) }
@@ -55,8 +60,11 @@ fun LogsScreen(state: LogsUiState, vm: LogsViewModel, onBack: () -> Unit) {
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                LogBuffer.Level.entries.forEach { lvl ->
-                    FilterChip(selected = state.minLevel == lvl, onClick = { vm.setMinLevel(lvl) }, label = { Text(lvl.name.lowercase()) })
+                listOf(
+                    LogBuffer.Level.DEBUG to R.string.logs_filter_all, LogBuffer.Level.INFO to R.string.logs_filter_info,
+                    LogBuffer.Level.WARN to R.string.logs_filter_warning, LogBuffer.Level.ERROR to R.string.logs_filter_error,
+                ).forEach { (lvl, label) ->
+                    FilterChip(selected = state.minLevel == lvl, onClick = { vm.setMinLevel(lvl) }, label = { Text(stringResource(label)) })
                 }
             }
             if (state.entries.isEmpty()) {
@@ -71,7 +79,7 @@ fun LogsScreen(state: LogsUiState, vm: LogsViewModel, onBack: () -> Unit) {
                             LogBuffer.Level.DEBUG -> MaterialTheme.colorScheme.onSurfaceVariant
                         }
                         Text(
-                            "${fmt.format(Date(e.epochMs))} ${if (e.source == LogBuffer.Source.CORE) "core" else "app "} ${e.message}",
+                            "${fmt.format(Date(e.epochMs))} ${e.level.name.first()} ${e.category.name.lowercase()} ${e.message}",
                             style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = color,
                             modifier = Modifier.padding(vertical = 1.dp),
                         )

@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
 
     private val settingsViewModel: SettingsViewModel by viewModels {
         val g = UccApplication.graph(this)
-        SettingsViewModel.Factory(g.settingsStore, g.connectionManager, g.core.capabilities, "${g.core.descriptor.displayName} ${g.core.descriptor.version}")
+        SettingsViewModel.Factory(g.settingsStore, g.connectionManager, g.core.capabilities, "${g.core.descriptor.displayName} ${g.core.descriptor.version}", g.preferences, g.logBuffer, g.notices, io.ucc.core.vpn.VpnServiceRegistry.lockdownStatus, BuildConfig.VERSION_NAME)
     }
 
     private val logsViewModel: LogsViewModel by viewModels { LogsViewModel.Factory(UccApplication.graph(this).logBuffer) }
@@ -63,7 +63,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val dark = isSystemInDarkTheme()
+            val themeMode by UccApplication.graph(this).preferences.themeFlow.collectAsStateWithLifecycle()
+            val dark = when (themeMode) {
+                io.ucc.app.data.ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                io.ucc.app.data.ThemeMode.LIGHT -> false
+                io.ucc.app.data.ThemeMode.DARK -> true
+            }
             val context = LocalContext.current
             val scheme = when {
                 android.os.Build.VERSION.SDK_INT >= 31 && dark -> dynamicDarkColorScheme(context)

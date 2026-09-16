@@ -45,4 +45,47 @@ class ConnectionSettingsTest {
         val text = json.encodeToString(ConnectionSettings.serializer(), s).replace("}", ",\"futureKey\":1}")
         assertEquals(s, json.decodeFromString(ConnectionSettings.serializer(), text))
     }
+
+    @Test fun `rule items are classified and mapped into typed routing rules`() {
+        val r = ConnectionSettings.Rule("r1", io.ucc.core.engine.RouteAction.DIRECT,
+            listOf("example.com", "*.ir", ".gov.ir", "keyword:google", "10.0.0.0/8", "8.8.8.8", "2001:db8::/32", "bad host!", "999.1.1.1"))
+        val t = r.toRoutingRule()
+        assertEquals(listOf("example.com"), t.domains)
+        assertEquals(listOf(".ir", ".gov.ir"), t.domainSuffixes)
+        assertEquals(listOf("google"), t.domainKeywords)
+        assertEquals(listOf("10.0.0.0/8", "8.8.8.8/32", "2001:db8::/32"), t.ipCidrs)
+        assertEquals(ConnectionSettings.Rule.Item.Invalid, ConnectionSettings.Rule.classify("bad host!"))
+        assertEquals(ConnectionSettings.Rule.Item.Invalid, ConnectionSettings.Rule.classify("999.1.1.1"))
+    }
+
+    @Test fun `disabled and empty rules never reach the core, order preserved`() {
+        val s = ConnectionSettings(rules = listOf(
+            ConnectionSettings.Rule("a", io.ucc.core.engine.RouteAction.BLOCK, listOf("ads.example")),
+            ConnectionSettings.Rule("b", io.ucc.core.engine.RouteAction.DIRECT, listOf("x.ir"), enabled = false),
+            ConnectionSettings.Rule("c", io.ucc.core.engine.RouteAction.PROXY, listOf("!!!")),
+            ConnectionSettings.Rule("d", io.ucc.core.engine.RouteAction.DIRECT, listOf("1.1.1.1")),
+        ))
+        val o = s.toStartOptions(testCapabilities)
+        assertEquals(listOf(io.ucc.core.engine.RouteAction.BLOCK, io.ucc.core.engine.RouteAction.DIRECT), o.rules.map { it.action })
+        assertEquals(listOf("1.1.1.1/32"), o.rules[1].ipCidrs)
+    }
+
+    @Test fun `invalid combinations are reported`() {
+        val p = ConnectionSettings(remoteDns = "192.168.1.1", directDns = "192.168.1.1",
+            rules = listOf(ConnectionSettings.Rule("e", io.ucc.core.engine.RouteAction.DIRECT, emptyList()), ConnectionSettings.Rule("f", io.ucc.core.engine.RouteAction.DIRECT, listOf("ok.com", "no good")))).validate()
+        assertTrue(ConnectionSettings.Problem.RemoteDnsPrivate in p)
+        assertTrue(ConnectionSettings.Problem.RemoteEqualsDirect in p)
+        assertTrue(ConnectionSettings.Problem.RuleEmpty("e") in p)
+        assertTrue(ConnectionSettings.Problem.RuleItemInvalid("f", "no good") in p)
+        assertFalse(ConnectionSettings.isPrivateUdpDns("https://192.168.1.1/dns-query"), "DoH to LAN is unusual but reachable via detour rules; only plain udp/tcp is flagged")
+        assertTrue(ConnectionSettings(remoteDns = "tls://9.9.9.9", directDns = "tls://9.9.9.9").blockingProblems.isEmpty())
+    }
+
+    @Test fun `rules serialize and survive round trip`() {
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; encodeDefaults = true }
+        val s = ConnectionSettings(rules = listOf(ConnectionSettings.Rule("r", io.ucc.core.engine.RouteAction.BLOCK, listOf("a.com", "10.0.0.0/8"), enabled = false)))
+        val text = json.encodeToString(ConnectionSettings.serializer(), s)
+        assertTrue("\"BLOCK\"" in text)
+        assertEquals(s, json.decodeFromString(ConnectionSettings.serializer(), text))
+    }
 }

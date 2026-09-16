@@ -15,7 +15,14 @@ interface SelectionStore {
     var selectedProfileId: String?
 }
 
-class Preferences(context: Context) : LastProfileStore, SelectionStore {
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
+interface ThemeStore {
+    val themeFlow: kotlinx.coroutines.flow.StateFlow<ThemeMode>
+    var theme: ThemeMode
+}
+
+class Preferences(context: Context) : LastProfileStore, SelectionStore, ThemeStore {
     private val prefs: SharedPreferences = context.applicationContext.getSharedPreferences("ucc_prefs", Context.MODE_PRIVATE)
 
     private val _selected = kotlinx.coroutines.flow.MutableStateFlow(prefs.getString(KEY_SELECTED, null))
@@ -27,6 +34,14 @@ class Preferences(context: Context) : LastProfileStore, SelectionStore {
         get() = _selected.value
         set(value) { _selected.value = value; prefs.edit().putString(KEY_SELECTED, value).apply() }
 
+    private val _theme = kotlinx.coroutines.flow.MutableStateFlow(
+        prefs.getString(KEY_THEME, null)?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
+    )
+    override val themeFlow: kotlinx.coroutines.flow.StateFlow<ThemeMode> = _theme
+    override var theme: ThemeMode
+        get() = _theme.value
+        set(value) { _theme.value = value; prefs.edit().putString(KEY_THEME, value.name).apply() }
+
     override fun write(profileId: String?) {
         prefs.edit().putString(KEY_LAST_ACTIVE, profileId).commit()
     }
@@ -36,5 +51,6 @@ class Preferences(context: Context) : LastProfileStore, SelectionStore {
     private companion object {
         const val KEY_SELECTED = "selected_profile_id"
         const val KEY_LAST_ACTIVE = "last_active_profile_id"
+        const val KEY_THEME = "theme_mode"
     }
 }

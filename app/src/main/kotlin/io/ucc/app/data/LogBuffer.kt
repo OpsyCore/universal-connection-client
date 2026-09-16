@@ -22,16 +22,34 @@ class LogBuffer(
     managerEvents: Flow<ConnectionEvent>,
     private val capacity: Int = 2_000,
 ) {
-    data class Entry(val epochMs: Long, val level: Level, val source: Source, val message: String)
+    data class Entry(val epochMs: Long, val level: Level, val source: Source, val category: Category, val message: String)
     enum class Level { DEBUG, INFO, WARN, ERROR }
     enum class Source { CORE, APP }
+    enum class Category { LIFECYCLE, RECONNECT, NETWORK, ERROR, CORE }
 
     private val _entries = MutableStateFlow<List<Entry>>(emptyList())
     val entries: StateFlow<List<Entry>> = _entries
 
     init {
-        scope.launch { coreLogs.collect { add(Entry(it.epochMs, levelOf(it.level), Source.CORE, it.message)) } }
-        scope.launch { managerEvents.collect { add(Entry(it.epochMs, if (it.error != null) Level.ERROR else Level.INFO, Source.APP, it.message)) } }
+        scope.launch { coreLogs.collect { add(Entry(it.epochMs, levelOf(it.level), Source.CORE, Category.CORE, LogSanitizer.sanitize(it.message))) } }
+        scope.launch {
+            managerEvents.collect {
+                val cat = when (it.category) {
+                    ConnectionEvent.Category.LIFECYCLE -> Category.LIFECYCLE
+                    ConnectionEvent.Category.RECONNECT -> Category.RECONNECT
+                    ConnectionEvent.Category.NETWORK -> Category.NETWORK
+                    ConnectionEvent.Category.ERROR -> Category.ERROR
+                    ConnectionEvent.Category.CORE -> Category.CORE
+                }
+                val level = when {
+                    it.error != null -> Level.ERROR
+                    cat == Category.RECONNECT || cat == Category.NETWORK -> Level.WARN
+                    else -> Level.INFO
+                }
+                val msg = LogSanitizer.sanitize(it.message + (it.error?.let { e -> " — ${e.technicalDetail}" } ?: ""))
+                add(Entry(it.epochMs, level, Source.APP, cat, msg))
+            }
+        }
     }
 
     @Synchronized
@@ -43,7 +61,12 @@ class LogBuffer(
     @Synchronized
     fun clear() { _entries.value = emptyList() }
 
-    fun renderPlainText(): String = _entries.value.joinToString("\n") { "${it.epochMs} ${it.level.name.padEnd(5)} ${it.source.name.padEnd(4)} ${it.message}" }
+    /** Sanitised, ISO-timestamped export (entries are sanitised on ingest; sanitised again here on purpose). */
+    fun renderPlainText(minLevel: Level = Level.DEBUG): String = _entries.value.filter { it.level >= minLevel }.joinToString("\n") {
+        "${iso(it.epochMs)} ${it.level.name.padEnd(5)} ${it.source.name.padEnd(4)} ${it.category.name.padEnd(9)} ${LogSanitizer.sanitize(it.message)}"
+    }
+
+    private fun iso(ms: Long): String = java.time.Instant.ofEpochMilli(ms).toString()
 
     private companion object {
         /** sing-box/libbox levels: 0 panic,1 fatal,2 error,3 warn,4 info,5 debug,6 trace. */

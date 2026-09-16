@@ -40,3 +40,25 @@ Gradle build uses the real `junit:junit`.
 
 Results must be recorded in the phase report; until then device verification
 is reported as **NOT AVAILABLE**.
+
+## Manual device checklist — Phase 5 networking (NOT yet executed)
+
+Environment for this project has no device/emulator; the following must be run
+by a human before any of these features is called verified.
+
+| # | Feature | Steps | Expected |
+|---|---|---|---|
+| 1 | Routing DIRECT rule | add `*.ir → Direct`, connect, open an `.ir` site, check `core` logs | log shows `outbound: direct` for that host |
+| 2 | Routing BLOCK rule | add `keyword:ads → Block`, open matching host | connection refused immediately; log `reject` |
+| 3 | IP/CIDR rule | add `1.1.1.1 → Direct`, `curl 1.1.1.1` | direct in logs |
+| 4 | Per-app include | include only a browser; use another app | other app has plain internet (not proxied) |
+| 5 | Per-app exclude | exclude the browser | browser IP = real IP; others proxied |
+| 6 | Remote DNS | set `tls://9.9.9.9`, resolve a name | `dig` via tunnel answered; leak test sites show the resolver, not ISP |
+| 7 | DNS hijack | set device DNS to 8.8.8.8 manually; connect | queries still land at the configured remote DNS |
+| 8 | IPv6 off | disable, connect, `test-ipv6.com` | no IPv6 connectivity, no long timeouts |
+| 9 | Kill switch OFF card | connect, disconnect | traffic flows without VPN (expected; the card says OFF) |
+| 10 | Kill switch ON | enable Always-on + Block in Android; kill app process | no traffic until service restarts; card shows ON |
+| 11 | Wi-Fi → mobile | switch networks while connected | Logs: NETWORK event, RECONNECT event, state returns to Connected, no core restart |
+| 12 | mobile → Wi-Fi | reverse of 11 | same |
+| 13 | Process restart | `am kill` with tunnel up | service restarts, reconnects last profile with *current* settings |
+| 14 | Log sanitiser | connect with a profile whose password is a known string; share logs | string absent from export |
