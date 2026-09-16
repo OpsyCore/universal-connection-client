@@ -55,7 +55,7 @@ jobs:
 
       - name: Unit tests (JVM modules + Android unit tests)
         run: |
-          set -o pipefail
+          set -o pipefail; mkdir -p build
           ./gradlew --no-daemon --continue test testDebugUnitTest 2>&1 | tee build/gradle-test.log
 
       - name: Assemble debug APK
