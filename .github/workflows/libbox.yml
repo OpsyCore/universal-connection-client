@@ -1,0 +1,84 @@
+name: libbox (sing-box core)
+
+# Builds libbox.aar from the pinned sing-box tag. The result is cached by tag
+# and uploaded as an artifact consumed by android-ci.yml. Re-runs only when the
+# pin or the build script changes.
+
+on:
+  push:
+    paths:
+      - "core/engine-singbox/singbox.version"
+      - "tools/build-libbox.sh"
+      - ".github/workflows/libbox.yml"
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      cache-key:
+        description: "Cache key under which libbox.aar is stored"
+        value: ${{ jobs.build.outputs.cache-key }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build libbox.aar
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      cache-key: ${{ steps.key.outputs.key }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: key
+        run: |
+          TAG=$(cat core/engine-singbox/singbox.version)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "key=libbox-${TAG}-$(sha256sum tools/build-libbox.sh | cut -c1-12)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cached AAR
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: core/engine-singbox/libs
+          key: ${{ steps.key.outputs.key }}
+
+      - uses: actions/setup-go@v5
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          go-version: "1.25.x"
+          cache: false
+
+      - uses: actions/setup-java@v4
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup NDK r28
+        if: steps.cache.outputs.cache-hit != 'true'
+        id: ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28
+          add-to-path: false
+
+      - name: Build
+        if: steps.cache.outputs.cache-hit != 'true'
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+          SING_BOX_TAG: ${{ steps.key.outputs.tag }}
+        run: tools/build-libbox.sh
+
+      - name: Report
+        run: |
+          ls -la core/engine-singbox/libs
+          cat core/engine-singbox/libs/libbox.aar.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libbox-aar
+          path: |
+            core/engine-singbox/libs/libbox.aar
+            core/engine-singbox/libs/libbox.aar.sha256
+          retention-days: 30
