@@ -67,22 +67,17 @@ jobs:
         if: always()
         run: ./gradlew --no-daemon :app:lintDebug 2>&1 | tee build/gradle-lint.log
 
-      - name: Summarise errors (readable without log download)
+      - name: Publish errors as annotations (readable via API)
         if: always()
         run: |
-          {
-            echo "## Gradle errors"
-            for f in build/gradle-test.log build/gradle-assemble.log build/gradle-lint.log; do
-              [ -f "$f" ] || continue
-              echo "### $f"; echo '```'
-              grep -E "^e: |error:|FAILED|What went wrong|Could not resolve|Unresolved reference|> Task .* FAILED|tests completed|BUILD " "$f" | head -150
-              echo '```'
-            done
-            echo "### Failed tests"; echo '```'
-            grep -rl -E "<failure|<error" --include='TEST-*.xml' . 2>/dev/null | head -50
-            grep -rh -A3 -E "<failure|<error" --include='TEST-*.xml' . 2>/dev/null | head -200
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          for f in build/gradle-test.log build/gradle-assemble.log build/gradle-lint.log; do
+            [ -f "$f" ] || continue
+            grep -E "^e: |Unresolved reference|What went wrong|Could not resolve|Could not find|> Task .* FAILED|tests completed|BUILD (SUCCESSFUL|FAILED)" "$f" \
+              | sed 's/%/%25/g' | head -60 | while IFS= read -r line; do echo "::error title=$(basename "$f")::${line:0:600}"; done
+          done
+          grep -rh -B1 -A2 -E "<failure|<error" --include='TEST-*.xml' . 2>/dev/null | tr -d '\r' | head -80 \
+            | while IFS= read -r line; do echo "::error title=test::${line:0:600}"; done
+          true
 
       - name: Upload APK
         if: always()
