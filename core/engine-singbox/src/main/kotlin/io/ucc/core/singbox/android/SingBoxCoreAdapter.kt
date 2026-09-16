@@ -17,6 +17,7 @@ import io.nekohasekai.libbox.StatusMessage
 import io.nekohasekai.libbox.StringIterator
 import io.nekohasekai.libbox.SystemProxyStatus
 import io.ucc.core.engine.ConnectionError
+import io.ucc.core.engine.ErrorClassifier
 import io.ucc.core.engine.CoreAdapter
 import io.ucc.core.engine.InterfaceObserver
 import io.ucc.core.engine.CoreCapabilities
@@ -262,15 +263,7 @@ public class SingBoxCoreAdapter(
 
     // ------------------------------------------------------------------ helpers
 
-    private fun classifyStartFailure(e: Exception): ConnectionError {
-        val m = e.message.orEmpty().lowercase()
-        return when {
-            "permission" in m || "not prepared" in m || "revoked" in m -> ConnectionError.VpnPermissionDenied()
-            "parse config" in m || "decode config" in m || "unknown field" in m || "invalid" in m ->
-                ConnectionError.InvalidConfiguration("sing-box: ${redact(e.message)}")
-            "network is unreachable" in m || "no route" in m -> ConnectionError.NetworkUnavailable()
-            else -> ConnectionError.CoreFailure("sing-box start: ${redact(e.message)}")
-        }
+    private fun classifyStartFailure(e: Exception): ConnectionError = ErrorClassifier.classifyStart(e.message, "sing-box")
     }
 
     /** Best-effort scrubbing of credential-looking tokens from core messages before they reach logs. */
