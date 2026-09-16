@@ -21,7 +21,7 @@ import java.io.File
  * surface ([profiles], [upsert], [delete], [ProfileProvider]) is what the
  * rest of the app depends on, so the swap is internal.
  */
-class JsonProfileStore(context: Context) : ProfileProvider {
+class JsonProfileStore(context: Context) : ProfileProvider, ProfileStore {
     private val file = File(context.applicationContext.filesDir, "profiles.json")
     private val tmp = File(file.parentFile, "profiles.json.tmp")
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true; classDiscriminator = "type" }
@@ -46,6 +46,15 @@ class JsonProfileStore(context: Context) : ProfileProvider {
     }
 
     suspend fun delete(id: String) = mutate { list -> list.filterNot { it.id == id } }
+
+    override fun current(): List<ConnectionProfile> = _profiles.value
+
+    override suspend fun upsertAll(profiles: List<ConnectionProfile>) = mutate { list ->
+        val byId = LinkedHashMap<String, ConnectionProfile>(list.size + profiles.size)
+        list.forEach { byId[it.id] = it }
+        profiles.forEach { byId[it.id] = it }
+        byId.values.toList()
+    }
 
     private suspend fun mutate(block: (List<ConnectionProfile>) -> List<ConnectionProfile>) = withContext(Dispatchers.IO) {
         mutex.withLock {

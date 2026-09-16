@@ -19,6 +19,10 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,9 +46,14 @@ fun HomeScreen(
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onSelectProfile: (String) -> Unit,
+    onAddConfig: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    Scaffold { padding ->
+    Scaffold(
+        floatingActionButton = {
+            ExtendedFloatingActionButton(onClick = onAddConfig, text = { Text(stringResource(R.string.home_add_config)) }, icon = { Icon(Icons.Filled.Add, contentDescription = null) })
+        },
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()

@@ -4,7 +4,13 @@ import android.content.Context
 import android.content.Intent
 import io.ucc.app.BuildConfig
 import io.ucc.app.MainActivity
+import io.ucc.app.data.ImportRepository
 import io.ucc.app.data.JsonProfileStore
+import io.ucc.app.data.JsonSubscriptionStore
+import io.ucc.core.config.CapabilityCheck
+import io.ucc.core.config.ConfigImporter
+import io.ucc.core.config.ImportPlanner
+import io.ucc.core.config.subscription.HttpSubscriptionFetcher
 import io.ucc.app.data.Notices
 import io.ucc.app.data.Preferences
 import io.ucc.core.engine.CoreAdapter
@@ -47,6 +53,17 @@ class AppGraph(context: Context) {
 
     val notices = Notices(coreFactory)
 
+    val subscriptionStore = JsonSubscriptionStore(app)
+
+    /** Config Engine wiring: parsers from :core:config, capabilities from the selected core. No engine types involved. */
+    val importRepository = ImportRepository(
+        importer = ConfigImporter(),
+        planner = ImportPlanner(CapabilityCheck(core.capabilities)),
+        profiles = profileStore,
+        subscriptions = subscriptionStore,
+        fetcher = HttpSubscriptionFetcher(userAgent = "UniversalConnectionClient/${BuildConfig.VERSION_NAME} (${coreFactory.descriptor.displayName}/${coreFactory.descriptor.version})"),
+    )
+
     val connectionManager: ConnectionManager = DefaultConnectionManager(
         scope = appScope,
         core = core,
@@ -64,6 +81,6 @@ class AppGraph(context: Context) {
         VpnServiceRegistry.launchIntentFactory = { ctx ->
             Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
-        appScope.launch { profileStore.load() }
+        appScope.launch { profileStore.load(); subscriptionStore.load() }
     }
 }

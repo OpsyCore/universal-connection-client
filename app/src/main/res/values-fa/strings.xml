@@ -37,4 +37,78 @@
     <string name="error_tls">اتصال امن (TLS) ناموفق بود.</string>
     <string name="error_core">هستهٔ اتصال دچار خطا شد.</string>
     <string name="error_unknown">خطای غیرمنتظره‌ای رخ داد.</string>
+
+    <string name="add_title">افزودن پیکربندی</string>
+    <string name="add_tab_paste">چسباندن</string>
+    <string name="add_tab_subscription">اشتراک</string>
+    <string name="add_paste_hint">لینک‌ها (vless://، vmess://، trojan://، ss://، hy2://، tuic://، wg://، socks://…)، یک JSON از نوع sing-box یا بدنهٔ base64 اشتراک را بچسبانید. هر لینک در یک خط.</string>
+    <string name="add_paste_label">پیکربندی</string>
+    <string name="add_action_parse">پیش‌نمایش</string>
+    <string name="add_action_clipboard">از کلیپ‌بورد</string>
+    <string name="add_action_qr">اسکن QR</string>
+    <string name="add_action_file">باز کردن فایل</string>
+    <string name="add_subscription_label">آدرس اشتراک (https)</string>
+    <string name="add_subscription_fetch">دریافت و پیش‌نمایش</string>
+    <string name="add_subscription_no_auto_update">اشتراک فقط یک بار اینجا دریافت می‌شود. به‌روزرسانی خودکار در مرحلهٔ بعد اضافه می‌شود.</string>
+
+    <string name="add_error_empty">چیزی برای وارد کردن نیست.</string>
+    <string name="add_error_nothing_recognised">هیچ پیکربندی‌ای در ورودی شناسایی نشد.</string>
+    <string name="add_error_clipboard_empty">کلیپ‌بورد خالی است یا متن ندارد.</string>
+    <string name="add_error_file_unreadable">فایل خوانده نشد (%1$s).</string>
+    <string name="add_error_file_too_large">حجم فایل بیشتر از %1$s است.</string>
+    <string name="add_error_sub_invalid_url">یک آدرس معتبر https:// وارد کنید.</string>
+    <string name="add_error_sub_http">سرور پاسخ HTTP %1$d داد.</string>
+    <string name="add_error_sub_too_large">بدنهٔ اشتراک خیلی بزرگ است.</string>
+    <string name="add_error_sub_network">خطای شبکه هنگام دریافت اشتراک.</string>
+    <string name="add_error_unexpected">خطای غیرمنتظره (%1$s).</string>
+
+    <string name="preview_title">بازبینی پیش از ذخیره</string>
+    <string name="preview_source_paste">از متن چسبانده‌شده</string>
+    <string name="preview_source_clipboard">از کلیپ‌بورد</string>
+    <string name="preview_source_qr">از کد QR</string>
+    <string name="preview_source_file">از فایل</string>
+    <string name="preview_source_subscription">از اشتراک</string>
+    <string name="preview_summary">%1$d جدید · %2$d تکراری · %3$d پشتیبانی‌نشده · %4$d نامعتبر · %5$d ناخوانا</string>
+    <string name="preview_select_all">انتخاب همه</string>
+    <string name="preview_select_none">هیچ‌کدام</string>
+    <string name="preview_status_new">جدید</string>
+    <string name="preview_status_duplicate">قبلاً با نام «%1$s» ذخیره شده</string>
+    <string name="preview_status_duplicate_batch">تکراری در همین ورودی</string>
+    <string name="preview_status_unsupported_protocol">پروتکل %1$s توسط هستهٔ فعلی پشتیبانی نمی‌شود</string>
+    <string name="preview_status_unsupported_transport">انتقال %1$s توسط هستهٔ فعلی پشتیبانی نمی‌شود</string>
+    <string name="preview_status_unsupported_feature">قابلیت %1$s توسط هستهٔ فعلی پشتیبانی نمی‌شود</string>
+    <string name="preview_status_invalid">نامعتبر: %1$s</string>
+    <string name="preview_credentials_set">شامل اطلاعات ورود (مخفی)</string>
+    <string name="preview_insecure_tls">بررسی گواهی غیرفعال است (ناامن)</string>
+    <string name="preview_failures_title">قابل خواندن نبود</string>
+    <string name="preview_subscription_info">%1$s از %2$s مصرف شده</string>
+    <string name="preview_subscription_expired">این اشتراک منقضی شده است.</string>
+    <string name="preview_subscription_exhausted">حجم این اشتراک تمام شده است.</string>
+    <string name="preview_action_save">ذخیرهٔ %1$d</string>
+    <string name="preview_action_cancel">انصراف</string>
+    <string name="preview_label_server">سرور</string>
+    <string name="preview_label_port">پورت</string>
+    <string name="preview_label_transport">انتقال</string>
+    <string name="preview_label_security">امنیت</string>
+
+    <string name="done_title">ذخیره شد</string>
+    <string name="done_body">%1$d پروفایل ذخیره شد. هیچ اتصالی برقرار نشد.</string>
+    <string name="done_skipped">%1$d مورد رد شد.</string>
+    <string name="done_action_close">پایان</string>
+    <string name="done_action_more">افزودن بیشتر</string>
+
+    <string name="scan_title">اسکن کد QR</string>
+    <string name="scan_hint">دوربین را به سمت کد QR پیکربندی بگیرید.</string>
+    <string name="scan_permission_denied">برای اسکن QR به مجوز دوربین نیاز است.</string>
+    <string name="scan_permission_settings">باز کردن تنظیمات</string>
+    <string name="scan_no_camera">این دستگاه دوربین ندارد.</string>
+
+    <string name="config_error_unknown_scheme">نوع لینک ناشناخته</string>
+    <string name="config_error_malformed">لینک خراب</string>
+    <string name="config_error_missing_field">فیلد ناقص</string>
+    <string name="config_error_invalid_field">مقدار نامعتبر</string>
+    <string name="config_error_invalid_json">JSON نامعتبر</string>
+    <string name="config_error_unsupported">گزینهٔ پشتیبانی‌نشده</string>
+
+    <string name="home_add_config">افزودن</string>
 </resources>

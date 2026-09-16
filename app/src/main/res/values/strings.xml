@@ -15,7 +15,7 @@
     <string name="action_retry">Retry</string>
 
     <string name="home_no_profiles_title">No profiles yet</string>
-    <string name="home_no_profiles_body">Import a configuration to get started. Import from link, QR code, clipboard, file or subscription arrives with the configuration engine.</string>
+    <string name="home_no_profiles_body">Import a configuration to get started: paste a link, scan a QR code, open a file or add a subscription.</string>
     <string name="home_selected_profile">Selected profile</string>
     <string name="home_none_selected">None selected</string>
     <string name="home_core">Core</string>
@@ -37,4 +37,79 @@
     <string name="error_tls">Secure connection (TLS) failed.</string>
     <string name="error_core">The connection core failed.</string>
     <string name="error_unknown">An unexpected error occurred.</string>
+
+    <!-- Add configuration -->
+    <string name="add_title">Add configuration</string>
+    <string name="add_tab_paste">Paste</string>
+    <string name="add_tab_subscription">Subscription</string>
+    <string name="add_paste_hint">Paste links (vless://, vmess://, trojan://, ss://, hy2://, tuic://, wg://, socks://…), a sing-box JSON, or a base64 subscription body. One link per line.</string>
+    <string name="add_paste_label">Configuration</string>
+    <string name="add_action_parse">Preview</string>
+    <string name="add_action_clipboard">From clipboard</string>
+    <string name="add_action_qr">Scan QR</string>
+    <string name="add_action_file">Open file</string>
+    <string name="add_subscription_label">Subscription URL (https)</string>
+    <string name="add_subscription_fetch">Fetch &amp; preview</string>
+    <string name="add_subscription_no_auto_update">Subscriptions are fetched once here. Automatic updates arrive in a later phase.</string>
+
+    <string name="add_error_empty">Nothing to import.</string>
+    <string name="add_error_nothing_recognised">No configuration was recognised in the input.</string>
+    <string name="add_error_clipboard_empty">The clipboard is empty or has no text.</string>
+    <string name="add_error_file_unreadable">The file could not be read (%1$s).</string>
+    <string name="add_error_file_too_large">The file is larger than %1$s.</string>
+    <string name="add_error_sub_invalid_url">Enter a valid https:// URL.</string>
+    <string name="add_error_sub_http">The server answered HTTP %1$d.</string>
+    <string name="add_error_sub_too_large">The subscription body is too large.</string>
+    <string name="add_error_sub_network">Network error while downloading the subscription.</string>
+    <string name="add_error_unexpected">Unexpected error (%1$s).</string>
+
+    <string name="preview_title">Review before saving</string>
+    <string name="preview_source_paste">from pasted text</string>
+    <string name="preview_source_clipboard">from clipboard</string>
+    <string name="preview_source_qr">from QR code</string>
+    <string name="preview_source_file">from file</string>
+    <string name="preview_source_subscription">from subscription</string>
+    <string name="preview_summary">%1$d new · %2$d duplicate · %3$d unsupported · %4$d invalid · %5$d unreadable</string>
+    <string name="preview_select_all">Select all</string>
+    <string name="preview_select_none">Select none</string>
+    <string name="preview_status_new">New</string>
+    <string name="preview_status_duplicate">Already saved as “%1$s”</string>
+    <string name="preview_status_duplicate_batch">Duplicate within this import</string>
+    <string name="preview_status_unsupported_protocol">Protocol %1$s is not supported by the current core</string>
+    <string name="preview_status_unsupported_transport">Transport %1$s is not supported by the current core</string>
+    <string name="preview_status_unsupported_feature">Feature %1$s is not supported by the current core</string>
+    <string name="preview_status_invalid">Invalid: %1$s</string>
+    <string name="preview_credentials_set">Credentials included (hidden)</string>
+    <string name="preview_insecure_tls">Certificate verification disabled (insecure)</string>
+    <string name="preview_failures_title">Could not be read</string>
+    <string name="preview_subscription_info">Used %1$s of %2$s</string>
+    <string name="preview_subscription_expired">This subscription has expired.</string>
+    <string name="preview_subscription_exhausted">This subscription’s traffic quota is exhausted.</string>
+    <string name="preview_action_save">Save %1$d</string>
+    <string name="preview_action_cancel">Cancel</string>
+    <string name="preview_label_server">Server</string>
+    <string name="preview_label_port">Port</string>
+    <string name="preview_label_transport">Transport</string>
+    <string name="preview_label_security">Security</string>
+
+    <string name="done_title">Saved</string>
+    <string name="done_body">%1$d profile(s) saved. Nothing was connected.</string>
+    <string name="done_skipped">%1$d skipped.</string>
+    <string name="done_action_close">Done</string>
+    <string name="done_action_more">Add more</string>
+
+    <string name="scan_title">Scan QR code</string>
+    <string name="scan_hint">Point the camera at a configuration QR code.</string>
+    <string name="scan_permission_denied">Camera permission is required to scan QR codes.</string>
+    <string name="scan_permission_settings">Open settings</string>
+    <string name="scan_no_camera">This device has no camera.</string>
+
+    <string name="config_error_unknown_scheme">Unknown link type</string>
+    <string name="config_error_malformed">Malformed link</string>
+    <string name="config_error_missing_field">Missing field</string>
+    <string name="config_error_invalid_field">Invalid value</string>
+    <string name="config_error_invalid_json">Invalid JSON</string>
+    <string name="config_error_unsupported">Unsupported option</string>
+
+    <string name="home_add_config">Add</string>
 </resources>

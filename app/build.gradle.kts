@@ -65,6 +65,7 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:engine-api"))
     implementation(project(":core:vpn"))
+    implementation(project(":core:config"))
     // Engine modules are flavour-scoped: nothing in src/main may import them except io.ucc.app.core.CoreFactories.
     "singboxImplementation"(project(":core:engine-singbox"))
 
@@ -86,6 +87,13 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
+
+    // QR scanning: CameraX (Apache-2.0) + ML Kit barcode (bundled model; Google ML Kit terms — see docs/CONFIG_FORMATS.md §QR)
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.mlkit.barcode.scanning)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
