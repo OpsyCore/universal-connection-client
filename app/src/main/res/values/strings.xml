@@ -191,4 +191,24 @@
     <string name="logs_share">Share logs</string>
     <string name="logs_clear">Clear</string>
     <string name="logs_empty">No log entries yet. Logs are kept in memory only and are cleared when the app is closed.</string>
+    <!-- Diagnostics (Phase 6) -->
+    <string name="home_view_logs">View logs</string>
+    <string name="error_invalid_configuration_hint">Open the server in Servers, check the link, or re-import it.</string>
+    <string name="error_unsupported_protocol_hint">Pick a server with a supported protocol, or check Settings for the active core.</string>
+    <string name="error_vpn_permission_hint">Tap Connect again and allow the VPN request. If another VPN app is set to always-on, disable it first.</string>
+    <string name="error_vpn_revoked_hint">Another VPN app took over. Close it or disable its always-on setting, then reconnect.</string>
+    <string name="error_network_unavailable_hint">Check Wi-Fi or mobile data, then retry.</string>
+    <string name="error_dns_hint">The server host name did not resolve. Try a different DNS in Settings or a server with an IP address.</string>
+    <string name="error_timeout_hint">The server did not answer. Test reachability in Servers or try another server; the network may block this protocol.</string>
+    <string name="error_authentication_hint">The server rejected the credentials. Re-import the link or update the subscription.</string>
+    <string name="error_tls_hint">The TLS certificate or SNI does not match. Check the server’s SNI/fingerprint settings, or your device clock.</string>
+    <string name="error_core_hint">The core stopped unexpectedly. Details are in Logs; retry, and share the logs if it repeats.</string>
+    <string name="error_unknown_hint">Details are in Logs.</string>
+    <string name="servers_test_all">Test reachability of visible servers</string>
+    <string name="servers_action_test">Test reachability</string>
+    <string name="servers_reach_timeout">timeout</string>
+    <string name="servers_reach_refused">refused</string>
+    <string name="servers_reach_unresolved">no DNS</string>
+    <string name="servers_reach_na">UDP</string>
+    <string name="servers_reach_failed">failed</string>
 </resources>

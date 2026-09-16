@@ -190,4 +190,24 @@
     <string name="logs_share">اشتراک‌گذاری لاگ‌ها</string>
     <string name="logs_clear">پاک کردن</string>
     <string name="logs_empty">هنوز لاگی نیست. لاگ‌ها فقط در حافظه نگه داشته می‌شوند و با بستن برنامه پاک می‌شوند.</string>
+    <!-- Diagnostics (Phase 6) -->
+    <string name="home_view_logs">مشاهدهٔ لاگ‌ها</string>
+    <string name="error_invalid_configuration_hint">سرور را در فهرست سرورها باز کنید، لینک را بررسی یا دوباره وارد کنید.</string>
+    <string name="error_unsupported_protocol_hint">سروری با پروتکل پشتیبانی‌شده انتخاب کنید یا هستهٔ فعال را در تنظیمات ببینید.</string>
+    <string name="error_vpn_permission_hint">دوباره «اتصال» را بزنید و درخواست VPN را تأیید کنید. اگر VPN دیگری همیشه‌روشن است، ابتدا آن را خاموش کنید.</string>
+    <string name="error_vpn_revoked_hint">برنامهٔ VPN دیگری کنترل را گرفت. آن را ببندید یا حالت همیشه‌روشنش را خاموش کنید و دوباره وصل شوید.</string>
+    <string name="error_network_unavailable_hint">وای‌فای یا دادهٔ همراه را بررسی و دوباره تلاش کنید.</string>
+    <string name="error_dns_hint">نام میزبان سرور پیدا نشد. DNS دیگری در تنظیمات امتحان کنید یا سروری با آدرس IP انتخاب کنید.</string>
+    <string name="error_timeout_hint">سرور پاسخ نداد. در بخش سرورها دسترس‌پذیری را تست کنید یا سرور دیگری را امتحان کنید؛ شاید شبکه این پروتکل را مسدود می‌کند.</string>
+    <string name="error_authentication_hint">سرور اطلاعات ورود را رد کرد. لینک را دوباره وارد یا اشتراک را به‌روز کنید.</string>
+    <string name="error_tls_hint">گواهی TLS یا SNI مطابقت ندارد. تنظیمات SNI/اثرانگشت سرور یا ساعت دستگاه را بررسی کنید.</string>
+    <string name="error_core_hint">هسته به‌طور غیرمنتظره متوقف شد. جزئیات در لاگ‌هاست؛ دوباره تلاش کنید و در صورت تکرار لاگ‌ها را به اشتراک بگذارید.</string>
+    <string name="error_unknown_hint">جزئیات در لاگ‌ها موجود است.</string>
+    <string name="servers_test_all">تست دسترس‌پذیری سرورهای قابل‌مشاهده</string>
+    <string name="servers_action_test">تست دسترس‌پذیری</string>
+    <string name="servers_reach_timeout">بدون پاسخ</string>
+    <string name="servers_reach_refused">رد شد</string>
+    <string name="servers_reach_unresolved">بدون DNS</string>
+    <string name="servers_reach_na">UDP</string>
+    <string name="servers_reach_failed">ناموفق</string>
 </resources>

@@ -75,3 +75,22 @@ This is the standard design, but it has **not been independently leak-tested on 
 device in this project** (device verification is NOT AVAILABLE in CI). We do not
 advertise "DNS leak protection". Private DNS (DoT set by the OS) is handled by
 Android outside the tunnel's control on some versions.
+
+## Error classification (Phase 6)
+
+`ErrorClassifier` (engine-api, pure JVM, unit-tested) maps core/OS failure text to
+`ConnectionError` classes; the sing-box adapter delegates to it. Every
+`technicalDetail` passes through a credential-pattern redactor
+(`password|uuid|private_key|psk|token|secret…`) *in addition* to the adapter's
+own redaction, so a missed secret in a core message still does not reach Logs.
+User-facing text comes only from `userMessageKey` (+ `_hint`) string resources —
+raw core messages are never shown on Home.
+
+## Reachability test (Phase 6)
+
+"Test reachability" in Servers opens a plain TCP connection to `address:port`
+from the app process (outside the tunnel when disconnected, inside it when
+connected). It sends **no** protocol handshake and **no** credentials. It is not
+a proxy speed test and does not prove the proxy works; UDP-only protocols
+(Hysteria/Hysteria2/TUIC/WireGuard) are shown as "UDP" and not tested. The
+result is held in memory only.

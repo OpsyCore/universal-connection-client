@@ -132,6 +132,10 @@ private fun StatusCard(state: HomeUiState, onConnect: () -> Unit, onDisconnect: 
                     color = MaterialTheme.colorScheme.error,
                     textAlign = TextAlign.Center,
                 )
+                conn.error.userHint(context)?.let { hint ->
+                    Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                }
+                TextButton(onClick = onOpenLogs) { Text(stringResource(R.string.home_view_logs)) }
             }
 
             val profileName = state.selectedProfile?.name ?: stringResource(R.string.home_none_selected)

@@ -87,6 +87,7 @@ class AppGraph(context: Context) {
     val logBuffer = LogBuffer(appScope, core.logs, connectionManager.events)
 
     /** Servers screen use-cases and subscription refresh (manual + WorkManager). */
+    val reachabilityTester = io.ucc.app.data.diagnostics.ReachabilityTester()
     val serverRepository = ServerRepository(profileStore, subscriptionStore, connectionManager)
     val subscriptionRefresher = SubscriptionRefresher(
         importer = ConfigImporter(),

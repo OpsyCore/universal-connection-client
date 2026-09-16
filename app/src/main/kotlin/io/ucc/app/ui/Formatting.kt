@@ -21,6 +21,12 @@ fun ConnectionError.userMessage(context: Context): String {
     return if (id != 0) context.getString(id) else context.getString(R.string.error_unknown)
 }
 
+/** Short, actionable next step for an error; null when there is nothing useful to add. */
+fun ConnectionError.userHint(context: Context): String? {
+    val id = context.resources.getIdentifier(userMessageKey + "_hint", "string", context.packageName)
+    return if (id != 0) context.getString(id) else null
+}
+
 fun formatBytes(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"
     val units = arrayOf("KB", "MB", "GB", "TB")

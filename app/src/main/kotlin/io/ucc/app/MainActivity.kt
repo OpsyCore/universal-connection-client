@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
 
     private val serversViewModel: ServersViewModel by viewModels {
         val g = UccApplication.graph(this)
-        ServersViewModel.Factory(g.serverRepository, g.subscriptionRefresher, g.preferences, g.connectionManager)
+        ServersViewModel.Factory(g.serverRepository, g.subscriptionRefresher, g.preferences, g.connectionManager, g.reachabilityTester)
     }
 
     private val settingsViewModel: SettingsViewModel by viewModels {

@@ -7,6 +7,7 @@ import io.ucc.app.data.SelectionStore
 import io.ucc.app.data.ServerRepository
 import io.ucc.app.data.ServerRepository.Companion.boundProfileId
 import io.ucc.app.data.SubscriptionRefresher
+import io.ucc.app.data.diagnostics.ReachabilityTester
 import io.ucc.core.config.subscription.Subscription
 import io.ucc.core.engine.ConnectionState
 import io.ucc.core.engine.manager.ConnectionManager
@@ -24,6 +25,9 @@ data class ServerRow(
     val profile: ConnectionProfile,
     val selected: Boolean,
     val active: Boolean,
+    /** null = not tested yet; [ReachabilityTester.Result] otherwise. */
+    val reachability: ReachabilityTester.Result? = null,
+    val testing: Boolean = false,
 )
 
 data class ServerGroup(
@@ -42,6 +46,7 @@ data class ServersUiState(
     val checked: Set<String> = emptySet(),
     val renaming: ConnectionProfile? = null,
     val confirmDelete: PendingDelete? = null,
+    val testingAll: Boolean = false,
 ) {
     val isEmpty: Boolean get() = totalCount == 0
     val nothingMatches: Boolean get() = totalCount > 0 && groups.all { it.rows.isEmpty() }
@@ -66,7 +71,12 @@ class ServersViewModel(
     private val refresher: SubscriptionRefresher,
     private val preferences: SelectionStore,
     manager: ConnectionManager,
+    private val tester: ReachabilityTester = ReachabilityTester(),
 ) : ViewModel() {
+
+    private val reach = MutableStateFlow<Map<String, ReachabilityTester.Result>>(emptyMap())
+    private val testing = MutableStateFlow<Set<String>>(emptySet())
+    private var testAllJob: kotlinx.coroutines.Job? = null
 
     private val query = MutableStateFlow("")
     private val favoritesOnly = MutableStateFlow(false)
@@ -84,8 +94,9 @@ class ServersViewModel(
     val effects: SharedFlow<ServersEffect> = _effects
 
     val state: StateFlow<ServersUiState> = combine(
-        repo.groups, preferences.selectedProfileIdFlow, manager.state, combine(query, favoritesOnly, refreshing) { q, f, r -> Triple(q, f, r) }, local,
-    ) { groups, selectedId, conn, (q, favOnly, busy), loc ->
+        repo.groups, preferences.selectedProfileIdFlow, manager.state, combine(query, favoritesOnly, refreshing) { q, f, r -> Triple(q, f, r) },
+        combine(local, reach, testing) { l, r, t -> Triple(l, r, t) },
+    ) { groups, selectedId, conn, (q, favOnly, busy), (loc, reachMap, testingIds) ->
         val activeId = conn.boundProfileId
         val needle = q.trim().lowercase()
         val total = groups.sumOf { it.profiles.size }
@@ -94,13 +105,14 @@ class ServersViewModel(
                 .filter { !favOnly || it.metadata.favorite }
                 .filter { needle.isEmpty() || it.matches(needle) }
                 .sortedWith(compareByDescending<ConnectionProfile> { it.metadata.favorite }.thenBy { it.name.lowercase() })
-                .map { ServerRow(it, selected = it.id == selectedId, active = it.id == activeId) }
+                .map { ServerRow(it, selected = it.id == selectedId, active = it.id == activeId, reachability = reachMap[it.id], testing = it.id in testingIds) }
                 .toList()
             ServerGroup(g.subscription, rows, refreshing = g.subscription?.id in busy)
         }
         ServersUiState(
             query = q, favoritesOnly = favOnly, groups = visible, totalCount = total,
             selectionMode = loc.selectionMode, checked = loc.checked, renaming = loc.renaming, confirmDelete = loc.confirmDelete,
+            testingAll = testAllJob?.isActive == true,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ServersUiState())
 
@@ -110,6 +122,28 @@ class ServersViewModel(
 
     // ---- search / filter ----
     fun onQueryChanged(q: String) { query.value = q }
+
+    /** TCP reachability of one server (see [ReachabilityTester] for what this does and does not prove). */
+    fun testReachability(id: String) {
+        val p = repo.byId(id) ?: return
+        viewModelScope.launch {
+            testing.value += id
+            try { reach.value += id to tester.test(p) } finally { testing.value -= id }
+        }
+    }
+
+    /** Tests every currently visible server; a second call while running cancels. */
+    fun testVisibleReachability() {
+        testAllJob?.let { if (it.isActive) { it.cancel(); testing.value = emptySet(); return } }
+        val visible = state.value.groups.flatMap { g -> g.rows.map { it.profile } }
+        if (visible.isEmpty()) return
+        testAllJob = viewModelScope.launch {
+            testing.value = visible.map { it.id }.toSet()
+            try {
+                tester.testAll(visible) { id, r -> reach.value += id to r; testing.value -= id }
+            } finally { testing.value = emptySet() }
+        }
+    }
     fun toggleFavoritesOnly() { favoritesOnly.value = !favoritesOnly.value }
 
     // ---- single-item actions ----
@@ -196,8 +230,9 @@ class ServersViewModel(
         private val refresher: SubscriptionRefresher,
         private val preferences: SelectionStore,
         private val manager: ConnectionManager,
+        private val tester: ReachabilityTester,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T = ServersViewModel(repo, refresher, preferences, manager) as T
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = ServersViewModel(repo, refresher, preferences, manager, tester) as T
     }
 }

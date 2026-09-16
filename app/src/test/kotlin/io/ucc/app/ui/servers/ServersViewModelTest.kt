@@ -8,6 +8,7 @@ import io.ucc.app.data.FakeSubscriptionStore
 import io.ucc.app.data.ServerRepository
 import io.ucc.app.data.SubscriptionRefresher
 import io.ucc.app.data.testImporter
+import io.ucc.app.data.diagnostics.ReachabilityTester
 import io.ucc.core.config.subscription.Subscription
 import io.ucc.core.engine.ConnectionState
 import io.ucc.core.model.ProfileSource
@@ -47,8 +48,11 @@ class ServersViewModelTest {
     private val refresher = SubscriptionRefresher(testImporter(), fetcher, store, subs, manager, now = { 5L }, parseDispatcher = dispatcher)
     private val importer = testImporter()
 
+    private val dialer = ReachabilityTester.Dialer { host, _, _ -> if (host.startsWith("1.2.3")) 25L else throw java.net.SocketTimeoutException() }
+    private val tester = ReachabilityTester(dialer, dispatcher, timeoutMs = 10)
+
     private fun TestScope.vm(): Pair<ServersViewModel, Job> {
-        val vm = ServersViewModel(repo, refresher, selection, manager)
+        val vm = ServersViewModel(repo, refresher, selection, manager, tester)
         val job = vm.state.onEach { }.launchIn(this) // keep WhileSubscribed state hot
         return vm to job
     }
@@ -158,6 +162,25 @@ class ServersViewModelTest {
         vm.confirmDelete(); advanceUntilIdle()
         assertTrue(store.current().isEmpty()); assertNull(subs.saved["s1"])
         assertNotNull(vm.state.value); assertTrue(vm.state.value.isEmpty)
+        job.cancel()
+    }
+
+    @Test fun `reachability results appear per row and test-all covers visible rows only`() = runTest(dispatcher) {
+        val (berlin, paris, oslo) = seed("trojan://pw@berlin.example.com:443#Berlin\nvless://b831381d-6324-4d53-ad4f-8cda48b30811@1.2.3.4:443?security=tls#Paris\nhysteria2://pw@1.2.3.6:443#Oslo")
+        val (vm, job) = vm()
+        advanceUntilIdle()
+        fun row(id: String) = vm.state.value.groups.flatMap { it.rows }.first { it.profile.id == id }
+        assertNull(row(paris.id).reachability)
+
+        vm.testReachability(paris.id); advanceUntilIdle()
+        assertEquals(ReachabilityTester.Result.Ok(25), row(paris.id).reachability)
+        assertFalse(row(paris.id).testing)
+
+        vm.onQueryChanged("o"); advanceUntilIdle() // matches Oslo and Berlin (protocol "trojan"); Paris/vless does not match
+        vm.testVisibleReachability(); advanceUntilIdle()
+        assertEquals(ReachabilityTester.Result.NotApplicable, row(oslo.id).reachability)
+        assertEquals(ReachabilityTester.Result.Timeout, row(berlin.id).reachability)
+        assertFalse(vm.state.value.testingAll)
         job.cancel()
     }
 }

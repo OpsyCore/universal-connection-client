@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Share
@@ -65,6 +66,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.ucc.app.R
+import io.ucc.app.data.diagnostics.ReachabilityTester
 import io.ucc.app.data.SubscriptionRefresher
 import io.ucc.app.ui.formatBytes
 import io.ucc.core.config.subscription.Subscription
@@ -113,6 +115,14 @@ fun ServersScreen(
                 TopAppBar(
                     title = { Text(stringResource(R.string.servers_title)) },
                     navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) } },
+                    actions = {
+                        if (!state.isEmpty) {
+                            IconButton(onClick = vm::testVisibleReachability) {
+                                if (state.testingAll) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                                else Icon(Icons.Filled.NetworkCheck, contentDescription = stringResource(R.string.servers_test_all))
+                            }
+                        }
+                    },
                 )
             }
         },
@@ -220,6 +230,7 @@ private fun ServerCard(row: ServerRow, state: ServersUiState, vm: ServersViewMod
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(p.name.ifBlank { p.address }, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                     if (row.active) Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.servers_active), tint = MaterialTheme.colorScheme.primary)
+                    ReachabilityBadge(row)
                 }
                 Text(
                     "${p.protocol.name} · ${p.address}:${p.port}" + if (p.tls.enabled) (if (p.tls.reality != null) " · REALITY" else " · TLS") else "",
@@ -232,6 +243,7 @@ private fun ServerCard(row: ServerRow, state: ServersUiState, vm: ServersViewMod
                 }
                 IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = null) }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.servers_action_test)) }, leadingIcon = { Icon(Icons.Filled.NetworkCheck, null) }, onClick = { menu = false; vm.testReachability(p.id) })
                     DropdownMenuItem(text = { Text(stringResource(R.string.servers_action_rename)) }, leadingIcon = { Icon(Icons.Filled.Edit, null) }, onClick = { menu = false; vm.startRename(p.id) })
                     DropdownMenuItem(text = { Text(stringResource(R.string.servers_action_share)) }, leadingIcon = { Icon(Icons.Filled.Share, null) }, onClick = { menu = false; vm.share(setOf(p.id)) })
                     DropdownMenuItem(text = { Text(stringResource(R.string.servers_action_delete)) }, leadingIcon = { Icon(Icons.Filled.Delete, null) }, onClick = { menu = false; vm.requestDelete(setOf(p.id)) })
@@ -239,6 +251,25 @@ private fun ServerCard(row: ServerRow, state: ServersUiState, vm: ServersViewMod
             }
         }
     }
+}
+
+@Composable
+private fun ReachabilityBadge(row: ServerRow) {
+    if (row.testing) { CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp); return }
+    val r = row.reachability ?: return
+    val (text, color) = when (r) {
+        is ReachabilityTester.Result.Ok -> "${r.rttMs} ms" to when {
+            r.rttMs < 150 -> MaterialTheme.colorScheme.primary
+            r.rttMs < 400 -> MaterialTheme.colorScheme.tertiary
+            else -> MaterialTheme.colorScheme.error
+        }
+        ReachabilityTester.Result.Timeout -> stringResource(R.string.servers_reach_timeout) to MaterialTheme.colorScheme.error
+        ReachabilityTester.Result.Refused -> stringResource(R.string.servers_reach_refused) to MaterialTheme.colorScheme.error
+        ReachabilityTester.Result.Unresolved -> stringResource(R.string.servers_reach_unresolved) to MaterialTheme.colorScheme.error
+        ReachabilityTester.Result.NotApplicable -> stringResource(R.string.servers_reach_na) to MaterialTheme.colorScheme.onSurfaceVariant
+        is ReachabilityTester.Result.Failed -> stringResource(R.string.servers_reach_failed) to MaterialTheme.colorScheme.error
+    }
+    Text(text, style = MaterialTheme.typography.labelSmall, color = color)
 }
 
 @Composable
