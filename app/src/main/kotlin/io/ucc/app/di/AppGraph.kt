@@ -88,8 +88,20 @@ class AppGraph(context: Context) {
     /** Bounded in-memory log buffer (core lines are already redacted by the adapter; manager events are redacted by design). */
     val logBuffer = LogBuffer(appScope, core.logs, connectionManager.events)
 
-    /** Servers screen use-cases and subscription refresh (manual + WorkManager). */
-    val reachabilityTester = io.ucc.app.data.diagnostics.ReachabilityTester()
+    /** Smart selection: pure policy from :core:smart, persistence + manager glue here. */
+    val healthStore = io.ucc.app.data.JsonServerHealthStore(app)
+    val healthRunner = io.ucc.core.smart.HealthCheckRunner(
+        tester = io.ucc.core.smart.TcpConnectionTester(),
+        store = healthStore,
+        clock = { System.currentTimeMillis() },
+        networkTransport = { smart.transport.value },
+    )
+    val smart: io.ucc.app.data.SmartConnectionCoordinator by lazy {
+        io.ucc.app.data.SmartConnectionCoordinator(
+            scope = appScope, manager = connectionManager, profiles = profileStore, health = healthStore, runner = healthRunner,
+            capabilities = CapabilityCheck(core.capabilities), selection = preferences, networkMonitor = networkMonitor,
+        )
+    }
     val serverRepository = ServerRepository(profileStore, subscriptionStore, connectionManager)
     val subscriptionRefresher = SubscriptionRefresher(
         importer = ConfigImporter(),
@@ -107,7 +119,10 @@ class AppGraph(context: Context) {
         VpnServiceRegistry.launchIntentFactory = { ctx ->
             Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
-        appScope.launch { profileStore.load(); subscriptionStore.load() }
+        // Health before profiles: the coordinator prunes health against the profile list once it is non-empty.
+        appScope.launch { healthStore.load(); profileStore.load(); subscriptionStore.load() }
+        smart // start observing the manager
+
         SubscriptionRefreshWorker.schedule(app)
     }
 }

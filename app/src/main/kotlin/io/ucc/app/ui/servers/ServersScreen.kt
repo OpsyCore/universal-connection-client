@@ -26,7 +26,10 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.NetworkCheck
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Share
@@ -71,7 +74,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.ucc.app.R
-import io.ucc.app.data.diagnostics.ReachabilityTester
+import io.ucc.core.smart.HealthStatus
+import io.ucc.core.smart.TestFailure
+import io.ucc.app.ui.smart.healthLabel
+import io.ucc.app.ui.smart.failureLabel
+import io.ucc.app.ui.smart.HealthColors
 import io.ucc.app.data.SubscriptionRefresher
 import io.ucc.app.ui.formatBytes
 import io.ucc.core.config.subscription.Subscription
@@ -87,6 +94,7 @@ fun ServersScreen(
     vm: ServersViewModel,
     onBack: () -> Unit,
     onAddConfig: () -> Unit,
+    onOpenSmart: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
@@ -122,9 +130,10 @@ fun ServersScreen(
                     navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) } },
                     actions = {
                         if (!state.isEmpty) {
-                            IconButton(onClick = vm::testVisibleReachability) {
+                            IconButton(onClick = onOpenSmart) { Icon(Icons.Filled.AutoAwesome, contentDescription = stringResource(R.string.smart_title)) }
+                            IconButton(onClick = vm::testVisibleReachability, modifier = Modifier.semantics { contentDescription = context.getString(if (state.testingAll) R.string.servers_test_all_cancel else R.string.servers_test_all) }) {
                                 if (state.testingAll) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                                else Icon(Icons.Filled.NetworkCheck, contentDescription = stringResource(R.string.servers_test_all))
+                                else Icon(Icons.Filled.NetworkCheck, contentDescription = null)
                             }
                         }
                     },
@@ -237,6 +246,7 @@ private fun ServerCard(row: ServerRow, state: ServersUiState, vm: ServersViewMod
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(p.name.ifBlank { p.address }, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                     if (row.active) Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.servers_active), tint = MaterialTheme.colorScheme.primary)
+                    if (row.recommended) Text(stringResource(R.string.health_recommended), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                     ReachabilityBadge(row)
                 }
                 // Technical line stays LTR in RTL locales so host:port reads correctly.
@@ -254,7 +264,7 @@ private fun ServerCard(row: ServerRow, state: ServersUiState, vm: ServersViewMod
                 }
                 IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = null) }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.servers_action_test)) }, leadingIcon = { Icon(Icons.Filled.NetworkCheck, null) }, onClick = { menu = false; vm.testReachability(p.id) })
+                    DropdownMenuItem(text = { Text(stringResource(if (row.testing) R.string.servers_action_test_cancel else R.string.servers_action_test)) }, leadingIcon = { Icon(Icons.Filled.NetworkCheck, null) }, onClick = { menu = false; vm.testReachability(p.id) })
                     DropdownMenuItem(text = { Text(stringResource(R.string.servers_action_rename)) }, leadingIcon = { Icon(Icons.Filled.Edit, null) }, onClick = { menu = false; vm.startRename(p.id) })
                     DropdownMenuItem(text = { Text(stringResource(R.string.servers_action_share)) }, leadingIcon = { Icon(Icons.Filled.Share, null) }, onClick = { menu = false; vm.share(setOf(p.id)) })
                     DropdownMenuItem(text = { Text(stringResource(R.string.servers_action_delete)) }, leadingIcon = { Icon(Icons.Filled.Delete, null) }, onClick = { menu = false; vm.requestDelete(setOf(p.id)) })
@@ -264,23 +274,34 @@ private fun ServerCard(row: ServerRow, state: ServersUiState, vm: ServersViewMod
     }
 }
 
+/**
+ * Health badge. Never colour-only: every state has a text label (and the
+ * whole badge carries a content description), so it reads the same for
+ * colour-blind users and TalkBack. Priority: an in-flight test, then a test
+ * result from this session, then the persisted status.
+ */
 @Composable
 private fun ReachabilityBadge(row: ServerRow) {
-    if (row.testing) { CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp); return }
-    val r = row.reachability ?: return
-    val (text, color) = when (r) {
-        is ReachabilityTester.Result.Ok -> "${r.rttMs} ms" to when {
-            r.rttMs < 150 -> io.ucc.app.ui.theme.StateColors.connected
-            r.rttMs < 400 -> io.ucc.app.ui.theme.StateColors.reconnecting
-            else -> MaterialTheme.colorScheme.error
+    val context = LocalContext.current
+    if (row.testing) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.semantics { contentDescription = context.getString(R.string.health_testing) }) {
+            CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 2.dp)
+            Text(stringResource(R.string.health_testing), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        ReachabilityTester.Result.Timeout -> stringResource(R.string.servers_reach_timeout) to MaterialTheme.colorScheme.error
-        ReachabilityTester.Result.Refused -> stringResource(R.string.servers_reach_refused) to MaterialTheme.colorScheme.error
-        ReachabilityTester.Result.Unresolved -> stringResource(R.string.servers_reach_unresolved) to MaterialTheme.colorScheme.error
-        ReachabilityTester.Result.NotApplicable -> stringResource(R.string.servers_reach_na) to MaterialTheme.colorScheme.onSurfaceVariant
-        is ReachabilityTester.Result.Failed -> stringResource(R.string.servers_reach_failed) to MaterialTheme.colorScheme.error
+        return
     }
-    Text(text, style = MaterialTheme.typography.labelSmall, color = color)
+    val t = row.lastTest
+    val (text, color) = when {
+        t != null && t.success -> "✓ ${t.latencyMs} ms" to HealthColors.forLatency(t.latencyMs!!)
+        t != null -> "✕ ${failureLabel(t.failure!!)}" to (if (t.failure == TestFailure.UNSUPPORTED || t.failure == TestFailure.CANCELLED) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error)
+        row.status == HealthStatus.UNKNOWN && row.health.lastCheckedAtEpochMs == null -> return
+        else -> {
+            val l = row.health.rollingLatencyMs
+            val label = healthLabel(row.status)
+            (if (row.status == HealthStatus.HEALTHY && l != null) "$label · $l ms" else label) to HealthColors.forStatus(row.status)
+        }
+    }
+    Text(text, style = MaterialTheme.typography.labelSmall, color = color, modifier = Modifier.semantics { contentDescription = context.getString(R.string.health_badge_cd, text) })
 }
 
 @Composable

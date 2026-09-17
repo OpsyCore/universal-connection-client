@@ -32,7 +32,7 @@ no device. CI is the only build/test authority. Nothing below is D or N.
 | 3 — Servers / subscriptions / refresh / merge / export | **COMPLETE (code)** | `ServerRepository`, `SubscriptionRefresher` (edit-preserving merge), `ShareLinkExporter`, WorkManager periodic refresh, Servers screen; tests in app + config | custom user groups (beyond subscription groups) not implemented; WorkManager scheduling not observed on device |
 | 4 — Secure storage / encryption / Keystore / migration | **COMPLETE (code) / DEVICE VERIFICATION REQUIRED** | `AesGcmFileCodec`, `SecureFile` (tmp + rename, quarantine), `KeystoreKeyProvider`, one-time migration + shred; 12 tests with a fake key provider | Android Keystore itself cannot run on JVM — key generation/unlock never exercised on a device |
 | 5 — Routing / DNS / per-app / kill switch / logs / settings | **COMPLETE (code) / DEVICE VERIFICATION REQUIRED** | `docs/CAPABILITIES.md` matrix; typed `RoutingRule`, DNS options, per-app gated on capabilities, kill-switch **status card only** (Android lockdown flags), sanitised categorised logs, 8-section Settings; +12 tests | every network behaviour (rules steering traffic, DNS hijack, per-app isolation, reconnect on Wi-Fi↔mobile) |
-| 6 — Error classification & diagnostics *(partially executed earlier in the session, before the owner froze scope)* | **PARTIAL** | `ErrorClassifier` (+3 tests), error hints, TCP reachability tester (+4 tests) landed in `d4bd4d2`/`8888e25`. Smart selection, latency-based auto-pick: NOT STARTED | smart selection; owner instruction: do not continue Phase 6 until approved |
+| 6 — Error classification & diagnostics *(partially executed earlier in the session, before the owner froze scope)* | **PARTIAL** | `ErrorClassifier` (+3 tests), error hints, TCP reachability tester (+4 tests) landed in `d4bd4d2`/`8888e25`. Smart selection landed in the Feature Completion Pass (`:core:smart`, see `docs/SMART_SELECTION.md`): health model, TCP connection test, deterministic ranking, bounded failover, Home/Servers/Smart UI. | Smart selection: **CODE + UNIT + CI**; device verification NOT AVAILABLE |
 | 7 — About / licences / theme / RTL polish | **PARTIAL** | licences dialog from `Notices`, theme mode, `supportsRtl`, fa strings exist. No dedicated About screen, no RTL screenshot review | RTL visual verification, full licence texts (GPLv3 text of sing-box not bundled) |
 | 8 — Security review | **PARTIAL** | `docs/SECURITY.md` reviewed items; exported components audited; no penetration/leak testing | device-side DNS-leak test, backup-exclusion verification |
 | 9 — Release config | **NOT STARTED** | `release { isMinifyEnabled = true }` exists but no signing config, no release CI job, no AAB, no R8 verification of libbox/Compose/serialization at runtime | see §8 |
@@ -94,7 +94,7 @@ Legend: Impl = implemented in code · Tested = JVM unit test exists · CI = pass
 | Reboot persistence | **Partial** | No | Build | No | `RECEIVE_BOOT_COMPLETED` declared but **no BroadcastReceiver**; relies on Android always-on or START_STICKY restart only |
 | Persian / English, RTL | Yes | No | Build (lint) | No | strings complete; RTL layout unreviewed |
 | Dark / light / system theme | Yes | No | Build | No | |
-| Smart server selection | **No** | — | — | — | not started |
+| Smart server selection | **Yes** | Yes (`:core:smart` 40+ tests, coordinator 11, stores 2, VM) | Yes | **No** (no device) | health/ranking/failover/test-all per `docs/SMART_SELECTION.md` |
 | Profile field editing / detach from subscription | **No** | — | — | — | backlog |
 
 ---
@@ -247,7 +247,7 @@ All items require a **physical Android device** (P = physical only; E = emulator
 8. Bundle full licence texts (GPLv3 for sing-box; ML Kit ToS) and a source-offer statement in About — GPL compliance for distribution.
 
 ### MEDIUM (product completeness; no release-blocking dependency)
-9. Smart selection (auto-pick by reachability/URL test) — Phase 6 remainder, not started.
+9. ~~Smart selection~~ — done (Feature Completion Pass); remaining: device verification of Smart connect/failover on a real network.
 10. Profile editing / detach from subscription; custom groups.
 11. Xray/Clash JSON and WireGuard `.conf` import.
 12. Per-connection log table (`CommandConnections`).

@@ -22,6 +22,28 @@ class EncryptedStoresTest {
     private fun codec() = AesGcmFileCodec({ key })
     private fun profileStore() = JsonProfileStore(dir, codec(), Dispatchers.Unconfined)
     private fun subStore() = JsonSubscriptionStore(dir, codec(), Dispatchers.Unconfined)
+    private fun healthStore() = JsonServerHealthStore(dir, codec(), Dispatchers.Unconfined)
+
+    @Test fun `health records survive a restart, are encrypted and prune correctly`() = runTest {
+        val hs = healthStore().apply { load() }
+        hs.update("fp-a") { it.record(io.ucc.core.smart.ConnectionTestResult.ok(42), 1_000, "wifi") }
+        hs.update("fp-b") { it.record(io.ucc.core.smart.ConnectionTestResult.failed(io.ucc.core.smart.TestFailure.TIMEOUT), 2_000, "wifi") }
+        val disk = File(dir, "health.enc").readBytes().toString(Charsets.ISO_8859_1)
+        assertFalse(disk.contains("fp-a")); assertFalse(disk.contains("wifi"))
+        val reloaded = healthStore().apply { load() }
+        assertEquals(42L, reloaded.get("fp-a").latencyMs)
+        assertEquals(1, reloaded.get("fp-b").consecutiveFailures)
+        reloaded.prune(setOf("fp-a"))
+        assertEquals(setOf("fp-a"), healthStore().apply { load() }.all.value.keys)
+    }
+
+    @Test fun `unreadable health file is treated as empty`() = runTest {
+        File(dir, "health.enc").writeBytes(ByteArray(40) { 7 })
+        val hs = healthStore().apply { load() }
+        assertTrue(hs.all.value.isEmpty())
+        hs.update("x") { it }
+        assertEquals(setOf("x"), healthStore().apply { load() }.all.value.keys)
+    }
 
     @Test fun `profiles survive a restart and never touch disk in plaintext`() = runTest {
         val ps = testImporter().import("trojan://hunter2@1.2.3.4:443#A\ntrojan://hunter2@1.2.3.5:443#B", ProfileSource.Manual).profiles

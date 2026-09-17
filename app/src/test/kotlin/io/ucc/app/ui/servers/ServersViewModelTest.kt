@@ -8,7 +8,12 @@ import io.ucc.app.data.FakeSubscriptionStore
 import io.ucc.app.data.ServerRepository
 import io.ucc.app.data.SubscriptionRefresher
 import io.ucc.app.data.testImporter
-import io.ucc.app.data.diagnostics.ReachabilityTester
+import io.ucc.core.smart.ConnectionTestResult
+import io.ucc.core.smart.HealthCheckRunner
+import io.ucc.core.smart.HealthStatus
+import io.ucc.core.smart.InMemoryServerHealthStore
+import io.ucc.core.smart.TcpConnectionTester
+import io.ucc.core.smart.TestFailure
 import io.ucc.core.config.subscription.Subscription
 import io.ucc.core.engine.ConnectionState
 import io.ucc.core.model.ProfileSource
@@ -48,11 +53,13 @@ class ServersViewModelTest {
     private val refresher = SubscriptionRefresher(testImporter(), fetcher, store, subs, manager, now = { 5L }, parseDispatcher = dispatcher)
     private val importer = testImporter()
 
-    private val dialer = ReachabilityTester.Dialer { host, _, _ -> if (host.startsWith("1.2.3")) 25L else throw java.net.SocketTimeoutException() }
-    private val tester = ReachabilityTester(dialer, dispatcher, timeoutMs = 10)
+    private val dialer = TcpConnectionTester.Dialer { host, _, _ -> if (host.startsWith("1.2.3")) 25L else throw java.net.SocketTimeoutException() }
+    private val tester = TcpConnectionTester(dialer, dispatcher, timeoutMs = 10)
+    private val healthStore = InMemoryServerHealthStore()
+    private val runner = HealthCheckRunner(tester, healthStore, { 5L })
 
     private fun TestScope.vm(): Pair<ServersViewModel, Job> {
-        val vm = ServersViewModel(repo, refresher, selection, manager, tester)
+        val vm = ServersViewModel(repo, refresher, selection, manager, runner, healthStore, now = { 5L })
         val job = vm.state.onEach { }.launchIn(this) // keep WhileSubscribed state hot
         return vm to job
     }
@@ -170,16 +177,21 @@ class ServersViewModelTest {
         val (vm, job) = vm()
         advanceUntilIdle()
         fun row(id: String) = vm.state.value.groups.flatMap { it.rows }.first { it.profile.id == id }
-        assertNull(row(paris.id).reachability)
+        assertNull(row(paris.id).lastTest)
+        assertEquals(HealthStatus.UNKNOWN, row(paris.id).status)
 
         vm.testReachability(paris.id); advanceUntilIdle()
-        assertEquals(ReachabilityTester.Result.Ok(25), row(paris.id).reachability)
+        assertEquals(ConnectionTestResult.ok(25), row(paris.id).lastTest)
         assertFalse(row(paris.id).testing)
+        assertEquals(HealthStatus.HEALTHY, row(paris.id).status, "test result is persisted as health")
+        assertEquals(25L, row(paris.id).health.latencyMs)
 
         vm.onQueryChanged("o"); advanceUntilIdle() // matches Oslo and Berlin (protocol "trojan"); Paris/vless does not match
         vm.testVisibleReachability(); advanceUntilIdle()
-        assertEquals(ReachabilityTester.Result.NotApplicable, row(oslo.id).reachability)
-        assertEquals(ReachabilityTester.Result.Timeout, row(berlin.id).reachability)
+        assertEquals(TestFailure.UNSUPPORTED, row(oslo.id).lastTest?.failure)
+        assertEquals(TestFailure.TIMEOUT, row(berlin.id).lastTest?.failure)
+        assertEquals(HealthStatus.UNKNOWN, row(oslo.id).status, "UDP-only cannot be rated by a TCP test")
+        assertEquals(HealthStatus.OFFLINE, row(berlin.id).status, "never worked and failed = offline")
         assertFalse(vm.state.value.testingAll)
         job.cancel()
     }

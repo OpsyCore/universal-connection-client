@@ -67,6 +67,7 @@ dependencies {
     implementation(project(":core:engine-api"))
     implementation(project(":core:vpn"))
     implementation(project(":core:config"))
+    implementation(project(":core:smart"))
     // Engine modules are flavour-scoped: nothing in src/main may import them except io.ucc.app.core.CoreFactories.
     "singboxImplementation"(project(":core:engine-singbox"))
 

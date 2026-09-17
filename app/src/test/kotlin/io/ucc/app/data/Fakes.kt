@@ -67,6 +67,11 @@ class FakeSelection : SelectionStore {
     override var selectedProfileId: String?
         get() = _f.value
         set(value) { _f.value = value }
+    private val _smart = MutableStateFlow(false)
+    override val smartModeFlow: StateFlow<Boolean> = _smart
+    override var smartMode: Boolean
+        get() = _smart.value
+        set(value) { _smart.value = value }
 }
 
 fun testImporter(ids: Iterator<String> = generateSequence(1) { it + 1 }.map { "id-$it" }.iterator()) =

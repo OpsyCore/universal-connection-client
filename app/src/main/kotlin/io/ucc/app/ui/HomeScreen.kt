@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -35,6 +36,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
+import io.ucc.app.data.SmartConnectionCoordinator
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
@@ -45,6 +48,7 @@ import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -100,6 +104,9 @@ fun HomeScreen(
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onSelectProfile: (String) -> Unit,
+    onSelectSmart: () -> Unit = {},
+    onOpenSmart: () -> Unit = {},
+    onDismissSmartPhase: () -> Unit = {},
     onAddConfig: () -> Unit = {},
     onOpenServers: () -> Unit = {},
     onDismissStoreProblem: () -> Unit = {},
@@ -137,7 +144,7 @@ fun HomeScreen(
                     }
                 }
             }
-            item(key = "hero") { HeroCard(state, onConnect, onDisconnect, onOpenLogs, onAddConfig) }
+            item(key = "hero") { HeroCard(state, onConnect, onDisconnect, onOpenLogs, onAddConfig, onDismissSmartPhase) }
             item(key = "metrics") { MetricsRow(state) }
             item(key = "servers-header") {
                 Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -150,8 +157,9 @@ fun HomeScreen(
             if (state.profiles.isEmpty()) {
                 item(key = "empty") { EmptyServers(onAddConfig) }
             } else {
+                item(key = "smart") { SmartRow(state, onClick = onSelectSmart, onDetails = onOpenSmart) }
                 items(state.profiles.take(MAX_HOME_SERVERS), key = { it.id }) { p ->
-                    ServerRow(p, selected = p.id == state.selectedProfile?.id, active = p.id == state.connection.profileIdOrNull && state.connection.isActive, onClick = { onSelectProfile(p.id) })
+                    ServerRow(p, selected = !state.smartMode && p.id == state.selectedProfile?.id, active = p.id == state.connection.profileIdOrNull && state.connection.isActive, recommended = p.id == state.recommendedProfile?.id, onClick = { onSelectProfile(p.id) })
                 }
             }
         }
@@ -188,7 +196,7 @@ private fun HomeHeader(state: HomeUiState, onOpenSettings: () -> Unit) {
 // ------------------------------------------------------------------ hero
 
 @Composable
-private fun HeroCard(state: HomeUiState, onConnect: () -> Unit, onDisconnect: () -> Unit, onOpenLogs: () -> Unit, onAddConfig: () -> Unit) {
+private fun HeroCard(state: HomeUiState, onConnect: () -> Unit, onDisconnect: () -> Unit, onOpenLogs: () -> Unit, onAddConfig: () -> Unit, onDismissSmartPhase: () -> Unit) {
     val context = LocalContext.current
     val conn = state.connection
     val accent = when (conn) {
@@ -204,7 +212,8 @@ private fun HeroCard(state: HomeUiState, onConnect: () -> Unit, onDisconnect: ()
             StatusPill(conn, accent)
             Spacer(Modifier.height(20.dp))
 
-            PowerButton(conn = conn, accent = accent, enabled = state.selectedProfile != null || conn.isActive || conn is ConnectionState.Starting,
+            val smartBusy = state.smartPhase is SmartConnectionCoordinator.Phase.Measuring
+            PowerButton(conn = conn, accent = accent, enabled = !smartBusy && (state.selectedProfile != null || conn.isActive || conn is ConnectionState.Starting),
                 onClick = { if (conn.isActive || conn is ConnectionState.Starting) onDisconnect() else onConnect() })
             Spacer(Modifier.height(14.dp))
 
@@ -219,7 +228,7 @@ private fun HeroCard(state: HomeUiState, onConnect: () -> Unit, onDisconnect: ()
             Spacer(Modifier.height(18.dp))
 
             // Selected server slot — stable height, never hidden.
-            SelectedServerSlot(state.selectedProfile, conn, onAddConfig)
+            if (state.smartMode) SmartSlot(state, onDismissSmartPhase) else SelectedServerSlot(state.selectedProfile, conn, onAddConfig)
 
             // Detail slot: error message / reconnect reason / connected-since. Fixed minimum height keeps the card from jumping.
             Box(Modifier.fillMaxWidth().padding(top = 12.dp).height(44.dp), contentAlignment = Alignment.Center) {
@@ -319,6 +328,69 @@ private fun SelectedServerSlot(profile: ConnectionProfile?, conn: ConnectionStat
     }
 }
 
+/**
+ * Hero slot in Smart mode. Shows the server Smart is using / would use and the
+ * live phase (measuring, failing over, nothing healthy). Same height class as
+ * [SelectedServerSlot] so the card does not jump when the mode changes.
+ */
+@Composable
+private fun SmartSlot(state: HomeUiState, onDismissPhase: () -> Unit) {
+    val conn = state.connection
+    val activeId = conn.profileIdOrNull.takeIf { conn.isActive || conn is ConnectionState.Starting }
+    val shown = activeId?.let { id -> state.profiles.firstOrNull { it.id == id } } ?: state.recommendedProfile
+    val phase = state.smartPhase
+    Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(32.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.smart_title), style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                val line = when (phase) {
+                    is SmartConnectionCoordinator.Phase.Measuring -> stringResource(R.string.smart_phase_measuring, phase.count)
+                    is SmartConnectionCoordinator.Phase.FailingOver -> stringResource(R.string.smart_phase_failover, state.profiles.firstOrNull { it.id == phase.toId }?.name ?: "")
+                    SmartConnectionCoordinator.Phase.NoHealthyServer -> stringResource(R.string.smart_verdict_none)
+                    SmartConnectionCoordinator.Phase.NoCandidates -> stringResource(R.string.smart_verdict_no_servers)
+                    else -> shown?.let { p -> (if (activeId != null) "" else stringResource(R.string.health_recommended) + ": ") + p.name.ifBlank { p.address } } ?: stringResource(R.string.smart_phase_will_test)
+                }
+                Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            when {
+                phase is SmartConnectionCoordinator.Phase.Measuring -> CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                phase is SmartConnectionCoordinator.Phase.NoHealthyServer || phase is SmartConnectionCoordinator.Phase.NoCandidates ->
+                    TextButton(onClick = onDismissPhase, contentPadding = PaddingValues(horizontal = 8.dp)) { Text(stringResource(R.string.action_dismiss)) }
+                conn is ConnectionState.Connected -> Icon(Icons.Filled.Check, contentDescription = null, tint = StateColors.connected, modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+}
+
+/** "Smart" entry in the Home picker: selecting it is a mode, not a server. */
+@Composable
+private fun SmartRow(state: HomeUiState, onClick: () -> Unit, onDetails: () -> Unit) {
+    val selected = state.smartMode
+    val context = LocalContext.current
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surfaceContainer,
+        border = if (selected) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)) else null,
+        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable(onClick = onClick).semantics { contentDescription = context.getString(R.string.smart_row_cd) },
+    ) {
+        Row(Modifier.padding(start = 14.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
+                Text(stringResource(R.string.smart_title), style = MaterialTheme.typography.bodyLarge, maxLines = 1)
+                val sub = state.recommendedProfile?.let { stringResource(R.string.smart_row_recommends, it.name.ifBlank { it.address }) } ?: stringResource(R.string.smart_row_body)
+                Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (selected) Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            TextButton(onClick = onDetails, contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.smart_details)) }
+        }
+    }
+}
+
 /** Host:port / protocol lines are always laid out LTR, even in RTL locales. */
 @Composable
 private fun TechnicalText(text: String) {
@@ -368,7 +440,7 @@ private fun MetricTile(modifier: Modifier, icon: androidx.compose.ui.graphics.ve
 // ------------------------------------------------------------------ servers
 
 @Composable
-private fun ServerRow(p: ConnectionProfile, selected: Boolean, active: Boolean, onClick: () -> Unit) {
+private fun ServerRow(p: ConnectionProfile, selected: Boolean, active: Boolean, recommended: Boolean = false, onClick: () -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surfaceContainer,
@@ -379,7 +451,10 @@ private fun ServerRow(p: ConnectionProfile, selected: Boolean, active: Boolean, 
             ProtocolBadge(p.protocol.name)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(p.name.ifBlank { p.address }, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(p.name.ifBlank { p.address }, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    if (recommended) Text(stringResource(R.string.health_recommended), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                }
                 TechnicalText("${p.address}:${p.port}${securitySuffix(p)}")
             }
             when {

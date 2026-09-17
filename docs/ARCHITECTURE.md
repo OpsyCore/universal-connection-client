@@ -69,5 +69,5 @@ When the command client cannot connect, statistics show "—" — never zeros.
 |---|---|
 | 2 Config engine | `:core:config` (URI/JSON/subscription parsers → `ConnectionProfile`) + QR in `:app` |
 | 4 Persistence | `:core:data` (Room + encrypted credentials + DataStore); replaces `JsonProfileStore` |
-| 5 Smart engine | `:core:smart` (pure Kotlin scoring + Android probe runner) |
+| 5 Smart engine | `:core:smart` (pure Kotlin health model, TCP probe, ranking, failover policy — **implemented**, see `docs/SMART_SELECTION.md`) |
 | 6 Routing/DNS | rule model in `:core:model`, generator support already present via `routingConfig`/`dnsConfig` |

@@ -325,4 +325,56 @@
     <string name="licenses_additional_terms">شرایط اضافی</string>
     <string name="licenses_full_gpl">خواندن متن کامل GPL‑3.0</string>
     <string name="licenses_no_warranty">این برنامه مطلقاً هیچ ضمانتی ندارد. این نرم‌افزار آزاد است و می‌توانید آن را تحت شرایط GNU GPL نسخهٔ ۳ یا بالاتر بازتوزیع کنید.</string>
+
+    <!-- Smart selection / server health -->
+    <string name="smart_title">انتخاب هوشمند</string>
+    <string name="smart_details">جزئیات</string>
+    <string name="smart_row_body">بهترین سرور را بر اساس نتایج آزمایش واقعی انتخاب می‌کند</string>
+    <string name="smart_row_recommends">به %1$s متصل می‌شود</string>
+    <string name="smart_row_cd">انتخاب هوشمند: برنامه سرور را انتخاب کند</string>
+    <string name="smart_toggle_title">استفاده از انتخاب هوشمند</string>
+    <string name="smart_toggle_body">هنگام اتصال، برنامه سروری را با بهترین شواهد اخیر انتخاب می‌کند و در صورت خطا سرور را عوض می‌کند.</string>
+    <string name="smart_ranking">رتبه‌بندی</string>
+    <string name="smart_test_all">آزمایش همه سرورها</string>
+    <string name="smart_verdict_recommended">پیشنهادی: %1$s</string>
+    <string name="smart_verdict_none">سرور سالمی پیدا نشد</string>
+    <string name="smart_verdict_none_body">همه سرورها اخیراً ناموفق بوده‌اند. یکی را دستی انتخاب کنید یا بعداً دوباره آزمایش کنید.</string>
+    <string name="smart_verdict_no_data">داده کافی نیست</string>
+    <string name="smart_verdict_no_data_body">%1$d سرور پیش از اولین اتصال هوشمند آزمایش می‌شود.</string>
+    <string name="smart_verdict_no_servers">سرور قابل استفاده‌ای نیست</string>
+    <string name="smart_verdict_no_servers_body">سروری اضافه کنید یا بررسی کنید که سرورهای واردشده توسط هسته فعال پشتیبانی می‌شوند.</string>
+    <string name="smart_availability">%1$d%% در دسترس</string>
+    <string name="smart_network">شبکه: %1$s</string>
+    <string name="smart_not_enough_data">داده کافی نیست — هنوز آزمایش نشده</string>
+    <string name="smart_ev_latency">تأخیر</string>
+    <string name="smart_ev_samples">نمونه‌ها</string>
+    <string name="smart_ev_availability">در دسترس بودن</string>
+    <string name="smart_ev_streak">خطاهای پیاپی</string>
+    <string name="smart_ev_last_ok">آخرین موفقیت</string>
+    <string name="smart_ev_last_fail">آخرین خطا</string>
+    <string name="smart_ev_network">شبکه</string>
+    <string name="smart_how_title">رتبه‌بندی چگونه کار می‌کند</string>
+    <string name="smart_how_body">سرورهایی که اخیراً کار کرده‌اند اول می‌آیند، سپس سرور پایدارتر و بعد سرور سریع‌تر. نتایج قدیمی‌تر از ۳۰ دقیقه یا مربوط به شبکه دیگر، نامشخص در نظر گرفته و دوباره آزمایش می‌شوند.</string>
+    <string name="smart_how_limits">آزمایش‌ها دسترسی DNS و TCP به درگاه سرور را می‌سنجند و نمی‌توانند رمز اشتباه را تشخیص دهند. سرورهای فقط-UDP (Hysteria، TUIC، WireGuard) تنها از اتصال‌های واقعی رتبه می‌گیرند.</string>
+    <string name="smart_phase_measuring">در حال آزمایش %1$d سرور…</string>
+    <string name="smart_phase_failover">در حال تغییر به %1$s…</string>
+    <string name="smart_phase_will_test">سرورها هنگام اتصال آزمایش می‌شوند</string>
+    <plurals name="smart_unsupported_excluded">
+        <item quantity="one">%d سرور کنار گذاشته شد: توسط هسته فعال پشتیبانی نمی‌شود.</item>
+        <item quantity="other">%d سرور کنار گذاشته شدند: توسط هسته فعال پشتیبانی نمی‌شوند.</item>
+    </plurals>
+    <string name="health_healthy">سالم</string>
+    <string name="health_degraded">ناپایدار</string>
+    <string name="health_offline">آفلاین</string>
+    <string name="health_unknown">نامشخص</string>
+    <string name="health_testing">در حال آزمایش…</string>
+    <string name="health_recommended">پیشنهادی</string>
+    <string name="health_badge_cd">وضعیت سرور: %1$s</string>
+    <string name="health_fail_tls">خطای TLS</string>
+    <string name="health_fail_auth">خطای احراز هویت</string>
+    <string name="health_fail_network">بدون شبکه</string>
+    <string name="health_fail_cancelled">لغو شد</string>
+    <string name="servers_action_test_cancel">لغو آزمایش</string>
+    <string name="servers_test_all_cancel">لغو آزمایش‌ها</string>
+    <string name="action_back">بازگشت</string>
 </resources>

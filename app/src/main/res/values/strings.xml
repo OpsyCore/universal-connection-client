@@ -327,4 +327,56 @@
     <string name="licenses_additional_terms">Additional terms</string>
     <string name="licenses_full_gpl">Read the full GPL‑3.0 text</string>
     <string name="licenses_no_warranty">This program comes with ABSOLUTELY NO WARRANTY. It is free software, and you are welcome to redistribute it under the conditions of the GNU GPL v3 or later.</string>
+
+    <!-- Smart selection / server health -->
+    <string name="smart_title">Smart selection</string>
+    <string name="smart_details">Details</string>
+    <string name="smart_row_body">Picks the best server from real test results</string>
+    <string name="smart_row_recommends">Would connect to %1$s</string>
+    <string name="smart_row_cd">Smart selection: let the app choose the server</string>
+    <string name="smart_toggle_title">Use Smart selection</string>
+    <string name="smart_toggle_body">On connect, the app picks the server with the best recent evidence and switches if it fails.</string>
+    <string name="smart_ranking">Ranking</string>
+    <string name="smart_test_all">Test all servers</string>
+    <string name="smart_verdict_recommended">Recommended: %1$s</string>
+    <string name="smart_verdict_none">No healthy server found</string>
+    <string name="smart_verdict_none_body">Every server failed recently. Pick one manually or test again later.</string>
+    <string name="smart_verdict_no_data">Not enough data</string>
+    <string name="smart_verdict_no_data_body">%1$d server(s) will be tested before the first Smart connect.</string>
+    <string name="smart_verdict_no_servers">No usable servers</string>
+    <string name="smart_verdict_no_servers_body">Add a server, or check that the imported ones are supported by the active core.</string>
+    <string name="smart_availability">%1$d%% available</string>
+    <string name="smart_network">Network: %1$s</string>
+    <string name="smart_not_enough_data">Not enough data — not tested yet</string>
+    <string name="smart_ev_latency">Latency</string>
+    <string name="smart_ev_samples">Samples</string>
+    <string name="smart_ev_availability">Availability</string>
+    <string name="smart_ev_streak">Failing streak</string>
+    <string name="smart_ev_last_ok">Last OK</string>
+    <string name="smart_ev_last_fail">Last failure</string>
+    <string name="smart_ev_network">Network</string>
+    <string name="smart_how_title">How ranking works</string>
+    <string name="smart_how_body">Servers that recently worked come first, then the more stable one, then the faster one. Results older than 30 minutes or from a different network count as unknown and are re-tested.</string>
+    <string name="smart_how_limits">Tests measure DNS and TCP reachability of the server port; they cannot detect a wrong password. UDP-only servers (Hysteria, TUIC, WireGuard) are only rated from real connections.</string>
+    <string name="smart_phase_measuring">Testing %1$d server(s)…</string>
+    <string name="smart_phase_failover">Switching to %1$s…</string>
+    <string name="smart_phase_will_test">Servers will be tested on connect</string>
+    <plurals name="smart_unsupported_excluded">
+        <item quantity="one">%d server is excluded: not supported by the active core.</item>
+        <item quantity="other">%d servers are excluded: not supported by the active core.</item>
+    </plurals>
+    <string name="health_healthy">Healthy</string>
+    <string name="health_degraded">Degraded</string>
+    <string name="health_offline">Offline</string>
+    <string name="health_unknown">Unknown</string>
+    <string name="health_testing">Testing…</string>
+    <string name="health_recommended">Recommended</string>
+    <string name="health_badge_cd">Server health: %1$s</string>
+    <string name="health_fail_tls">TLS failed</string>
+    <string name="health_fail_auth">auth failed</string>
+    <string name="health_fail_network">no network</string>
+    <string name="health_fail_cancelled">cancelled</string>
+    <string name="servers_action_test_cancel">Cancel test</string>
+    <string name="servers_test_all_cancel">Cancel tests</string>
+    <string name="action_back">Back</string>
 </resources>

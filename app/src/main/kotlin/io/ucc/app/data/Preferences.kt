@@ -13,6 +13,10 @@ import io.ucc.core.vpn.LastProfileStore
 interface SelectionStore {
     val selectedProfileIdFlow: kotlinx.coroutines.flow.StateFlow<String?>
     var selectedProfileId: String?
+
+    /** true = Smart selection picks the server on connect; false = the user's [selectedProfileId] is used. */
+    val smartModeFlow: kotlinx.coroutines.flow.StateFlow<Boolean>
+    var smartMode: Boolean
 }
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
@@ -34,6 +38,12 @@ class Preferences(context: Context) : LastProfileStore, SelectionStore, ThemeSto
         get() = _selected.value
         set(value) { _selected.value = value; prefs.edit().putString(KEY_SELECTED, value).apply() }
 
+    private val _smart = kotlinx.coroutines.flow.MutableStateFlow(prefs.getBoolean(KEY_SMART, false))
+    override val smartModeFlow: kotlinx.coroutines.flow.StateFlow<Boolean> = _smart
+    override var smartMode: Boolean
+        get() = _smart.value
+        set(value) { _smart.value = value; prefs.edit().putBoolean(KEY_SMART, value).apply() }
+
     private val _theme = kotlinx.coroutines.flow.MutableStateFlow(
         prefs.getString(KEY_THEME, null)?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
     )
@@ -52,5 +62,6 @@ class Preferences(context: Context) : LastProfileStore, SelectionStore, ThemeSto
         const val KEY_SELECTED = "selected_profile_id"
         const val KEY_LAST_ACTIVE = "last_active_profile_id"
         const val KEY_THEME = "theme_mode"
+        const val KEY_SMART = "smart_selection"
     }
 }

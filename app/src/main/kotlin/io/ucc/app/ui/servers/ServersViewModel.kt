@@ -7,7 +7,12 @@ import io.ucc.app.data.SelectionStore
 import io.ucc.app.data.ServerRepository
 import io.ucc.app.data.ServerRepository.Companion.boundProfileId
 import io.ucc.app.data.SubscriptionRefresher
-import io.ucc.app.data.diagnostics.ReachabilityTester
+import io.ucc.core.smart.ConnectionTestResult
+import io.ucc.core.smart.HealthCheckRunner
+import io.ucc.core.smart.HealthStatus
+import io.ucc.core.smart.ServerHealth
+import io.ucc.core.smart.ServerHealthEvaluator
+import io.ucc.core.smart.ServerHealthStore
 import io.ucc.core.config.subscription.Subscription
 import io.ucc.core.engine.ConnectionState
 import io.ucc.core.engine.manager.ConnectionManager
@@ -25,9 +30,15 @@ data class ServerRow(
     val profile: ConnectionProfile,
     val selected: Boolean,
     val active: Boolean,
-    /** null = not tested yet; [ReachabilityTester.Result] otherwise. */
-    val reachability: ReachabilityTester.Result? = null,
+    /** Persistent, fingerprint-keyed health record (empty when never observed). */
+    val health: ServerHealth = ServerHealth.EMPTY,
+    /** Derived from [health] against the current time and network. */
+    val status: HealthStatus = HealthStatus.UNKNOWN,
+    /** Result of a test started from this screen in this session; null = not tested here. */
+    val lastTest: ConnectionTestResult? = null,
     val testing: Boolean = false,
+    /** Same content as [ServersUiState.recommendedId]; true for at most one row. */
+    val recommended: Boolean = false,
 )
 
 data class ServerGroup(
@@ -47,6 +58,8 @@ data class ServersUiState(
     val renaming: ConnectionProfile? = null,
     val confirmDelete: PendingDelete? = null,
     val testingAll: Boolean = false,
+    /** Profile Smart would pick right now with the stored evidence; null when there is not enough data. */
+    val recommendedId: String? = null,
 ) {
     val isEmpty: Boolean get() = totalCount == 0
     val nothingMatches: Boolean get() = totalCount > 0 && groups.all { it.rows.isEmpty() }
@@ -71,10 +84,14 @@ class ServersViewModel(
     private val refresher: SubscriptionRefresher,
     private val preferences: SelectionStore,
     manager: ConnectionManager,
-    private val tester: ReachabilityTester = ReachabilityTester(),
+    private val runner: HealthCheckRunner,
+    private val health: ServerHealthStore,
+    private val recommendation: kotlinx.coroutines.flow.Flow<String?> = kotlinx.coroutines.flow.flowOf(null),
+    private val transport: kotlinx.coroutines.flow.StateFlow<String?> = MutableStateFlow(null),
+    private val now: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
-    private val reach = MutableStateFlow<Map<String, ReachabilityTester.Result>>(emptyMap())
+    private val reach = MutableStateFlow<Map<String, ConnectionTestResult>>(emptyMap())
     private val testing = MutableStateFlow<Set<String>>(emptySet())
     private var testAllJob: kotlinx.coroutines.Job? = null
 
@@ -95,9 +112,10 @@ class ServersViewModel(
 
     val state: StateFlow<ServersUiState> = combine(
         repo.groups, preferences.selectedProfileIdFlow, manager.state, combine(query, favoritesOnly, refreshing) { q, f, r -> Triple(q, f, r) },
-        combine(local, reach, testing) { l, r, t -> Triple(l, r, t) },
-    ) { groups, selectedId, conn, (q, favOnly, busy), (loc, reachMap, testingIds) ->
+        combine(local, reach, testing, health.all, combine(recommendation, transport) { rec, tr -> rec to tr }) { l, r, t, h, (rec, tr) -> RowInputs(l, r, t, h, rec, tr) },
+    ) { groups, selectedId, conn, (q, favOnly, busy), (loc, reachMap, testingIds, healthMap, recommendedId, tr) ->
         val activeId = conn.boundProfileId
+        val nowMs = now()
         val needle = q.trim().lowercase()
         val total = groups.sumOf { it.profiles.size }
         val visible = groups.map { g ->
@@ -105,7 +123,14 @@ class ServersViewModel(
                 .filter { !favOnly || it.metadata.favorite }
                 .filter { needle.isEmpty() || it.matches(needle) }
                 .sortedWith(compareByDescending<ConnectionProfile> { it.metadata.favorite }.thenBy { it.name.lowercase() })
-                .map { ServerRow(it, selected = it.id == selectedId, active = it.id == activeId, reachability = reachMap[it.id], testing = it.id in testingIds) }
+                .map {
+                    val h = healthMap[it.fingerprint] ?: ServerHealth.EMPTY
+                    ServerRow(
+                        it, selected = it.id == selectedId, active = it.id == activeId,
+                        health = h, status = ServerHealthEvaluator.status(h, nowMs, tr),
+                        lastTest = reachMap[it.id], testing = it.id in testingIds, recommended = it.id == recommendedId,
+                    )
+                }
                 .toList()
             ServerGroup(g.subscription, rows, refreshing = g.subscription?.id in busy)
         }
@@ -113,8 +138,14 @@ class ServersViewModel(
             query = q, favoritesOnly = favOnly, groups = visible, totalCount = total,
             selectionMode = loc.selectionMode, checked = loc.checked, renaming = loc.renaming, confirmDelete = loc.confirmDelete,
             testingAll = testAllJob?.isActive == true,
+            recommendedId = recommendedId,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ServersUiState())
+
+    private data class RowInputs(
+        val local: LocalState, val reach: Map<String, ConnectionTestResult>, val testing: Set<String>,
+        val health: Map<String, ServerHealth>, val recommendedId: String?, val transport: String?,
+    )
 
     private fun ConnectionProfile.matches(needle: String): Boolean =
         name.lowercase().contains(needle) || address.lowercase().contains(needle) ||
@@ -123,16 +154,23 @@ class ServersViewModel(
     // ---- search / filter ----
     fun onQueryChanged(q: String) { query.value = q }
 
-    /** TCP reachability of one server (see [ReachabilityTester] for what this does and does not prove). */
+    private val singleTests = HashMap<String, kotlinx.coroutines.Job>()
+
+    /**
+     * Connection test of one server (TCP reach + latency; see
+     * [io.ucc.core.smart.TcpConnectionTester] for what it does and does not
+     * prove). Tapping again while running cancels. Never connects.
+     */
     fun testReachability(id: String) {
+        singleTests.remove(id)?.let { if (it.isActive) { it.cancel(); return } }
         val p = repo.byId(id) ?: return
-        viewModelScope.launch {
+        singleTests[id] = viewModelScope.launch {
             testing.value += id
-            try { reach.value += id to tester.test(p) } finally { testing.value -= id }
+            try { reach.value += id to runner.test(p) } finally { testing.value -= id; singleTests.remove(id) }
         }
     }
 
-    /** Tests every currently visible server; a second call while running cancels. */
+    /** Tests every currently visible server with bounded parallelism; a second call while running cancels. */
     fun testVisibleReachability() {
         testAllJob?.let { if (it.isActive) { it.cancel(); testing.value = emptySet(); return } }
         val visible = state.value.groups.flatMap { g -> g.rows.map { it.profile } }
@@ -140,7 +178,7 @@ class ServersViewModel(
         testAllJob = viewModelScope.launch {
             testing.value = visible.map { it.id }.toSet()
             try {
-                tester.testAll(visible) { id, r -> reach.value += id to r; testing.value -= id }
+                runner.testAll(visible) { p, r -> reach.value += p.id to r; testing.value -= p.id }
             } finally { testing.value = emptySet() }
         }
     }
@@ -230,9 +268,15 @@ class ServersViewModel(
         private val refresher: SubscriptionRefresher,
         private val preferences: SelectionStore,
         private val manager: ConnectionManager,
-        private val tester: ReachabilityTester,
+        private val smart: io.ucc.app.data.SmartConnectionCoordinator,
+        private val health: ServerHealthStore,
+        private val runner: HealthCheckRunner,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T = ServersViewModel(repo, refresher, preferences, manager, tester) as T
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = ServersViewModel(
+            repo, refresher, preferences, manager, runner, health,
+            recommendation = smart.recommendedId,
+            transport = smart.transport,
+        ) as T
     }
 }

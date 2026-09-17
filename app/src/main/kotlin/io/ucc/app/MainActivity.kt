@@ -34,7 +34,7 @@ class MainActivity : AppCompatActivity() {
 
     private val viewModel: HomeViewModel by viewModels {
         val g = UccApplication.graph(this)
-        HomeViewModel.Factory(g.connectionManager, g.profileStore, g.preferences, g.core.descriptor.displayName, g.core.descriptor.version)
+        HomeViewModel.Factory(g.connectionManager, g.profileStore, g.preferences, g.smart, g.core.descriptor.displayName, g.core.descriptor.version)
     }
 
     private val addConfigViewModel: AddConfigViewModel by viewModels {
@@ -43,12 +43,17 @@ class MainActivity : AppCompatActivity() {
 
     private val serversViewModel: ServersViewModel by viewModels {
         val g = UccApplication.graph(this)
-        ServersViewModel.Factory(g.serverRepository, g.subscriptionRefresher, g.preferences, g.connectionManager, g.reachabilityTester)
+        ServersViewModel.Factory(g.serverRepository, g.subscriptionRefresher, g.preferences, g.connectionManager, g.smart, g.healthStore, g.healthRunner)
     }
 
     private val settingsViewModel: SettingsViewModel by viewModels {
         val g = UccApplication.graph(this)
         SettingsViewModel.Factory(g.settingsStore, g.connectionManager, g.core.capabilities, "${g.core.descriptor.displayName} ${g.core.descriptor.version}", g.preferences, g.logBuffer, g.notices, io.ucc.core.vpn.VpnServiceRegistry.lockdownStatus, BuildConfig.VERSION_NAME, g.languageStore, "${BuildConfig.VERSION_CODE} · ${BuildConfig.BUILD_TYPE} · ${BuildConfig.FLAVOR}", BuildConfig.SOURCE_URL)
+    }
+
+    private val smartViewModel: io.ucc.app.ui.smart.SmartViewModel by viewModels {
+        val g = UccApplication.graph(this)
+        io.ucc.app.ui.smart.SmartViewModel.Factory(g.smart, g.preferences)
     }
 
     private val logsViewModel: LogsViewModel by viewModels { LogsViewModel.Factory(UccApplication.graph(this).logBuffer) }
@@ -62,7 +67,7 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private object Routes { const val HOME = "home"; const val ADD = "add"; const val SCAN = "scan"; const val SERVERS = "servers"; const val SETTINGS = "settings"; const val LOGS = "logs"; const val DIAGNOSTICS = "diagnostics"; const val LICENSES = "licenses" }
+    private object Routes { const val HOME = "home"; const val ADD = "add"; const val SCAN = "scan"; const val SERVERS = "servers"; const val SETTINGS = "settings"; const val LOGS = "logs"; const val DIAGNOSTICS = "diagnostics"; const val LICENSES = "licenses"; const val SMART = "smart" }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -94,6 +99,9 @@ class MainActivity : AppCompatActivity() {
                             },
                             onDisconnect = viewModel::disconnect,
                             onSelectProfile = viewModel::select,
+                            onSelectSmart = viewModel::selectSmart,
+                            onOpenSmart = { nav.navigate(Routes.SMART) },
+                            onDismissSmartPhase = viewModel::dismissSmartPhase,
                             onAddConfig = { addConfigViewModel.cancelPreview(); nav.navigate(Routes.ADD) },
                             onOpenServers = { nav.navigate(Routes.SERVERS) },
                             onDismissStoreProblem = viewModel::dismissStoreProblem,
@@ -123,7 +131,12 @@ class MainActivity : AppCompatActivity() {
                             vm = serversViewModel,
                             onBack = { nav.popBackStack() },
                             onAddConfig = { addConfigViewModel.cancelPreview(); nav.navigate(Routes.ADD) },
+                            onOpenSmart = { nav.navigate(Routes.SMART) },
                         )
+                    }
+                    composable(Routes.SMART) {
+                        val state by smartViewModel.state.collectAsStateWithLifecycle()
+                        io.ucc.app.ui.smart.SmartScreen(state = state, vm = smartViewModel, onBack = { nav.popBackStack() })
                     }
                     composable(Routes.ADD) {
                         val state by addConfigViewModel.state.collectAsStateWithLifecycle()
