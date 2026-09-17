@@ -54,9 +54,11 @@ class SettingsViewModelTest {
     private val store = InMemorySettingsStore()
     private val lockdown = MutableStateFlow<LockdownStatus?>(null)
 
+    private val languages = io.ucc.app.data.LanguageStore.InMemory()
+
     private fun kotlinx.coroutines.test.TestScope.vm(caps: CoreCapabilities = testCapabilities): SettingsViewModel {
         val buf = LogBuffer(backgroundScope, MutableSharedFlow(), MutableSharedFlow())
-        val vm = SettingsViewModel(store, FakeConnectionManager(), caps, "Fake 0", FakeTheme(), buf, Notices(NoCore), lockdown, "1.0")
+        val vm = SettingsViewModel(store, FakeConnectionManager(), caps, "Fake 0", FakeTheme(), buf, Notices(NoCore), lockdown, "1.0", languages)
         vm.state.onEach { }.launchIn(backgroundScope)
         return vm
     }
@@ -102,5 +104,14 @@ class SettingsViewModelTest {
 
     @Test fun `parseItems splits on common separators and dedupes`() {
         assertEquals(listOf("a.com", "b.com", "1.1.1.1"), SettingsViewModel.parseItems("a.com, b.com\n1.1.1.1; a.com"))
+    }
+
+    @Test fun `language choice is written to the language store`() = runTest {
+        val vm = vm()
+        vm.setLanguage(io.ucc.app.data.AppLanguage.PERSIAN)
+        assertEquals(io.ucc.app.data.AppLanguage.PERSIAN, languages.language)
+        assertEquals(io.ucc.app.data.AppLanguage.PERSIAN, vm.language.value)
+        vm.setLanguage(io.ucc.app.data.AppLanguage.SYSTEM)
+        assertEquals(io.ucc.app.data.AppLanguage.SYSTEM, languages.language)
     }
 }

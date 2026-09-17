@@ -50,6 +50,8 @@ import io.ucc.app.data.ConnectionSettings
 import io.ucc.app.data.ConnectionSettings.PerAppMode
 import io.ucc.app.data.ConnectionSettings.Problem
 import io.ucc.app.data.ThemeMode
+import io.ucc.app.data.AppLanguage
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ucc.core.engine.RouteAction
 import io.ucc.core.vpn.LockdownStatus
 import android.content.Intent
@@ -176,14 +178,23 @@ fun SettingsScreen(state: SettingsUiState, vm: SettingsViewModel, onBack: () -> 
 
             // ---------------------------------------------------------------- Appearance
             Section(stringResource(R.string.settings_section_appearance))
+            Text(stringResource(R.string.settings_theme), style = MaterialTheme.typography.bodyLarge)
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 ThemeMode.entries.forEachIndexed { i, mode ->
                     SegmentedButton(selected = state.theme == mode, onClick = { vm.setTheme(mode) }, shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size)) {
-                        Text(stringResource(when (mode) { ThemeMode.SYSTEM -> R.string.settings_theme_system; ThemeMode.LIGHT -> R.string.settings_theme_light; ThemeMode.DARK -> R.string.settings_theme_dark }))
+                        Text(stringResource(when (mode) { ThemeMode.SYSTEM -> R.string.settings_theme_system; ThemeMode.LIGHT -> R.string.settings_theme_light; ThemeMode.DARK -> R.string.settings_theme_dark }), maxLines = 1)
                     }
                 }
             }
-            Text(stringResource(R.string.settings_language_help), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val language by vm.language.collectAsStateWithLifecycle()
+            Text(stringResource(R.string.settings_language), style = MaterialTheme.typography.bodyLarge)
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                AppLanguage.entries.forEachIndexed { i, lang ->
+                    SegmentedButton(selected = language == lang, onClick = { vm.setLanguage(lang) }, shape = SegmentedButtonDefaults.itemShape(i, AppLanguage.entries.size)) {
+                        Text(stringResource(when (lang) { AppLanguage.SYSTEM -> R.string.settings_language_system; AppLanguage.ENGLISH -> R.string.settings_language_en; AppLanguage.PERSIAN -> R.string.settings_language_fa }), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
 
             // ---------------------------------------------------------------- Data
             Section(stringResource(R.string.settings_section_data))
@@ -284,8 +295,10 @@ private fun RuleDialog(existing: ConnectionSettings.Rule?, onDismiss: () -> Unit
 
 @Composable
 private fun Section(title: String) {
-    HorizontalDivider()
-    Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+    Column(Modifier.padding(top = 12.dp)) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+        Text(title.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp))
+    }
 }
 
 @Composable

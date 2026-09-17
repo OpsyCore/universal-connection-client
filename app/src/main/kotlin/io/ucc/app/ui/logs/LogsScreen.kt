@@ -27,6 +27,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.ucc.app.R
 import io.ucc.app.data.LogBuffer
@@ -78,11 +83,14 @@ fun LogsScreen(state: LogsUiState, vm: LogsViewModel, onBack: () -> Unit) {
                             LogBuffer.Level.INFO -> MaterialTheme.colorScheme.onSurface
                             LogBuffer.Level.DEBUG -> MaterialTheme.colorScheme.onSurfaceVariant
                         }
-                        Text(
-                            "${fmt.format(Date(e.epochMs))} ${e.level.name.first()} ${e.category.name.lowercase()} ${e.message}",
-                            style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = color,
-                            modifier = Modifier.padding(vertical = 1.dp),
-                        )
+                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                            Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.Top) {
+                                Text(fmt.format(Date(e.epochMs)), style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 8.dp, top = 1.dp))
+                                Text(e.level.name.first().toString(), style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = color, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 6.dp, top = 1.dp))
+                                Text(e.category.name.lowercase(), style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 8.dp, top = 1.dp))
+                                Text(e.message, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = color, modifier = Modifier.weight(1f))
+                            }
+                        }
                     }
                 }
             }

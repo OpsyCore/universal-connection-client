@@ -9,6 +9,8 @@ import io.ucc.app.data.Notices
 import io.ucc.app.data.SettingsStore
 import io.ucc.app.data.ThemeMode
 import io.ucc.app.data.ThemeStore
+import io.ucc.app.data.AppLanguage
+import io.ucc.app.data.LanguageStore
 import io.ucc.core.engine.ConnectionState
 import io.ucc.core.engine.CoreCapabilities
 import io.ucc.core.engine.RouteAction
@@ -101,6 +103,10 @@ class SettingsViewModel(
     }
 
     fun setTheme(mode: ThemeMode) { themeStore.theme = mode }
+
+    /** Language is applied and persisted by [LanguageStore] (AppCompat per-app locales in production). */
+    fun setLanguage(language: AppLanguage) { languageStore.language = language }
+    val language: StateFlow<AppLanguage> get() = languageStore.languageFlow
     fun clearLogs() = logBuffer.clear()
 
     class Factory(
@@ -113,10 +119,11 @@ class SettingsViewModel(
         private val notices: Notices,
         private val lockdown: StateFlow<LockdownStatus?>,
         private val appVersion: String,
+        private val languageStore: LanguageStore,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            SettingsViewModel(store, manager, capabilities, coreLabel, themeStore, logBuffer, notices, lockdown, appVersion) as T
+            SettingsViewModel(store, manager, capabilities, coreLabel, themeStore, logBuffer, notices, lockdown, appVersion, languageStore) as T
     }
 
     companion object {

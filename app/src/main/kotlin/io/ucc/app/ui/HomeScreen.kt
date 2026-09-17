@@ -56,6 +56,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -307,14 +310,20 @@ private fun SelectedServerSlot(profile: ConnectionProfile?, conn: ConnectionStat
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(profile?.let { it.name.ifBlank { it.address } } ?: stringResource(R.string.home_none_selected), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(
-                    profile?.let { "${it.address}:${it.port}" + securitySuffix(it) } ?: stringResource(R.string.home_hint_select_short),
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                )
+                if (profile == null) Text(stringResource(R.string.home_hint_select_short), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                else TechnicalText("${profile.address}:${profile.port}" + securitySuffix(profile))
             }
             if (profile == null) TextButton(onClick = onAddConfig, contentPadding = PaddingValues(horizontal = 8.dp)) { Text(stringResource(R.string.home_add_config)) }
             else if (conn is ConnectionState.Connected) Icon(Icons.Filled.Check, contentDescription = null, tint = StateColors.connected, modifier = Modifier.size(18.dp))
         }
+    }
+}
+
+/** Host:port / protocol lines are always laid out LTR, even in RTL locales. */
+@Composable
+private fun TechnicalText(text: String) {
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
     }
 }
 
@@ -371,7 +380,7 @@ private fun ServerRow(p: ConnectionProfile, selected: Boolean, active: Boolean, 
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(p.name.ifBlank { p.address }, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${p.address}:${p.port}${securitySuffix(p)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                TechnicalText("${p.address}:${p.port}${securitySuffix(p)}")
             }
             when {
                 active -> Box(Modifier.size(8.dp).clip(CircleShape).background(StateColors.connected))

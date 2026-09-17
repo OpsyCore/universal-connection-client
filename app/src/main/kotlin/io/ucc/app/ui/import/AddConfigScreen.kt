@@ -99,6 +99,8 @@ private fun InputPhase(state: AddConfigUiState.Input, vm: AddConfigViewModel, on
     }
 
     Column(modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(stringResource(R.string.add_intro), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.add_intro_formats), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         TabRow(selectedTabIndex = tab) {
             Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.add_tab_paste)) })
             Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.add_tab_subscription)) })

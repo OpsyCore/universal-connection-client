@@ -33,6 +33,11 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -222,7 +227,9 @@ private fun ServerCard(row: ServerRow, state: ServersUiState, vm: ServersViewMod
             onClick = { if (state.selectionMode) vm.toggleChecked(p.id) else vm.select(p.id) },
             onLongClick = { if (!state.selectionMode) vm.enterSelection(p.id) else vm.toggleChecked(p.id) },
         ),
-        colors = if (row.selected) CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer) else CardDefaults.cardColors(),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = if (row.selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surfaceContainer),
+        border = if (row.selected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)) else null,
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             if (state.selectionMode) Checkbox(checked = checked, onCheckedChange = { vm.toggleChecked(p.id) })
@@ -232,10 +239,14 @@ private fun ServerCard(row: ServerRow, state: ServersUiState, vm: ServersViewMod
                     if (row.active) Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.servers_active), tint = MaterialTheme.colorScheme.primary)
                     ReachabilityBadge(row)
                 }
-                Text(
-                    "${p.protocol.name} · ${p.address}:${p.port}" + if (p.tls.enabled) (if (p.tls.reality != null) " · REALITY" else " · TLS") else "",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                )
+                // Technical line stays LTR in RTL locales so host:port reads correctly.
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    Text(
+                        "${p.protocol.name} · ${p.address}:${p.port}" + if (p.tls.enabled) (if (p.tls.reality != null) " · REALITY" else " · TLS") else "",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start,
+                    )
+                }
             }
             if (!state.selectionMode) {
                 IconButton(onClick = { vm.toggleFavorite(p.id) }) {
@@ -259,8 +270,8 @@ private fun ReachabilityBadge(row: ServerRow) {
     val r = row.reachability ?: return
     val (text, color) = when (r) {
         is ReachabilityTester.Result.Ok -> "${r.rttMs} ms" to when {
-            r.rttMs < 150 -> MaterialTheme.colorScheme.primary
-            r.rttMs < 400 -> MaterialTheme.colorScheme.tertiary
+            r.rttMs < 150 -> io.ucc.app.ui.theme.StateColors.connected
+            r.rttMs < 400 -> io.ucc.app.ui.theme.StateColors.reconnecting
             else -> MaterialTheme.colorScheme.error
         }
         ReachabilityTester.Result.Timeout -> stringResource(R.string.servers_reach_timeout) to MaterialTheme.colorScheme.error

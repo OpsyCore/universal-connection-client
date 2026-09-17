@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vpn_notification_channel">وضعیت اتصال</string>
+    <string name="vpn_notification_channel_description">وضعیت تونل را در حین اجرا نشان می‌دهد.</string>
+    <string name="vpn_notification_title_starting">در حال شروع…</string>
+    <string name="vpn_notification_title_connected">متصل</string>
+    <string name="vpn_notification_title_reconnecting">در حال اتصال مجدد…</string>
+    <string name="vpn_notification_title_stopping">در حال توقف…</string>
+    <string name="vpn_notification_action_disconnect">قطع اتصال</string>
+</resources>

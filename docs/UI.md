@@ -39,3 +39,21 @@ UI does not fabricate values.
 surfaces, single teal accent `#3CC8C2`, rounded shapes. Light variant kept.
 Dynamic (Material You) colour was removed so the product looks identical on
 every device; the Appearance setting (System/Light/Dark) is still honoured.
+
+## Localization architecture
+
+- All user-facing text lives in Android resources: `app/src/main/res/values/strings.xml` (en, default)
+  and `values-fa/strings.xml`; the foreground-service notification strings live in
+  `core/vpn/src/main/res/values{,-fa}/strings.xml`. Compose screens only use `stringResource` /
+  `getString`; technical identifiers (protocol names, host:port, DNS specs, TUN/MTU, counters)
+  are intentionally not translated and are rendered LTR (`TechnicalText`, Logs rows, Diagnostics values).
+- Default behaviour: follow the Android system language. `resourceConfigurations = [en, fa]`.
+- In-app selector: Settings → Appearance → Language (System default / English / فارسی), backed by
+  `AppCompatLanguageStore` → `AppCompatDelegate.setApplicationLocales`. On API 33+ the OS persists
+  the choice (also shown in system App languages); on API 24–32 AppCompat persists it
+  (`AppLocalesMetadataHolderService` + `autoStoreLocales`). Changing it recreates the activity so
+  layout direction flips immediately.
+- Adding a language: `values-xx/strings.xml` (app + core:vpn), `<locale>` in
+  `res/xml/locales_config.xml`, one entry in `AppLanguage`, tag in `resourceConfigurations`.
+  No screen code changes.
+- Tests: `AppLanguageTest` (tag parsing, store), `SettingsViewModelTest` (selection persisted).

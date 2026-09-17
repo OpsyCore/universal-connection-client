@@ -4,7 +4,7 @@ import android.app.Activity
 import android.net.VpnService
 import android.os.Bundle
 import android.widget.Toast
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -30,7 +30,7 @@ import io.ucc.app.ui.settings.SettingsScreen
 import io.ucc.app.ui.settings.SettingsViewModel
 import io.ucc.app.ui.servers.ServersViewModel
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
     private val viewModel: HomeViewModel by viewModels {
         val g = UccApplication.graph(this)
@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
 
     private val settingsViewModel: SettingsViewModel by viewModels {
         val g = UccApplication.graph(this)
-        SettingsViewModel.Factory(g.settingsStore, g.connectionManager, g.core.capabilities, "${g.core.descriptor.displayName} ${g.core.descriptor.version}", g.preferences, g.logBuffer, g.notices, io.ucc.core.vpn.VpnServiceRegistry.lockdownStatus, BuildConfig.VERSION_NAME)
+        SettingsViewModel.Factory(g.settingsStore, g.connectionManager, g.core.capabilities, "${g.core.descriptor.displayName} ${g.core.descriptor.version}", g.preferences, g.logBuffer, g.notices, io.ucc.core.vpn.VpnServiceRegistry.lockdownStatus, BuildConfig.VERSION_NAME, g.languageStore)
     }
 
     private val logsViewModel: LogsViewModel by viewModels { LogsViewModel.Factory(UccApplication.graph(this).logBuffer) }

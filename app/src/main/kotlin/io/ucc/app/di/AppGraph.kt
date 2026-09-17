@@ -45,6 +45,8 @@ class AppGraph(context: Context) {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val preferences = Preferences(app)
+    /** Lazy: AppCompat restores stored locales when the first activity attaches, so read it after that. */
+    val languageStore: io.ucc.app.data.LanguageStore by lazy { io.ucc.app.data.AppCompatLanguageStore() }
     val settingsStore: SettingsStore = PrefsSettingsStore(app)
     val profileStore = JsonProfileStore(app)
     val networkMonitor = AndroidNetworkMonitor(app)
