@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Universal Connection</string>
+    <string name="app_name" translatable="false">Universal Connection Client</string>
 
     <string name="state_disconnected">Disconnected</string>
     <string name="state_starting">Starting…</string>
@@ -243,7 +243,7 @@
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
     <string name="settings_data_storage_info">Servers and subscriptions are stored encrypted with a device key. Settings and logs contain no secrets; logs stay in memory only.</string>
-    <string name="settings_licences">Open-source licences</string>
+    <string name="settings_licences">Open-source licenses</string>
     <string name="logs_copy">Copy sanitised logs</string>
     <string name="logs_filter_all">All</string>
     <string name="logs_filter_info">Info</string>
@@ -309,4 +309,22 @@
     <string name="diag_value_lockdown_unknown">unknown (service not yet run)</string>
     <string name="diag_value_lockdown_unsupported">unsupported (below Android 10)</string>
     <string name="diag_value_rules_enabled">%1$d enabled of %2$d</string>
+    <string name="scan_gallery">Choose from gallery</string>
+    <string name="scan_gallery_no_qr">No QR code was found in that image.</string>
+    <string name="scan_gallery_invalid_image">That file could not be opened as an image.</string>
+    <string name="about_version">Version</string>
+    <string name="about_build">Build</string>
+    <string name="about_core">Core</string>
+    <string name="about_source">Source code</string>
+    <string name="about_privacy">Privacy policy</string>
+    <string name="about_privacy_body">This app has no analytics, no crash reporting and no accounts. Server configurations are stored encrypted on this device only and are never uploaded; cloud backup is disabled. Network traffic goes only to the servers you configure and to the subscription URLs you add. A public privacy‑policy page is not yet published.</string>
+    <string name="about_legal">Legal &amp; notices</string>
+    <string name="about_legal_body">Universal Connection Client is distributed under the GNU General Public License v3.0 or later, without any warranty. It embeds the sing‑box core (libbox), which is licensed GPL‑3.0‑or‑later by its authors. This product is an independent work and is not affiliated with, endorsed by, or associated with the sing‑box project or SagerNet.</string>
+    <string name="licenses_title">Open-source licenses</string>
+    <string name="licenses_intro">Components distributed with this application, with their licenses and source locations. The full license texts are included in the app and in the project repository (THIRD_PARTY_NOTICES.md).</string>
+    <string name="licenses_engine">Engine</string>
+    <string name="licenses_application">Application</string>
+    <string name="licenses_additional_terms">Additional terms</string>
+    <string name="licenses_full_gpl">Read the full GPL‑3.0 text</string>
+    <string name="licenses_no_warranty">This program comes with ABSOLUTELY NO WARRANTY. It is free software, and you are welcome to redistribute it under the conditions of the GNU GPL v3 or later.</string>
 </resources>

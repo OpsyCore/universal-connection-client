@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">اتصال یونیورسال</string>
 
     <string name="state_disconnected">قطع</string>
     <string name="state_starting">در حال شروع…</string>
@@ -308,4 +307,22 @@
     <string name="diag_value_lockdown_unknown">نامشخص (سرویس هنوز اجرا نشده)</string>
     <string name="diag_value_lockdown_unsupported">پشتیبانی‌نشده (پایین‌تر از اندروید ۱۰)</string>
     <string name="diag_value_rules_enabled">%1$d فعال از %2$d</string>
+    <string name="scan_gallery">انتخاب از گالری</string>
+    <string name="scan_gallery_no_qr">در این تصویر کد QR پیدا نشد.</string>
+    <string name="scan_gallery_invalid_image">این فایل به‌عنوان تصویر باز نشد.</string>
+    <string name="about_version">نسخه</string>
+    <string name="about_build">بیلد</string>
+    <string name="about_core">هسته</string>
+    <string name="about_source">کد منبع</string>
+    <string name="about_privacy">سیاست حریم خصوصی</string>
+    <string name="about_privacy_body">این برنامه هیچ تحلیل آماری، گزارش خرابی یا حساب کاربری ندارد. پیکربندی سرورها فقط به‌صورت رمزگذاری‌شده روی همین دستگاه ذخیره می‌شود و هرگز بارگذاری نمی‌شود؛ پشتیبان‌گیری ابری غیرفعال است. ترافیک شبکه فقط به سرورهایی که خودتان پیکربندی می‌کنید و آدرس‌های اشتراکی که اضافه می‌کنید می‌رود. صفحهٔ عمومی سیاست حریم خصوصی هنوز منتشر نشده است.</string>
+    <string name="about_legal">حقوقی و اعلان‌ها</string>
+    <string name="about_legal_body">Universal Connection Client تحت مجوز GNU General Public License نسخهٔ ۳ یا بالاتر و بدون هیچ ضمانتی منتشر می‌شود. این برنامه هستهٔ sing‑box (libbox) را در بر دارد که توسط نویسندگانش با مجوز GPL‑3.0‑or‑later منتشر شده است. این محصول یک کار مستقل است و هیچ وابستگی، تأیید یا ارتباطی با پروژهٔ sing‑box یا SagerNet ندارد.</string>
+    <string name="licenses_title">مجوزهای متن‌باز</string>
+    <string name="licenses_intro">اجزای توزیع‌شده همراه این برنامه، به همراه مجوز و محل کد منبع. متن کامل مجوزها در برنامه و در مخزن پروژه (THIRD_PARTY_NOTICES.md) گنجانده شده است.</string>
+    <string name="licenses_engine">هسته</string>
+    <string name="licenses_application">برنامه</string>
+    <string name="licenses_additional_terms">شرایط اضافی</string>
+    <string name="licenses_full_gpl">خواندن متن کامل GPL‑3.0</string>
+    <string name="licenses_no_warranty">این برنامه مطلقاً هیچ ضمانتی ندارد. این نرم‌افزار آزاد است و می‌توانید آن را تحت شرایط GNU GPL نسخهٔ ۳ یا بالاتر بازتوزیع کنید.</string>
 </resources>

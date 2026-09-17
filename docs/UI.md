@@ -57,3 +57,13 @@ every device; the Appearance setting (System/Light/Dark) is still honoured.
   `res/xml/locales_config.xml`, one entry in `AppLanguage`, tag in `resourceConfigurations`.
   No screen code changes.
 - Tests: `AppLanguageTest` (tag parsing, store), `SettingsViewModelTest` (selection persisted).
+
+## QR import from gallery
+`QrScanScreen` offers "Choose from gallery" (top-bar icon + footer button) via the
+Android Photo Picker (`PickVisualMedia`, no storage permission). `QrImageDecoder`
+runs the same on-device ML Kit QR model as the camera path; `QrImageResult`
+(unit-tested) turns the decoded values into one payload — several codes are joined
+one-per-line — which is handed to the **same** `AddConfigViewModel.importQr` →
+parse → validate → capability check → secret-free preview → confirm → atomic save
+pipeline. No-QR and unreadable-image cases surface as snackbars; cancel returns to
+the scanner. Nothing is auto-connected.

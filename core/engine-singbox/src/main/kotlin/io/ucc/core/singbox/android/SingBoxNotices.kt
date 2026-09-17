@@ -19,6 +19,7 @@ internal object SingBoxNotices {
         ThirdPartyNotice("sing-shadowsocks / sing-shadowsocks2", "(per sing-box go.mod)", "GPL-3.0-or-later", "https://github.com/SagerNet/sing-shadowsocks2"),
         ThirdPartyNotice("sing-mux", "(per sing-box go.mod)", "GPL-3.0-or-later", "https://github.com/SagerNet/sing-mux"),
         ThirdPartyNotice("sing-shadowtls", "(per sing-box go.mod)", "GPL-3.0-or-later", "https://github.com/SagerNet/sing-shadowtls"),
+        ThirdPartyNotice("cronet-go", "(per sing-box go.mod)", "GPL-3.0-or-later", "https://github.com/SagerNet/cronet-go"),
         ThirdPartyNotice("quic-go (SagerNet fork)", "(per sing-box go.mod)", "MIT", "https://github.com/SagerNet/quic-go"),
         ThirdPartyNotice("wireguard-go (SagerNet fork)", "(per sing-box go.mod)", "MIT", "https://github.com/SagerNet/wireguard-go"),
         ThirdPartyNotice("gVisor (SagerNet fork)", "(per sing-box go.mod)", "Apache-2.0", "https://github.com/SagerNet/gvisor"),

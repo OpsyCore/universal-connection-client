@@ -48,7 +48,7 @@ class MainActivity : AppCompatActivity() {
 
     private val settingsViewModel: SettingsViewModel by viewModels {
         val g = UccApplication.graph(this)
-        SettingsViewModel.Factory(g.settingsStore, g.connectionManager, g.core.capabilities, "${g.core.descriptor.displayName} ${g.core.descriptor.version}", g.preferences, g.logBuffer, g.notices, io.ucc.core.vpn.VpnServiceRegistry.lockdownStatus, BuildConfig.VERSION_NAME, g.languageStore)
+        SettingsViewModel.Factory(g.settingsStore, g.connectionManager, g.core.capabilities, "${g.core.descriptor.displayName} ${g.core.descriptor.version}", g.preferences, g.logBuffer, g.notices, io.ucc.core.vpn.VpnServiceRegistry.lockdownStatus, BuildConfig.VERSION_NAME, g.languageStore, "${BuildConfig.VERSION_CODE} · ${BuildConfig.BUILD_TYPE} · ${BuildConfig.FLAVOR}", BuildConfig.SOURCE_URL)
     }
 
     private val logsViewModel: LogsViewModel by viewModels { LogsViewModel.Factory(UccApplication.graph(this).logBuffer) }
@@ -62,7 +62,7 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private object Routes { const val HOME = "home"; const val ADD = "add"; const val SCAN = "scan"; const val SERVERS = "servers"; const val SETTINGS = "settings"; const val LOGS = "logs"; const val DIAGNOSTICS = "diagnostics" }
+    private object Routes { const val HOME = "home"; const val ADD = "add"; const val SCAN = "scan"; const val SERVERS = "servers"; const val SETTINGS = "settings"; const val LOGS = "logs"; const val DIAGNOSTICS = "diagnostics"; const val LICENSES = "licenses" }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -103,7 +103,10 @@ class MainActivity : AppCompatActivity() {
                     }
                     composable(Routes.SETTINGS) {
                         val state by settingsViewModel.state.collectAsStateWithLifecycle()
-                        SettingsScreen(state = state, vm = settingsViewModel, onBack = { nav.popBackStack() }, onOpenLogs = { nav.navigate(Routes.LOGS) }, onOpenDiagnostics = { nav.navigate(Routes.DIAGNOSTICS) })
+                        SettingsScreen(state = state, vm = settingsViewModel, onBack = { nav.popBackStack() }, onOpenLogs = { nav.navigate(Routes.LOGS) }, onOpenDiagnostics = { nav.navigate(Routes.DIAGNOSTICS) }, onOpenLicenses = { nav.navigate(Routes.LICENSES) })
+                    }
+                    composable(Routes.LICENSES) {
+                        io.ucc.app.ui.settings.LicensesScreen(notices = UccApplication.graph(this@MainActivity).notices, onBack = { nav.popBackStack() })
                     }
                     composable(Routes.DIAGNOSTICS) {
                         val state by diagnosticsViewModel.state.collectAsStateWithLifecycle()

@@ -12,6 +12,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -63,13 +68,12 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(state: SettingsUiState, vm: SettingsViewModel, onBack: () -> Unit, onOpenLogs: () -> Unit, onOpenDiagnostics: () -> Unit = {}) {
+fun SettingsScreen(state: SettingsUiState, vm: SettingsViewModel, onBack: () -> Unit, onOpenLogs: () -> Unit, onOpenDiagnostics: () -> Unit = {}, onOpenLicenses: () -> Unit = {}) {
     val s = state.settings
     val context = LocalContext.current
     var showApps by remember { mutableStateOf(false) }
     var ruleEditor by remember { mutableStateOf<ConnectionSettings.Rule?>(null) }
     var newRule by remember { mutableStateOf(false) }
-    var showLicences by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -203,21 +207,57 @@ fun SettingsScreen(state: SettingsUiState, vm: SettingsViewModel, onBack: () -> 
 
             // ---------------------------------------------------------------- About
             Section(stringResource(R.string.settings_section_about))
-            Text(stringResource(R.string.app_name) + " " + state.appVersion, style = MaterialTheme.typography.bodyMedium)
-            Text(stringResource(R.string.home_core) + ": " + state.coreLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedButton(onClick = { showLicences = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.settings_licences)) }
+            AboutCard(state, onOpenLicenses)
         }
     }
     if (showApps) AppPickerDialog(selected = s.perAppPackages, onToggle = vm::togglePackage, onClose = { showApps = false })
     if (newRule) RuleDialog(null, onDismiss = { newRule = false }) { action, text -> vm.addRule(action, text); newRule = false }
     ruleEditor?.let { r -> RuleDialog(r, onDismiss = { ruleEditor = null }) { action, text -> vm.editRule(r.id, action, text); ruleEditor = null } }
-    if (showLicences) {
+}
+
+@Composable
+private fun AboutCard(state: SettingsUiState, onOpenLicenses: () -> Unit) {
+    val uriHandler = LocalUriHandler.current
+    var dialog by remember { mutableStateOf<Int?>(null) } // string id of body to show
+    Card(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // The official product name is not translated.
+            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium)
+            AboutLine(stringResource(R.string.about_version), state.appVersion)
+            AboutLine(stringResource(R.string.about_build), state.appBuild)
+            AboutLine(stringResource(R.string.about_core), state.coreLabel)
+            HorizontalDivider(Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+            AboutAction(stringResource(R.string.settings_licences), onOpenLicenses)
+            AboutAction(stringResource(R.string.about_source)) { runCatching { uriHandler.openUri(state.sourceUrl) } }
+            AboutAction(stringResource(R.string.about_privacy)) { dialog = R.string.about_privacy_body }
+            AboutAction(stringResource(R.string.about_legal)) { dialog = R.string.about_legal_body }
+        }
+    }
+    dialog?.let { body ->
         AlertDialog(
-            onDismissRequest = { showLicences = false },
-            title = { Text(stringResource(R.string.settings_licences)) },
-            confirmButton = { TextButton(onClick = { showLicences = false }) { Text(stringResource(R.string.done_action_close)) } },
-            text = { Text(vm.notices.renderPlainText(), style = MaterialTheme.typography.bodySmall, modifier = Modifier.verticalScroll(rememberScrollState())) },
+            onDismissRequest = { dialog = null },
+            title = { Text(stringResource(if (body == R.string.about_privacy_body) R.string.about_privacy else R.string.about_legal)) },
+            text = { Text(stringResource(body), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.verticalScroll(rememberScrollState())) },
+            confirmButton = { TextButton(onClick = { dialog = null }) { Text(stringResource(R.string.done_action_close)) } },
         )
+    }
+}
+
+@Composable
+private fun AboutLine(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            Text(value, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun AboutAction(label: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 4.dp)) {
+        Text(label, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Start)
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

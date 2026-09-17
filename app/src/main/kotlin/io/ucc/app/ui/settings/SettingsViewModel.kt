@@ -35,6 +35,8 @@ data class SettingsUiState(
     /** null = Android has not told us yet (service never ran in this process). Never guessed. */
     val lockdown: LockdownStatus? = null,
     val appVersion: String = "",
+    val appBuild: String = "",
+    val sourceUrl: String = "",
     val logCount: Int = 0,
 )
 
@@ -56,6 +58,8 @@ class SettingsViewModel(
     lockdown: StateFlow<LockdownStatus?>,
     appVersion: String,
     private val languageStore: LanguageStore = LanguageStore.InMemory(),
+    appBuild: String = "",
+    sourceUrl: String = "",
 ) : ViewModel() {
 
     val state: StateFlow<SettingsUiState> = combine(store.settings, manager.state, themeStore.themeFlow, lockdown, logBuffer.entries) { s, conn, theme, lock, logs ->
@@ -68,9 +72,11 @@ class SettingsViewModel(
             theme = theme,
             lockdown = lock,
             appVersion = appVersion,
+            appBuild = appBuild,
+            sourceUrl = sourceUrl,
             logCount = logs.size,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState(capabilities = capabilities, coreLabel = coreLabel, appVersion = appVersion))
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState(capabilities = capabilities, coreLabel = coreLabel, appVersion = appVersion, appBuild = appBuild, sourceUrl = sourceUrl))
 
     fun update(transform: (ConnectionSettings) -> ConnectionSettings) = store.update(transform)
 
@@ -121,10 +127,12 @@ class SettingsViewModel(
         private val lockdown: StateFlow<LockdownStatus?>,
         private val appVersion: String,
         private val languageStore: LanguageStore,
+        private val appBuild: String,
+        private val sourceUrl: String,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            SettingsViewModel(store, manager, capabilities, coreLabel, themeStore, logBuffer, notices, lockdown, appVersion, languageStore) as T
+            SettingsViewModel(store, manager, capabilities, coreLabel, themeStore, logBuffer, notices, lockdown, appVersion, languageStore, appBuild, sourceUrl) as T
     }
 
     companion object {

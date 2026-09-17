@@ -28,6 +28,7 @@ android {
         create("singbox") {
             dimension = "core"
             buildConfigField("String", "CORE_ID", "\"singbox\"")
+            buildConfigField("String", "SOURCE_URL", "\"https://github.com/OpsyCore/universal-connection-client\"")
         }
     }
 

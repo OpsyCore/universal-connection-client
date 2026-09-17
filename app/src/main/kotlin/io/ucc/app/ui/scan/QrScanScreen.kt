@@ -6,7 +6,22 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.style.TextAlign
+import kotlinx.coroutines.launch
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -65,12 +80,40 @@ fun QrScanScreen(onResult: (String) -> Unit, onClose: () -> Unit) {
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> granted = ok; denied = !ok }
     LaunchedEffect(hasCamera) { if (hasCamera && !granted) permission.launch(Manifest.permission.CAMERA) }
 
-    Scaffold(topBar = {
-        TopAppBar(
-            title = { Text(stringResource(R.string.scan_title)) },
-            navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) } },
-        )
-    }) { padding ->
+    // Gallery import: Android Photo Picker (no storage permission). Same decoder model, same import pipeline.
+    val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+    var decoding by remember { mutableStateOf(false) }
+    val noQrMsg = stringResource(R.string.scan_gallery_no_qr)
+    val invalidMsg = stringResource(R.string.scan_gallery_invalid_image)
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult // user cancelled the picker
+        scope.launch {
+            decoding = true
+            val result = QrImageDecoder.decode(context, uri)
+            decoding = false
+            when (result) {
+                is QrImageResult.Found -> onResult(result.payload)
+                QrImageResult.NoQr -> snackbar.showSnackbar(noQrMsg)
+                QrImageResult.InvalidImage -> snackbar.showSnackbar(invalidMsg)
+            }
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.scan_title)) },
+                navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) } },
+                actions = {
+                    IconButton(onClick = { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, enabled = !decoding) {
+                        Icon(Icons.Outlined.PhotoLibrary, contentDescription = stringResource(R.string.scan_gallery))
+                    }
+                },
+            )
+        },
+    ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             when {
                 !hasCamera -> Text(stringResource(R.string.scan_no_camera), Modifier.align(Alignment.Center).padding(24.dp))
@@ -82,8 +125,26 @@ fun QrScanScreen(onResult: (String) -> Unit, onClose: () -> Unit) {
                     }) { Text(stringResource(R.string.scan_permission_settings)) }
                 }
             }
-            if (granted && hasCamera) {
-                Text(stringResource(R.string.scan_hint), Modifier.align(Alignment.BottomCenter).padding(24.dp), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
+            // Bottom sheet-like footer: hint + gallery action. Present in every state so the
+            // gallery path also works on devices without a camera or with the permission denied.
+            Surface(
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f),
+            ) {
+                Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (granted && hasCamera) Text(stringResource(R.string.scan_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                    FilledTonalButton(
+                        onClick = { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                        enabled = !decoding,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (decoding) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        else Icon(Icons.Outlined.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.scan_gallery))
+                    }
+                }
             }
         }
     }
