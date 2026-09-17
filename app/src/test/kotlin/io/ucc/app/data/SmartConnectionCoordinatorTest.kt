@@ -45,13 +45,15 @@ class SmartConnectionCoordinatorTest {
     private var now = 1_700_000_000_000L
     private val reachable = HashSet<String>()
     private val dialer = TcpConnectionTester.Dialer { host, _, _ -> if (host in reachable) 30L else throw java.net.SocketTimeoutException() }
-    private val runner = HealthCheckRunner(TcpConnectionTester(dialer, dispatcher, timeoutMs = 10), health, { now }, parallelism = 2)
+    private var current: SmartConnectionCoordinator? = null
+    // Same wiring as AppGraph: the runner stamps records with the coordinator's current transport.
+    private val runner = HealthCheckRunner(TcpConnectionTester(dialer, dispatcher, timeoutMs = 10), health, { now }, networkTransport = { current?.transport?.value }, parallelism = 2)
 
     private fun TestScope.coordinator() = SmartConnectionCoordinator(
         scope = scope, manager = manager, profiles = store, health = health, runner = runner,
         capabilities = CapabilityCheck(testCapabilities), selection = selection, networkMonitor = network,
         failover = SmartFailoverPolicy(SmartServerSelector(), maxSwitchesPerSession = 2), now = { now },
-    )
+    ).also { current = it }
 
     private suspend fun seed(): List<ConnectionProfile> = testImporter().import(
         "trojan://pw@a.example.com:443#A\ntrojan://pw@b.example.com:443#B\ntrojan://pw@c.example.com:443#C\nhysteria2://pw@h.example.com:443#H",
