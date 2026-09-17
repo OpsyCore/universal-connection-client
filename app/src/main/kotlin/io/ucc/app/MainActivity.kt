@@ -11,13 +11,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -80,14 +74,7 @@ class MainActivity : ComponentActivity() {
                 io.ucc.app.data.ThemeMode.LIGHT -> false
                 io.ucc.app.data.ThemeMode.DARK -> true
             }
-            val context = LocalContext.current
-            val scheme = when {
-                android.os.Build.VERSION.SDK_INT >= 31 && dark -> dynamicDarkColorScheme(context)
-                android.os.Build.VERSION.SDK_INT >= 31 -> dynamicLightColorScheme(context)
-                dark -> darkColorScheme()
-                else -> lightColorScheme()
-            }
-            MaterialTheme(colorScheme = scheme) {
+            io.ucc.app.ui.theme.UccTheme(dark = dark) {
                 val nav = rememberNavController()
                 NavHost(navController = nav, startDestination = Routes.HOME) {
                     composable(Routes.HOME) {

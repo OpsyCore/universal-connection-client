@@ -16,13 +16,10 @@
 
     <string name="home_no_profiles_title">هنوز پروفایلی وجود ندارد</string>
     <string name="home_no_profiles_body">برای شروع یک پیکربندی وارد کنید. وارد کردن از لینک، QR، کلیپ‌بورد، فایل و اشتراک همراه موتور پیکربندی ارائه می‌شود.</string>
-    <string name="home_selected_profile">پروفایل انتخاب‌شده</string>
     <string name="home_none_selected">انتخاب نشده</string>
     <string name="home_core">هسته</string>
-    <string name="home_duration">مدت</string>
     <string name="home_upload">آپلود</string>
     <string name="home_download">دانلود</string>
-    <string name="home_events">رویدادهای اخیر</string>
 
     <string name="vpn_permission_rationale">اندروید برای ایجاد تونل VPN به اجازهٔ شما نیاز دارد.</string>
 
@@ -262,4 +259,10 @@
     <string name="diagnostics_dns_routing">DNS و مسیریابی (تنظیمات مؤثر در اتصال بعدی)</string>
     <string name="diagnostics_traffic">ترافیک</string>
     <string name="diagnostics_events">رویدادها</string>
+    <string name="nav_home">خانه</string>
+    <string name="home_see_all">همه (%1$d)</string>
+    <string name="home_hint_select">برای اتصال، سروری اضافه یا انتخاب کنید.</string>
+    <string name="home_hint_select_short">سروری انتخاب نشده</string>
+    <string name="home_hint_tap_connect">برای اتصال دکمه روشن/خاموش را لمس کنید.</string>
+    <string name="home_connected_for">متصل به مدت %1$s</string>
 </resources>
