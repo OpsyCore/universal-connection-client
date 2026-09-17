@@ -25,7 +25,7 @@ object QrImageDecoder {
         }
         val scanner = BarcodeScanning.getClient(BarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build())
         try {
-            suspendCancellableCoroutine { cont ->
+            suspendCancellableCoroutine<QrImageResult> { cont ->
                 scanner.process(input)
                     .addOnSuccessListener { codes -> cont.resume(QrImageResult.fromRawValues(codes.map { it.rawValue })) }
                     .addOnFailureListener { cont.resume(QrImageResult.InvalidImage) }
