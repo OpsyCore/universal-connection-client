@@ -220,20 +220,20 @@ private fun HeroCard(state: HomeUiState, onConnect: () -> Unit, onDisconnect: ()
 
             // Detail slot: error message / reconnect reason / connected-since. Fixed minimum height keeps the card from jumping.
             Box(Modifier.fillMaxWidth().padding(top = 12.dp).height(44.dp), contentAlignment = Alignment.Center) {
-                AnimatedContent(targetState = conn::class, transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) }, label = "detail") { _ ->
-                    when (conn) {
+                AnimatedContent(targetState = conn, transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) }, contentKey = { it::class }, label = "detail") { target ->
+                    when (target) {
                         is ConnectionState.Error -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(conn.error.userMessage(context), style = MaterialTheme.typography.bodySmall, color = StateColors.error, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(target.error.userMessage(context), style = MaterialTheme.typography.bodySmall, color = StateColors.error, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                conn.error.userHint(context)?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false)) }
+                                target.error.userHint(context)?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false)) }
                                 TextButton(onClick = onOpenLogs, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp), modifier = Modifier.height(28.dp)) { Text(stringResource(R.string.home_view_logs), style = MaterialTheme.typography.labelSmall) }
                             }
                         }
-                        is ConnectionState.Reconnecting -> Text(conn.reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        is ConnectionState.Reconnecting -> Text(target.reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         is ConnectionState.Connected -> {
                             var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-                            LaunchedEffect(conn.sinceEpochMs) { while (true) { now = System.currentTimeMillis(); delay(1_000) } }
-                            Text(stringResource(R.string.home_connected_for, formatDuration(now - conn.sinceEpochMs)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            LaunchedEffect(target.sinceEpochMs) { while (true) { now = System.currentTimeMillis(); delay(1_000) } }
+                            Text(stringResource(R.string.home_connected_for, formatDuration(now - target.sinceEpochMs)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         ConnectionState.Disconnected -> Text(
                             if (state.selectedProfile == null) stringResource(R.string.home_hint_select) else stringResource(R.string.home_hint_tap_connect),
