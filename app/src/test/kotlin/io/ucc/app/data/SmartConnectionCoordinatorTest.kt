@@ -19,6 +19,7 @@ import io.ucc.core.smart.SmartServerSelector
 import io.ucc.core.smart.TcpConnectionTester
 import io.ucc.core.smart.TestFailure
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -33,6 +34,9 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class SmartConnectionCoordinatorTest {
     private val dispatcher = StandardTestDispatcher()
+    /** Explicit scope on the test scheduler: advanced by advanceUntilIdle(), cancelled after each test. */
+    private val scope = kotlinx.coroutines.CoroutineScope(dispatcher + kotlinx.coroutines.SupervisorJob())
+    @kotlin.test.AfterTest fun tearDown() { scope.cancel() }
     private val store = FakeProfileStore()
     private val health = InMemoryServerHealthStore()
     private val manager = FakeConnectionManager()
@@ -44,7 +48,7 @@ class SmartConnectionCoordinatorTest {
     private val runner = HealthCheckRunner(TcpConnectionTester(dialer, dispatcher, timeoutMs = 10), health, { now }, parallelism = 2)
 
     private fun TestScope.coordinator() = SmartConnectionCoordinator(
-        scope = backgroundScope, manager = manager, profiles = store, health = health, runner = runner,
+        scope = scope, manager = manager, profiles = store, health = health, runner = runner,
         capabilities = CapabilityCheck(testCapabilities), selection = selection, networkMonitor = network,
         failover = SmartFailoverPolicy(SmartServerSelector(), maxSwitchesPerSession = 2), now = { now },
     )

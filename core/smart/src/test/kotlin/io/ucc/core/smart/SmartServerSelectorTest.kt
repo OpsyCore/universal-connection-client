@@ -89,8 +89,8 @@ class SmartServerSelectorTest {
 
     @Test fun `nextAfter skips current, excluded and offline`() {
         val ranked = listOf(cand("a", healthy(20)), cand("b", healthy(30)), cand("c", failing(3)), cand("d", healthy(40)))
-        assertEquals("b", sel.nextAfter(ranked, "a", NOW, emptySet())?.profile.id)
-        assertEquals("d", sel.nextAfter(ranked, "a", NOW, setOf("b"))?.profile.id)
+        assertEquals("b", sel.nextAfter(ranked, "a", NOW, emptySet())?.profile?.id)
+        assertEquals("d", sel.nextAfter(ranked, "a", NOW, setOf("b"))?.profile?.id)
         assertEquals(null, sel.nextAfter(ranked, "a", NOW, setOf("b", "d")))
     }
 
