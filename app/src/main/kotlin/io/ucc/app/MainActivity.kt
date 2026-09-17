@@ -27,6 +27,8 @@ import io.ucc.app.ui.HomeViewModel
 import io.ucc.app.ui.import.AddConfigScreen
 import io.ucc.app.ui.import.AddConfigViewModel
 import io.ucc.app.ui.scan.QrScanScreen
+import io.ucc.app.ui.diagnostics.DiagnosticsScreen
+import io.ucc.app.ui.diagnostics.DiagnosticsViewModel
 import io.ucc.app.ui.logs.LogsScreen
 import io.ucc.app.ui.logs.LogsViewModel
 import io.ucc.app.ui.servers.ServersScreen
@@ -57,7 +59,16 @@ class MainActivity : ComponentActivity() {
 
     private val logsViewModel: LogsViewModel by viewModels { LogsViewModel.Factory(UccApplication.graph(this).logBuffer) }
 
-    private object Routes { const val HOME = "home"; const val ADD = "add"; const val SCAN = "scan"; const val SERVERS = "servers"; const val SETTINGS = "settings"; const val LOGS = "logs" }
+    private val diagnosticsViewModel: DiagnosticsViewModel by viewModels {
+        val g = UccApplication.graph(this)
+        DiagnosticsViewModel.Factory(
+            g.connectionManager, g.profileStore, g.preferences, g.settingsStore, g.logBuffer,
+            io.ucc.core.vpn.VpnServiceRegistry.tunState, g.networkMonitor.underlying, io.ucc.core.vpn.VpnServiceRegistry.lockdownStatus,
+            g.core.capabilities, "${g.core.descriptor.displayName} ${g.core.descriptor.version}", { p -> io.ucc.core.config.CapabilityCheck(g.core.capabilities).isSupported(p) },
+        )
+    }
+
+    private object Routes { const val HOME = "home"; const val ADD = "add"; const val SCAN = "scan"; const val SERVERS = "servers"; const val SETTINGS = "settings"; const val LOGS = "logs"; const val DIAGNOSTICS = "diagnostics" }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -105,7 +116,11 @@ class MainActivity : ComponentActivity() {
                     }
                     composable(Routes.SETTINGS) {
                         val state by settingsViewModel.state.collectAsStateWithLifecycle()
-                        SettingsScreen(state = state, vm = settingsViewModel, onBack = { nav.popBackStack() }, onOpenLogs = { nav.navigate(Routes.LOGS) })
+                        SettingsScreen(state = state, vm = settingsViewModel, onBack = { nav.popBackStack() }, onOpenLogs = { nav.navigate(Routes.LOGS) }, onOpenDiagnostics = { nav.navigate(Routes.DIAGNOSTICS) })
+                    }
+                    composable(Routes.DIAGNOSTICS) {
+                        val state by diagnosticsViewModel.state.collectAsStateWithLifecycle()
+                        DiagnosticsScreen(state = state, vm = diagnosticsViewModel, onBack = { nav.popBackStack() })
                     }
                     composable(Routes.LOGS) {
                         val state by logsViewModel.state.collectAsStateWithLifecycle()

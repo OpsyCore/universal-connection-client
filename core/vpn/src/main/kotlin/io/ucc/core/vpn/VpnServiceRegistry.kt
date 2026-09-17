@@ -32,6 +32,9 @@ public object VpnServiceRegistry {
      */
     public val lockdownStatus: kotlinx.coroutines.flow.MutableStateFlow<LockdownStatus?> = kotlinx.coroutines.flow.MutableStateFlow(null)
 
+    /** Real TUN state as seen by the service: null = no TUN fd open. Contains no secrets (addresses/routes/MTU only). */
+    public val tunState: kotlinx.coroutines.flow.MutableStateFlow<TunState?> = kotlinx.coroutines.flow.MutableStateFlow(null)
+
     /** Emits when the system revokes our VPN. */
     public val revoked: MutableSharedFlow<Unit> = MutableSharedFlow(extraBufferCapacity = 1)
 
@@ -53,6 +56,19 @@ public data class LockdownStatus(
     /** "Block connections without VPN" — the only true kill switch on Android. */
     val lockdown: Boolean,
     val observedAtEpochMs: Long,
+)
+
+/** What `VpnService.Builder.establish()` was asked for, for the diagnostics screen. */
+public data class TunState(
+    val fd: Int,
+    val mtu: Int,
+    val addresses: List<String>,
+    val routes: List<String>,
+    val excludedRoutes: List<String>,
+    val dnsServers: List<String>,
+    val includedPackages: Int,
+    val excludedPackages: Int,
+    val establishedAtEpochMs: Long,
 )
 
 /** Minimal persistence for "which profile was active" so a system restart of the service can resume. */

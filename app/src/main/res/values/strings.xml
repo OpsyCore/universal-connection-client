@@ -253,4 +253,14 @@
     <string name="logs_filter_info">Info</string>
     <string name="logs_filter_warning">Warning</string>
     <string name="logs_filter_error">Error</string>
+    <!-- Diagnostics screen (device verification) -->
+    <string name="diagnostics_title">Diagnostics</string>
+    <string name="diagnostics_copy">Copy diagnostics</string>
+    <string name="diagnostics_no_secrets">Read-only snapshot for bug reports. Contains no credentials, keys or subscription URLs.</string>
+    <string name="diagnostics_core">Core</string>
+    <string name="diagnostics_tun">TUN</string>
+    <string name="diagnostics_network">Network</string>
+    <string name="diagnostics_dns_routing">DNS &amp; routing (settings in effect at next connect)</string>
+    <string name="diagnostics_traffic">Traffic</string>
+    <string name="diagnostics_events">Events</string>
 </resources>

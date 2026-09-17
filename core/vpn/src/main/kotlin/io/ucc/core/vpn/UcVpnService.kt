@@ -185,6 +185,15 @@ public class UcVpnService : VpnService(), TunProvider {
 
         val pfd = builder.establish() ?: error("android: establish() returned null (permission revoked or another VPN active)")
         tunFd = pfd
+        VpnServiceRegistry.tunState.value = TunState(
+            fd = pfd.fd, mtu = request.mtu,
+            addresses = (request.inet4Addresses + request.inet6Addresses).map { "${it.address}/${it.prefixLength}" },
+            routes = (request.inet4Routes + request.inet6Routes).map { "${it.address}/${it.prefixLength}" }.ifEmpty { if (request.autoRoute) listOf("0.0.0.0/0", "::/0 (if v6)") else emptyList() },
+            excludedRoutes = (request.inet4ExcludedRoutes + request.inet6ExcludedRoutes).map { "${it.address}/${it.prefixLength}" },
+            dnsServers = request.dnsServers,
+            includedPackages = request.includePackages.size, excludedPackages = request.excludePackages.size,
+            establishedAtEpochMs = System.currentTimeMillis(),
+        )
         return pfd.fd
     }
 
@@ -193,6 +202,7 @@ public class UcVpnService : VpnService(), TunProvider {
     internal fun closeTun() {
         tunFd?.let { runCatching { it.close() } }
         tunFd = null
+        VpnServiceRegistry.tunState.value = null
     }
 
     /** Called by [AndroidTunnelHost.release]. */

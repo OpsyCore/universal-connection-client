@@ -61,7 +61,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(state: SettingsUiState, vm: SettingsViewModel, onBack: () -> Unit, onOpenLogs: () -> Unit) {
+fun SettingsScreen(state: SettingsUiState, vm: SettingsViewModel, onBack: () -> Unit, onOpenLogs: () -> Unit, onOpenDiagnostics: () -> Unit = {}) {
     val s = state.settings
     val context = LocalContext.current
     var showApps by remember { mutableStateOf(false) }
@@ -172,6 +172,7 @@ fun SettingsScreen(state: SettingsUiState, vm: SettingsViewModel, onBack: () -> 
                 }
             }
             OutlinedButton(onClick = onOpenLogs, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.settings_open_logs) + " (${state.logCount})") }
+            OutlinedButton(onClick = onOpenDiagnostics, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.diagnostics_title)) }
 
             // ---------------------------------------------------------------- Appearance
             Section(stringResource(R.string.settings_section_appearance))

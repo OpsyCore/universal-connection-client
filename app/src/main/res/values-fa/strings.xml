@@ -252,4 +252,14 @@
     <string name="logs_filter_info">اطلاعات</string>
     <string name="logs_filter_warning">هشدار</string>
     <string name="logs_filter_error">خطا</string>
+    <!-- Diagnostics screen (device verification) -->
+    <string name="diagnostics_title">عیب‌یابی</string>
+    <string name="diagnostics_copy">کپی اطلاعات عیب‌یابی</string>
+    <string name="diagnostics_no_secrets">تصویر فقط‌خواندنی برای گزارش اشکال. هیچ اطلاعات ورود، کلید یا آدرس اشتراکی ندارد.</string>
+    <string name="diagnostics_core">هسته</string>
+    <string name="diagnostics_tun">TUN</string>
+    <string name="diagnostics_network">شبکه</string>
+    <string name="diagnostics_dns_routing">DNS و مسیریابی (تنظیمات مؤثر در اتصال بعدی)</string>
+    <string name="diagnostics_traffic">ترافیک</string>
+    <string name="diagnostics_events">رویدادها</string>
 </resources>
