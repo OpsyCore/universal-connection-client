@@ -52,6 +52,7 @@ class DiagnosticsViewModelTest {
         val lock = MutableStateFlow<LockdownStatus?>(LockdownStatus(true, true, false, 1))
         val vm = DiagnosticsViewModel(manager, store, selection, InMemorySettingsStore(), logs, tun, net, lock, testCapabilities, "Fake 1", { true })
         vm.state.onEach { }.launchIn(backgroundScope)
+        advanceUntilIdle() // let LogBuffer's collectors subscribe before emitting (SharedFlow drops otherwise)
         appEvents.emit(ConnectionEvent(1, "net", category = ConnectionEvent.Category.NETWORK))
         appEvents.emit(ConnectionEvent(2, "again", category = ConnectionEvent.Category.RECONNECT))
         appEvents.emit(ConnectionEvent(3, "Failed", error = ConnectionError.ConnectionTimeout("probe password=$secret")))
