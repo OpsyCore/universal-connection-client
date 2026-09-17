@@ -38,8 +38,4 @@ interface LanguageStore {
             get() = flow.value
             set(value) { flow.value = value }
     }
-
-    companion object {
-        val Static: LanguageStore get() = InMemory()
-    }
 }

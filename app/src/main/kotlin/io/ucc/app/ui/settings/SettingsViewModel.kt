@@ -55,6 +55,7 @@ class SettingsViewModel(
     val notices: Notices,
     lockdown: StateFlow<LockdownStatus?>,
     appVersion: String,
+    private val languageStore: LanguageStore = LanguageStore.InMemory(),
 ) : ViewModel() {
 
     val state: StateFlow<SettingsUiState> = combine(store.settings, manager.state, themeStore.themeFlow, lockdown, logBuffer.entries) { s, conn, theme, lock, logs ->
