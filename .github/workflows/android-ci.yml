@@ -169,7 +169,7 @@ jobs:
           {
             echo "# Release artifact provenance"
             echo "commit: $GITHUB_SHA"; echo "run: $GITHUB_RUN_ID"; echo "signed: $SIGNED"
-            [ "$SIGNED" = "true" ] && { echo "signer certificate:"; grep -E "Signer #1 certificate (DN|SHA-256)|Signer .*certificate (DN|SHA-256 digest)" build/release-artifacts/apksigner-verify.txt; }
+            if [ "$SIGNED" = "true" ]; then echo "signer certificate:"; grep -E "Signer.*certificate (DN|SHA-256 digest)" build/release-artifacts/apksigner-verify.txt || true; fi
             echo "built by: ./gradlew :app:assembleSingboxRelease :app:bundleSingboxRelease (minifyEnabled + shrinkResources, R8)"
             echo; cat build/release-artifacts/SHA256SUMS.txt
           } > build/release-artifacts/PROVENANCE.txt
