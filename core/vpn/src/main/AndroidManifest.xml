@@ -7,8 +7,17 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Required to enumerate installed apps for per-app routing (Phase 6). Declared here so lint tracks it. -->
+    <!--
+      Per-app routing (Settings → Routing → include/exclude apps) lists every
+      installed app that holds INTERNET via PackageManager.getInstalledApplications
+      (app/ui/settings/InstalledApps.kt) and passes the chosen packages to
+      VpnService.Builder.addAllowed/DisallowedApplication. On API 30+ that
+      enumeration needs broad package visibility; a <queries> filter cannot
+      express "every app that can use the network". Play-policy implications:
+      docs/PLAY_STORE_CHECKLIST.md §QUERY_ALL_PACKAGES.
+      No RECEIVE_BOOT_COMPLETED: the app has no boot receiver (always-on VPN is
+      handled by the system via SUPPORTS_ALWAYS_ON below).
+    -->
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />

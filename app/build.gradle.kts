@@ -1,8 +1,34 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+}
+
+/**
+ * Release signing (docs/RELEASE.md §Signing). Nothing is committed: the keystore
+ * and its passwords come from either
+ *   1. environment variables  UCC_KEYSTORE_FILE / UCC_KEYSTORE_PASSWORD / UCC_KEY_ALIAS / UCC_KEY_PASSWORD  (CI), or
+ *   2. an untracked  keystore.properties  next to this file with the keys
+ *      storeFile / storePassword / keyAlias / keyPassword                          (local).
+ * When neither is present the release build is produced UNSIGNED (file name gets
+ * "-unsigned") so CI can still verify minification without any secret.
+ */
+val releaseSigning: Map<String, String>? = run {
+    val env = System.getenv()
+    val fromEnv = listOf("UCC_KEYSTORE_FILE", "UCC_KEYSTORE_PASSWORD", "UCC_KEY_ALIAS", "UCC_KEY_PASSWORD").map { env[it] }
+    if (fromEnv.all { !it.isNullOrBlank() }) {
+        return@run mapOf("storeFile" to fromEnv[0]!!, "storePassword" to fromEnv[1]!!, "keyAlias" to fromEnv[2]!!, "keyPassword" to fromEnv[3]!!)
+    }
+    val local = rootProject.file("app/keystore.properties")
+    if (local.exists()) {
+        val p = Properties().apply { local.inputStream().use { load(it) } }
+        val m = listOf("storeFile", "storePassword", "keyAlias", "keyPassword").associateWith { p.getProperty(it).orEmpty() }
+        if (m.values.all { it.isNotBlank() }) return@run m
+    }
+    null
 }
 
 android {
@@ -13,8 +39,9 @@ android {
         applicationId = "io.ucc.app"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
+        // Release versioning: semantic versionName, monotonically increasing versionCode (bump both per release).
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         resourceConfigurations += listOf("en", "fa")
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
@@ -32,17 +59,36 @@ android {
         }
     }
 
+    signingConfigs {
+        releaseSigning?.let { cfg ->
+            create("release") {
+                storeFile = file(cfg.getValue("storeFile"))
+                storePassword = cfg.getValue("storePassword")
+                keyAlias = cfg.getValue("keyAlias")
+                keyPassword = cfg.getValue("keyPassword")
+                enableV1Signing = false
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
             isDebuggable = true
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            isDebuggable = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Signing is configured in Phase 9 from CI secrets; unsigned release builds are still produced.
+            signingConfig = releaseSigning?.let { signingConfigs.getByName("release") }
         }
+    }
+    if (releaseSigning == null) {
+        logger.lifecycle("ucc: no release signing material found — release artifacts will be UNSIGNED")
     }
 
     compileOptions {
