@@ -132,7 +132,7 @@ If subscription auto-refresh is ever removed, delete this marker and add
 CI then expects `RECEIVE_BOOT_COMPLETED: ABSENT`.
 
 ## CI (`.github/workflows/android-ci.yml`)
-Last verified CI run for this document: 35339938710 (commit `6c467bf`) — all steps green, artifacts unsigned.
+Last verified CI run for this document: 35348184525 (commit `f437038`) — all steps green, artifacts unsigned. Signing secrets were configured afterwards; the first signed run is recorded in `docs/PROJECT_STATUS.md`.
 
 libbox build (cached by tag) → boundary check → secret scan → notice check → unit tests →
 debug APK → lint → **minified release APK + AAB** (signed only if secrets exist) →
