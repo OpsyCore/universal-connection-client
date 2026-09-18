@@ -57,7 +57,10 @@ jobs:
             echo "iosArm64 compile: ${{ steps.arm64.outcome }}"
             echo "iosSimulatorArm64 compile: ${{ steps.sim.outcome }}"
             echo "iOS test EXECUTION: NOT RUN (Linux host cannot run Apple binaries; klibs compiled only)"
-            echo "===== produced klibs"; find core -path '*/build/classes/kotlin/ios*' -name '*.klib' | sort
+            echo "===== Apple compile tasks (every :core:*:compile*Ios* task seen in the logs, with outcome)"
+            cat build/gradle-ios-arm64.log build/gradle-ios-sim.log 2>/dev/null | grep -oE "> Task :core:[a-z-]+:compile(Test)?KotlinIos(Arm64|SimulatorArm64)( [A-Z-]+)?" | sed 's/^> Task //' | sort | uniq -c
+            echo "===== produced klib outputs"; find core -path '*/build/classes/kotlin/ios*' \( -name '*.klib' -o -name 'manifest' \) -not -path '*/jvm/*' | sort
+            echo "===== expected 24 tasks; klib outputs per target:"; for t in iosArm64 iosSimulatorArm64; do echo "$t main=$(ls -d core/*/build/classes/kotlin/$t/main 2>/dev/null | wc -l) test=$(ls -d core/*/build/classes/kotlin/$t/test 2>/dev/null | wc -l)"; done
             for f in build/gradle-ios-arm64.log build/gradle-ios-sim.log; do
               [ -f "$f" ] || { echo "===== $f MISSING"; continue; }
               echo "===== $f"
