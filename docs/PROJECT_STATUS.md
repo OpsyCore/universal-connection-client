@@ -351,5 +351,7 @@ Tunnel establishment and real traffic; DNS behaviour and leak testing; routing r
 
 - `iosArm64` + `iosSimulatorArm64` added to the six shared modules; iOS actuals for sha256 (CommonCrypto),
   UUID/clock (Foundation), IO dispatcher, `UrlSessionSubscriptionFetcher`, `NwConnectionDialer`.
-- Verified on Linux CI as **compile verification only** (klibs); iOS test execution requires macOS — NOT RUN.
+- Verified: CI 35400107559 @ `fb5eb2b` — 24/24 Apple compile tasks (6 modules × main+test × 2 targets) succeeded on Linux
+  (**compile verification only**; iOS test execution requires macOS — NOT RUN). JVM/Android in the same run: 394 tests / 0 failed,
+  signed release APK/AAB unchanged in identity, permissions, signer and R8.
 - No iOS app / NetworkExtension / Libbox / signing yet.
