@@ -103,7 +103,8 @@ android {
     }
 
     packaging {
-        resources.excludes += setOf("META-INF/{AL2.0,LGPL2.1}", "META-INF/versions/9/OSGI-INF/MANIFEST.MF")
+        // DebugProbesKt.bin is kotlinx-coroutines' debug-agent stub; unused by the app, so keep it out of the artifact.
+        resources.excludes += setOf("META-INF/{AL2.0,LGPL2.1}", "META-INF/versions/9/OSGI-INF/MANIFEST.MF", "DebugProbesKt.bin")
         jniLibs.useLegacyPackaging = false
     }
 }
