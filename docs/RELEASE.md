@@ -90,8 +90,7 @@ contains un-obfuscated `io.ucc.app.ui.*ScreenKt` names (evidence that R8 ran).
 | POST_NOTIFICATIONS | the FGS notification on Android 13+ |
 | CAMERA | QR scanner (runtime, optional; `uses-feature required=false`) |
 | QUERY_ALL_PACKAGES | per-app routing app list — see `docs/PLAY_STORE_CHECKLIST.md` (declaration required) |
-
-Removed in this pass: `RECEIVE_BOOT_COMPLETED` (no boot receiver existed).
+| RECEIVE_BOOT_COMPLETED | **not declared by the app** (removed from `core/vpn` in this pass; no boot receiver, no boot auto-connect). It is merged in by `androidx.work` for its `RescheduleReceiver`, which re-arms the periodic subscription auto-refresh after a reboot. Removing it with `tools:node="remove"` would silently stop auto-refresh after reboots, so it is kept and attributed. Verified by `tools/inspect-release.sh`. |
 
 ## CI (`.github/workflows/android-ci.yml`)
 libbox build (cached by tag) → boundary check → secret scan → notice check → unit tests →

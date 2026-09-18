@@ -28,9 +28,12 @@ android.permission.FOREGROUND_SERVICE
 android.permission.FOREGROUND_SERVICE_SPECIAL_USE
 android.permission.INTERNET
 android.permission.POST_NOTIFICATIONS
-android.permission.QUERY_ALL_PACKAGES"
+android.permission.QUERY_ALL_PACKAGES
+android.permission.RECEIVE_BOOT_COMPLETED"
 if ! diff <(echo "$EXPECTED") /tmp/perms.txt >/tmp/permdiff.txt; then cat /tmp/permdiff.txt; err "permission set differs from docs/RELEASE.md"; fi
-grep -q RECEIVE_BOOT_COMPLETED /tmp/perms.txt && err "RECEIVE_BOOT_COMPLETED present but no boot receiver exists"
+# RECEIVE_BOOT_COMPLETED is merged from androidx.work (RescheduleReceiver re-enqueues periodic
+# subscription refresh after reboot). The app declares none itself; verify that is still true.
+grep -rq "RECEIVE_BOOT_COMPLETED" --include=AndroidManifest.xml --exclude-dir=build . 2>/dev/null && grep -rn "RECEIVE_BOOT_COMPLETED" --include=AndroidManifest.xml --exclude-dir=build . | grep -v "<!--\|^\s*No RECEIVE" | grep -q "uses-permission" && err "app declares RECEIVE_BOOT_COMPLETED itself" || echo "   RECEIVE_BOOT_COMPLETED: merged from androidx.work only"
 
 echo "--- manifest flags"
 MANIFEST=$("$AAPT" dump xmltree --file AndroidManifest.xml "$APK")
