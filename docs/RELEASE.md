@@ -16,7 +16,7 @@
 # prerequisites: JDK 17, Android SDK (build-tools for aapt2/apksigner), libbox.aar in core/engine-singbox/libs
 #   (built by .github/workflows/libbox.yml or tools/build-libbox.sh — needs Go 1.25 + NDK r28)
 
-./gradlew test testSingboxDebugUnitTest          # unit tests (JVM modules + app)
+./gradlew jvmTest test testSingboxDebugUnitTest  # unit tests (KMP jvm targets + app)
 ./gradlew :app:lintSingboxDebug                  # lint (errors fail the build)
 tools/check-core-boundary.sh                     # engine isolation
 tools/check-secrets.sh                           # secret scan (tracked files)

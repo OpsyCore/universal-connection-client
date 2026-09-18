@@ -66,17 +66,22 @@ jobs:
         if: always()
         run: |
           set -o pipefail; mkdir -p build
-          ./gradlew --no-daemon --continue test testSingboxDebugUnitTest 2>&1 | tee build/gradle-test.log
+          ./gradlew --no-daemon --continue jvmTest test testSingboxDebugUnitTest 2>&1 | tee build/gradle-test.log
           # Per-module test totals from JUnit XML (readable via the gradle-errors check-run).
+          echo "--- test tasks executed (from gradle log)"; grep -oE "> Task :[a-z:-]+:(jvmTest|test|testSingbox(Debug|Release)UnitTest|allTests)( [A-Z-]+)?" build/gradle-test.log | sort | uniq -c | tee build/test-tasks.txt
+          echo "--- test-result directories"; find . -path '*/build/test-results/*' -name '*.xml' | sed -E 's#/TEST-.*##' | sort | uniq -c
           python3 - <<'PY' | tee build/test-summary.txt
           import glob, xml.etree.ElementTree as ET, collections
           tot = collections.Counter(); fail = collections.Counter()
-          for f in glob.glob('**/build/test-results/**/*.xml', recursive=True):
+          for f in sorted(set(glob.glob('**/build/test-results/**/*.xml', recursive=True))):
               r = ET.parse(f).getroot(); mod = f.split('/build/')[0]; task = f.split('test-results/')[1].split('/')[0]
               tot[(mod, task)] += int(r.get('tests', 0)); fail[(mod, task)] += int(r.get('failures', 0)) + int(r.get('errors', 0))
           for k in sorted(tot): print(f"{k[0]:28s} {k[1]:28s} tests={tot[k]:4d} failed={fail[k]}")
           print(f"TOTAL tests={sum(tot.values())} failed={sum(fail.values())}")
           PY
+          for m in platform model engine-api config smart singbox-config; do
+            ls core/$m/build/test-results/jvmTest/*.xml >/dev/null 2>&1 || { echo "::error::no jvmTest results for :core:$m — KMP tests did not run"; exit 1; }
+          done
 
       - name: Assemble debug APK
         if: always()
@@ -202,7 +207,7 @@ jobs:
               grep -E "^e: |Unresolved reference|What went wrong|Could not resolve|Could not find|> Task .* FAILED|BUILD (SUCCESSFUL|FAILED)" "$f" | head -80
               grep -A 20 "What went wrong" "$f" | head -50
             done
-            for f in build/test-summary.txt build/release-artifacts/SHA256SUMS.txt build/release-artifacts/PROVENANCE.txt; do [ -f "$f" ] && { echo "===== $f (full)"; cat "$f"; }; done
+            for f in build/test-tasks.txt build/test-summary.txt build/release-artifacts/SHA256SUMS.txt build/release-artifacts/PROVENANCE.txt; do [ -f "$f" ] && { echo "===== $f (full)"; cat "$f"; }; done
             for f in build/manifest-permissions.txt build/release-inspection.txt build/release-artifacts/apksigner-verify.txt; do [ -f "$f" ] && { echo "===== $f (condensed)"; grep -vE "^\s+(lib/|base/lib/|[0-9]+-->)" "$f" | grep -vE "^[0-9]+\s+<uses-permission" | head -70; }; done
             for f in build/gradle-test.log build/gradle-assemble.log build/gradle-lint.log build/gradle-release.log; do
               [ -f "$f" ] || continue
