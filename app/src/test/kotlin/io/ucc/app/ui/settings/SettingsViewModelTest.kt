@@ -55,7 +55,7 @@ class SettingsViewModelTest {
     private val store = InMemorySettingsStore()
     private val lockdown = MutableStateFlow<LockdownStatus?>(null)
 
-    private val languages = io.ucc.app.data.LanguageStore.InMemory()
+    private val languages = LanguageStore.InMemory()
 
     private fun kotlinx.coroutines.test.TestScope.vm(caps: CoreCapabilities = testCapabilities): SettingsViewModel {
         val buf = LogBuffer(backgroundScope, MutableSharedFlow(), MutableSharedFlow())
