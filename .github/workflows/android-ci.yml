@@ -101,8 +101,23 @@ jobs:
           UCC_KEY_PASSWORD: ${{ secrets.UCC_KEY_PASSWORD }}
         run: |
           set -o pipefail
+          # Clean release outputs so the inspected artifacts are provably from this run.
+          rm -rf app/build/outputs/apk/singbox/release app/build/outputs/bundle/singboxRelease \
+                 app/build/intermediates/merged_manifest/singboxRelease app/build/intermediates/manifest_merge_blame_file/singboxRelease
           ./gradlew --no-daemon :app:assembleSingboxRelease :app:bundleSingboxRelease 2>&1 | tee build/gradle-release.log
           ls -la app/build/outputs/apk/singbox/release app/build/outputs/bundle/singboxRelease
+
+      - name: Merged release manifest and permission blame
+        if: always()
+        run: |
+          {
+            echo "=== merged release manifest: uses-permission"
+            grep -h "uses-permission" app/build/intermediates/merged_manifest/singboxRelease/*/AndroidManifest.xml | sed 's/^ *//' | sort
+            echo "=== manifest-merger blame (who contributes each permission)"
+            BLAME=$(ls app/build/intermediates/manifest_merge_blame_file/singboxRelease/*/manifest-merger-blame-*-report.txt | head -1)
+            echo "report: $BLAME"
+            grep -A1 "<uses-permission" "$BLAME" | grep -v "^--$"
+          } 2>&1 | tee build/manifest-permissions.txt
 
       - name: Inspect release artifacts
         if: always()
@@ -110,6 +125,7 @@ jobs:
           set -o pipefail
           APK=$(ls app/build/outputs/apk/singbox/release/*.apk | head -1)
           AAB=$(ls app/build/outputs/bundle/singboxRelease/*.aab | head -1)
+          export MERGER_BLAME=$(ls app/build/intermediates/manifest_merge_blame_file/singboxRelease/*/manifest-merger-blame-*-report.txt 2>/dev/null | head -1)
           tools/inspect-release.sh "$APK" "$AAB" 2>&1 | tee build/release-inspection.txt
           echo "--- debug vs release size"; du -h app/build/outputs/apk/singbox/debug/*.apk "$APK" "$AAB"
           echo "--- R8 mapping: $(wc -l < app/build/outputs/mapping/singboxRelease/mapping.txt) lines"
@@ -125,7 +141,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           {
-            if [ -f build/release-inspection.txt ]; then echo "===== build/release-inspection.txt (full)"; cat build/release-inspection.txt; fi
+            for f in build/manifest-permissions.txt build/release-inspection.txt; do [ -f "$f" ] && { echo "===== $f (full)"; cat "$f"; }; done
             for f in build/gradle-test.log build/gradle-assemble.log build/gradle-lint.log build/gradle-release.log; do
               [ -f "$f" ] || continue
               echo "===== $f"
@@ -187,4 +203,5 @@ jobs:
             **/build/reports/lint-results-*.html
             **/build/test-results/**/*.xml
             build/release-inspection.txt
+            build/manifest-permissions.txt
           if-no-files-found: ignore

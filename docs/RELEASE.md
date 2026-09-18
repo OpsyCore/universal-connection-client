@@ -82,15 +82,36 @@ contains un-obfuscated `io.ucc.app.ui.*ScreenKt` names (evidence that R8 ran).
 - `android:debuggable` is false in release (verified by `tools/inspect-release.sh`).
 
 ## Permissions in the release manifest (merged)
-| permission | why |
-|---|---|
-| INTERNET | proxy/tunnel traffic, subscription fetch |
-| ACCESS_NETWORK_STATE | default-network monitoring for reconnect / Smart network awareness |
-| FOREGROUND_SERVICE, FOREGROUND_SERVICE_SPECIAL_USE | `UcVpnService` runs as a foreground service of type `specialUse` (subtype property `vpn`) |
-| POST_NOTIFICATIONS | the FGS notification on Android 13+ |
-| CAMERA | QR scanner (runtime, optional; `uses-feature required=false`) |
-| QUERY_ALL_PACKAGES | per-app routing app list — see `docs/PLAY_STORE_CHECKLIST.md` (declaration required) |
-| RECEIVE_BOOT_COMPLETED | **not declared by the app** (removed from `core/vpn` in this pass; no boot receiver, no boot auto-connect). It is merged in by `androidx.work` for its `RescheduleReceiver`, which re-arms the periodic subscription auto-refresh after a reboot. Removing it with `tools:node="remove"` would silently stop auto-refresh after reboots, so it is kept and attributed. Verified by `tools/inspect-release.sh`. |
+
+Source of truth: the manifest-merger blame report
+(`app/build/intermediates/manifest_merge_blame_file/singboxRelease/.../manifest-merger-blame-*-report.txt`),
+printed by the CI step "Merged release manifest and permission blame" and enforced by `tools/inspect-release.sh`
+(fails on any permission outside this table, on `AD_ID`, and on `RECEIVE_BOOT_COMPLETED` unless it is attributed
+to `androidx.work` by the blame report *and* the approval marker below is present).
+
+| permission | class | contributed by | runtime use in this app | Play / policy |
+|---|---|---|---|---|
+| `INTERNET` | required by app | `core/vpn` manifest | tunnel + proxy traffic, subscription fetch, health probes | normal |
+| `ACCESS_NETWORK_STATE` | required by app (also declared by androidx.work) | `core/vpn`, `androidx.work` | default-network monitoring for reconnect / Smart transport stamping; WorkManager `NetworkType.CONNECTED` constraint | normal |
+| `FOREGROUND_SERVICE` | required by app (also declared by androidx.work) | `core/vpn`, `androidx.work` | `UcVpnService.startForeground` | normal |
+| `FOREGROUND_SERVICE_SPECIAL_USE` | required by app | `core/vpn` | FGS type `specialUse`, `<property PROPERTY_SPECIAL_USE_FGS_SUBTYPE="vpn">` | **policy-sensitive**: FGS declaration + use-case review in Play Console |
+| `POST_NOTIFICATIONS` | required by app | `core/vpn` | the persistent VPN notification (Android 13+) | runtime permission; normal |
+| `CAMERA` | required by app | `app` manifest | QR scanner only; `uses-feature android.hardware.camera required=false` | runtime permission; normal |
+| `QUERY_ALL_PACKAGES` | required by app | `app` manifest | per-app routing: `InstalledApps` enumerates launchable packages via `PackageManager.getInstalledApplications` so the user can include/exclude apps from the tunnel (`VpnService.Builder.addAllowedApplication/addDisallowedApplication`). A targeted `<queries>` filter cannot express "every app the user has", so the broad permission is genuinely needed. | **policy-sensitive**: Permissions Declaration Form required; allowed use case "device/app management / VPN per-app". Reviewer may reject; fallback would be removing per-app routing. |
+| `RECEIVE_BOOT_COMPLETED` | required by dependency | `androidx.work:work-runtime` (blame-attributed) | **Not declared by any app module and no app boot receiver exists.** WorkManager schedules its JobScheduler jobs with `setPersisted(false)` and relies on its own (initially disabled, non-exported) `RescheduleReceiver` + this permission to re-arm enqueued work after a reboot. The app enqueues one periodic job (`SubscriptionRefreshWorker`, every 12 h, network-constrained) → without this permission subscription auto-refresh silently stops after every reboot. Removing it with `tools:node="remove"` would therefore disable used library functionality, which is why it is retained rather than stripped. | normal permission; not a runtime prompt; not a Play declaration item. No boot auto-connect is implemented. |
+| `WAKE_LOCK` | required by dependency | `androidx.work` | keeps CPU awake while `SubscriptionRefreshWorker` runs | normal |
+| `io.ucc.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | required by dependency | `androidx.core` | signature-level permission that protects `ContextCompat.registerReceiver(..., RECEIVER_NOT_EXPORTED)` | app-private; normal |
+| `com.google.android.gms.permission.AD_ID` | **removed** | would be merged by `play-services-basement` (ML Kit dependency) | none — no ads/analytics | stripped with `tools:node="remove"` in `app/src/main/AndroidManifest.xml`; inspection fails if it reappears |
+
+Unused permissions in the merged release manifest: **none** (every entry above is either exercised by app code or by a library feature the app uses).
+
+Explicit approval record (machine-checked by `tools/inspect-release.sh`):
+
+`APPROVED-PERMISSION: android.permission.RECEIVE_BOOT_COMPLETED (androidx.work RescheduleReceiver)`
+
+If subscription auto-refresh is ever removed, delete this marker and add
+`<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove" />` to `app/src/main/AndroidManifest.xml`;
+CI then expects `RECEIVE_BOOT_COMPLETED: ABSENT`.
 
 ## CI (`.github/workflows/android-ci.yml`)
 libbox build (cached by tag) → boundary check → secret scan → notice check → unit tests →

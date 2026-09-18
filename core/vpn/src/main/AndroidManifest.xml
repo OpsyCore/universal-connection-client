@@ -18,7 +18,9 @@
       The app declares no RECEIVE_BOOT_COMPLETED and has no boot receiver (always-on
       VPN is handled by the system via SUPPORTS_ALWAYS_ON below). The merged manifest
       still contains it: androidx.work contributes it for its RescheduleReceiver, which
-      re-arms the periodic subscription refresh after a reboot. See docs/RELEASE.md.
+      re-arms the periodic subscription refresh after a reboot (WorkManager jobs are
+      scheduled with setPersisted(false)). Retained deliberately; see docs/RELEASE.md
+      §Permissions for the approval record and CI enforcement.
     -->
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"

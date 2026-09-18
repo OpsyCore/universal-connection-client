@@ -48,9 +48,36 @@ MISSING=$(comm -23 <(echo "$REQUIRED" | sort) /tmp/perms.txt || true)
 [ -z "$UNEXPECTED" ] || { echo "   unexpected:"; echo "$UNEXPECTED" | sed 's/^/     /'; err "permission(s) not in the documented allow-list"; }
 [ -z "$MISSING" ] || { echo "   missing:"; echo "$MISSING" | sed 's/^/     /'; err "required permission(s) missing"; }
 grep -q "AD_ID" /tmp/perms.txt && err "AD_ID present: the app must not carry the advertising-ID permission (add tools:node=remove)" || true
-# RECEIVE_BOOT_COMPLETED is merged from androidx.work (RescheduleReceiver re-enqueues periodic
-# subscription refresh after reboot). The app declares none itself; verify that is still true.
-if grep -rn "RECEIVE_BOOT_COMPLETED" --include=AndroidManifest.xml --exclude-dir=build . 2>/dev/null | grep -q "uses-permission"; then err "app declares RECEIVE_BOOT_COMPLETED itself"; else echo "   RECEIVE_BOOT_COMPLETED: merged from androidx.work only"; fi
+# RECEIVE_BOOT_COMPLETED policy: the app must not declare it. It may be present ONLY if
+#  (a) the manifest-merger blame report attributes every occurrence to androidx.work
+#      (RescheduleReceiver re-arms the app's periodic subscription refresh after reboot;
+#      WorkManager schedules its JobScheduler jobs with setPersisted(false) on purpose), and
+#  (b) docs/RELEASE.md carries the explicit approval marker below.
+# Anything else (present but unattributed, or present without approval) fails the build.
+BOOT_PERM="android.permission.RECEIVE_BOOT_COMPLETED"
+APPROVAL_MARKER="APPROVED-PERMISSION: ${BOOT_PERM} (androidx.work RescheduleReceiver)"
+if grep -rn "$BOOT_PERM" --include=AndroidManifest.xml --exclude-dir=build . 2>/dev/null | grep -v "tools:node=\"remove\"" | grep -q "<uses-permission"; then
+  err "an app module declares ${BOOT_PERM} itself"
+fi
+if grep -qx "$BOOT_PERM" /tmp/perms.txt; then
+  echo "   RECEIVE_BOOT_COMPLETED: PRESENT"
+  BLAME=${MERGER_BLAME:-$(ls app/build/intermediates/manifest_merge_blame_file/*elease*/*/manifest-merger-blame-*-report.txt 2>/dev/null | head -1)}
+  if [ -n "$BLAME" ] && [ -f "$BLAME" ]; then
+    # Blame lines look like: "<path>:<line>:<col>" and follow the element they attribute; take the
+    # attribution lines that immediately follow the uses-permission element.
+    # Blame format: '<n>    <uses-permission .../>' followed by '<n>-->[group:artifact:ver] path:line'
+    ATTR=$(grep -A1 "<uses-permission android:name=\"$BOOT_PERM\"" "$BLAME" | grep -oE '\-\->\[[^]]+\]|\-\->[^ ]*AndroidManifest\.xml' | sed 's/^-->//' | sort -u || true)
+    echo "   merger blame for ${BOOT_PERM}:"; echo "${ATTR:-<none found>}" | sed 's/^/     /'
+    if [ -z "$ATTR" ]; then err "${BOOT_PERM} present but the merger blame report does not attribute it"
+    elif echo "$ATTR" | grep -v "work-runtime\|androidx.work" | grep -q .; then err "${BOOT_PERM} is contributed by something other than androidx.work"
+    else echo "   attribution: androidx.work only"; fi
+  else
+    err "${BOOT_PERM} present but no manifest-merger blame report available to attribute it (set MERGER_BLAME)"
+  fi
+  grep -qF "$APPROVAL_MARKER" docs/RELEASE.md && echo "   approval: documented in docs/RELEASE.md" || err "${BOOT_PERM} present without the approval marker in docs/RELEASE.md"
+else
+  echo "   RECEIVE_BOOT_COMPLETED: ABSENT"
+fi
 
 echo "--- manifest flags"
 MANIFEST=$("$AAPT" dump xmltree --file AndroidManifest.xml "$APK")
@@ -94,7 +121,11 @@ if [ -n "$AAB" ] && [ -f "$AAB" ]; then
   grep -q 'BundleConfig.pb' /tmp/aablist.txt && echo "   BundleConfig.pb present"
   echo "   dex: $(grep -c 'base/dex/classes' /tmp/aablist.txt)"
   # identity from the protobuf manifest (aapt2 cannot read it; grep the strings)
-  unzip -p "$AAB" base/manifest/AndroidManifest.xml | strings | grep -E '^io\.ucc\.app$|^1\.0\.0$' | sort -u | sed 's/^/   id\/version string: /'
+  AABSTR=$(unzip -p "$AAB" base/manifest/AndroidManifest.xml | strings)
+  echo "$AABSTR" | grep -qx 'io.ucc.app' && echo "   applicationId string: io.ucc.app" || err "AAB manifest lacks io.ucc.app"
+  echo "$AABSTR" | grep -qx '1.0.0' && echo "   versionName string: 1.0.0" || echo "   versionName string not found as a plain string (protobuf-encoded); see aapt2 APK check above"
+  echo "   AAB permissions (protobuf manifest strings):"; echo "$AABSTR" | grep -E '^(android|com\.google)\..*permission\.' | sort -u | sed 's/^/     /'
+  if echo "$AABSTR" | grep -qx "$BOOT_PERM"; then echo "   AAB RECEIVE_BOOT_COMPLETED: PRESENT (same policy as APK)"; else echo "   AAB RECEIVE_BOOT_COMPLETED: ABSENT"; fi
 fi
 
 [ $fail -eq 0 ] && echo "OK: artifact inspection passed" || { echo "artifact inspection FAILED"; exit 1; }
