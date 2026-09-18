@@ -151,11 +151,22 @@ jobs:
           echo "$B" | grep -q "name='io.ucc.app' versionCode='1' versionName='1.0.0'" || { echo "::error::staged APK identity mismatch"; exit 1; }
           "$AAPT" dump xmltree --file AndroidManifest.xml "$OUT_APK" | grep -q 'debuggable.*=true' && { echo "::error::staged APK debuggable"; exit 1; } || echo "debuggable=false"
           unzip -l "$OUT_APK" | grep -q 'assets/licenses/GPL-3.0.txt' && echo "GPL asset present" || { echo "::error::GPL asset missing"; exit 1; }
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          if [ "$SIGNED" = "true" ]; then
+            # A signed build must carry a valid v2/v3 signature; anything else fails the job.
+            "$APKSIGNER" verify --verbose --print-certs "$OUT_APK" | tee build/release-artifacts/apksigner-verify.txt
+            grep -q "^Verifies$" build/release-artifacts/apksigner-verify.txt || { echo "::error::apksigner did not verify the signed APK"; exit 1; }
+            grep -qE "Verified using v2 scheme \(APK Signature Scheme v2\): true" build/release-artifacts/apksigner-verify.txt || { echo "::error::v2 signature missing"; exit 1; }
+          else
+            "$APKSIGNER" verify --verbose "$OUT_APK" > build/release-artifacts/apksigner-verify.txt 2>&1 || true
+            echo "UNSIGNED build: apksigner verify expected to fail (no UCC_KEYSTORE_BASE64 secret)"; tail -1 build/release-artifacts/apksigner-verify.txt
+          fi
           sha256sum "$OUT_APK" "$OUT_AAB" | tee build/release-artifacts/SHA256SUMS.txt
           cp build/release-inspection.txt build/release-artifacts/ 2>/dev/null || true
           {
             echo "# Release artifact provenance"
             echo "commit: $GITHUB_SHA"; echo "run: $GITHUB_RUN_ID"; echo "signed: $SIGNED"
+            [ "$SIGNED" = "true" ] && { echo "signer certificate:"; grep -E "Signer #1 certificate (DN|SHA-256)" build/release-artifacts/apksigner-verify.txt; }
             echo "built by: ./gradlew :app:assembleSingboxRelease :app:bundleSingboxRelease (minifyEnabled + shrinkResources, R8)"
             echo; cat build/release-artifacts/SHA256SUMS.txt
           } > build/release-artifacts/PROVENANCE.txt
@@ -209,6 +220,7 @@ jobs:
             build/release-artifacts/SHA256SUMS.txt
             build/release-artifacts/PROVENANCE.txt
             build/release-artifacts/release-inspection.txt
+            build/release-artifacts/apksigner-verify.txt
           if-no-files-found: ignore
 
       - name: Upload release AAB

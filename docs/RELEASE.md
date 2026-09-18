@@ -63,6 +63,24 @@ keytool -genkeypair -v -keystore upload-key.jks -alias upload -keyalg RSA -keysi
 ```
 Enrol in Play App Signing and register this as the **upload** key.
 
+Configuring CI signing (repository admin, once):
+```bash
+gh secret set UCC_KEYSTORE_BASE64  -R OpsyCore/universal-connection-client < <(base64 -w0 upload-key.jks)
+gh secret set UCC_KEYSTORE_PASSWORD -R OpsyCore/universal-connection-client   # prompts
+gh secret set UCC_KEY_ALIAS         -R OpsyCore/universal-connection-client   # e.g. upload
+gh secret set UCC_KEY_PASSWORD      -R OpsyCore/universal-connection-client
+```
+Then re-run the workflow. A signed run: names the files `universal-connection-client-1.0.0-release-signed.{apk,aab}`,
+runs `apksigner verify --verbose --print-certs` and **fails** unless the result is `Verifies` with a v2 signature,
+records the signer certificate DN/SHA-256 in `PROVENANCE.txt`, and uploads `app-release-signed` /
+`app-bundle-signed` plus `r8-mapping` for that exact build. The SHA-256 of a signed APK differs from the unsigned
+one (signature block appended); dex, resources and native libraries are byte-identical.
+
+Smoke-test key vs. production key: the *same* mechanism serves both. If the physical smoke test must happen before
+the production upload key exists, generate a dedicated **test** keystore with the command above, load it into the
+secrets, run CI, test, then replace the secrets with the real upload key before the Play upload. Never reuse a test
+key as the Play upload key.
+
 ## What R8 keeps and why (`app/proguard-rules.pro`, `core/engine-singbox/consumer-rules.pro`)
 | rule | reason |
 |---|---|
