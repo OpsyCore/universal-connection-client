@@ -1,5 +1,6 @@
 package io.ucc.applogic
 
+import io.ucc.applogic.ServerRepository.Companion.boundProfileId
 import io.ucc.core.platform.currentTimeMillis
 import io.ucc.core.config.ConfigImporter
 import io.ucc.core.config.subscription.Subscription

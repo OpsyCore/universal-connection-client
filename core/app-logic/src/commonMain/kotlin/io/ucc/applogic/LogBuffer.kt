@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
@@ -52,13 +53,11 @@ class LogBuffer(
         }
     }
 
-    @Synchronized
+    // Lock-free CAS instead of the former @Synchronized (JVM-only): same ring semantics under concurrent producers.
     private fun add(e: Entry) {
-        val cur = _entries.value
-        _entries.value = if (cur.size >= capacity) cur.drop(cur.size - capacity + 1) + e else cur + e
+        _entries.update { cur -> if (cur.size >= capacity) cur.drop(cur.size - capacity + 1) + e else cur + e }
     }
 
-    @Synchronized
     fun clear() { _entries.value = emptyList() }
 
     /** Sanitised, ISO-timestamped export (entries are sanitised on ingest; sanitised again here on purpose). */
