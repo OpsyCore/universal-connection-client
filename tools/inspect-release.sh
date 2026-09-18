@@ -121,11 +121,24 @@ if [ -n "$AAB" ] && [ -f "$AAB" ]; then
   grep -q 'BundleConfig.pb' /tmp/aablist.txt && echo "   BundleConfig.pb present"
   echo "   dex: $(grep -c 'base/dex/classes' /tmp/aablist.txt)"
   # identity from the protobuf manifest (aapt2 cannot read it; grep the strings)
-  AABSTR=$(unzip -p "$AAB" base/manifest/AndroidManifest.xml | strings)
-  echo "$AABSTR" | grep -qx 'io.ucc.app' && echo "   applicationId string: io.ucc.app" || err "AAB manifest lacks io.ucc.app"
-  echo "$AABSTR" | grep -qx '1.0.0' && echo "   versionName string: 1.0.0" || echo "   versionName string not found as a plain string (protobuf-encoded); see aapt2 APK check above"
-  echo "   AAB permissions (protobuf manifest strings):"; echo "$AABSTR" | grep -E '^(android|com\.google)\..*permission\.' | sort -u | sed 's/^/     /'
-  if echo "$AABSTR" | grep -qx "$BOOT_PERM"; then echo "   AAB RECEIVE_BOOT_COMPLETED: PRESENT (same policy as APK)"; else echo "   AAB RECEIVE_BOOT_COMPLETED: ABSENT"; fi
+  # The AAB manifest is protobuf; use bundletool for an exact, decoded read (strings on the binary is
+  # unreliable). BUNDLETOOL_JAR is provided by CI; without it the AAB manifest check is skipped, not faked.
+  if [ -n "${BUNDLETOOL_JAR:-}" ] && [ -f "$BUNDLETOOL_JAR" ]; then
+    java -jar "$BUNDLETOOL_JAR" dump manifest --bundle "$AAB" > /tmp/aab-manifest.xml
+    AABPKG=$(grep -oE 'package="[^"]+"' /tmp/aab-manifest.xml | head -1 | cut -d'"' -f2)
+    AABVN=$(grep -oE 'android:versionName="[^"]+"' /tmp/aab-manifest.xml | head -1 | cut -d'"' -f2)
+    AABVC=$(grep -oE 'android:versionCode="[^"]+"' /tmp/aab-manifest.xml | head -1 | cut -d'"' -f2)
+    echo "   package=$AABPKG versionName=$AABVN versionCode=$AABVC"
+    [ "$AABPKG" = "io.ucc.app" ] || err "AAB package is $AABPKG"
+    [ "$AABVN" = "1.0.0" ] || err "AAB versionName is $AABVN"
+    grep -q 'android:debuggable="true"' /tmp/aab-manifest.xml && err "AAB is debuggable" || echo "   debuggable: false"
+    echo "   AAB permissions (bundletool dump manifest):"
+    grep -oE '<uses-permission android:name="[^"]+"' /tmp/aab-manifest.xml | cut -d'"' -f2 | sort | tee /tmp/aabperms.txt | sed 's/^/     /'
+    diff -q /tmp/perms.txt /tmp/aabperms.txt >/dev/null && echo "   AAB permission set == APK permission set" || err "AAB permission set differs from APK"
+    if grep -qx "$BOOT_PERM" /tmp/aabperms.txt; then echo "   AAB RECEIVE_BOOT_COMPLETED: PRESENT (same attribution/approval as APK)"; else echo "   AAB RECEIVE_BOOT_COMPLETED: ABSENT"; fi
+  else
+    echo "   AAB manifest: NOT INSPECTED (BUNDLETOOL_JAR not set)"
+  fi
 fi
 
 [ $fail -eq 0 ] && echo "OK: artifact inspection passed" || { echo "artifact inspection FAILED"; exit 1; }

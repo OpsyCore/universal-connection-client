@@ -125,6 +125,7 @@ jobs:
           set -o pipefail
           APK=$(ls app/build/outputs/apk/singbox/release/*.apk | head -1)
           AAB=$(ls app/build/outputs/bundle/singboxRelease/*.aab | head -1)
+          BT=1.18.3; curl -fsSL -o "$RUNNER_TEMP/bundletool.jar" "https://github.com/google/bundletool/releases/download/$BT/bundletool-all-$BT.jar" && export BUNDLETOOL_JAR="$RUNNER_TEMP/bundletool.jar" || echo "bundletool download failed; AAB manifest will be reported as NOT INSPECTED"
           export MERGER_BLAME=$(ls app/build/intermediates/manifest_merge_blame_file/singboxRelease/*/manifest-merger-blame-*-report.txt 2>/dev/null | head -1)
           tools/inspect-release.sh "$APK" "$AAB" 2>&1 | tee build/release-inspection.txt
           echo "--- debug vs release size"; du -h app/build/outputs/apk/singbox/debug/*.apk "$APK" "$AAB"
