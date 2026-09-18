@@ -38,7 +38,7 @@ jobs:
         run: |
           set -o pipefail; mkdir -p build
           ./gradlew --no-daemon --continue \
-            $(for m in platform model engine-api config smart singbox-config app-logic; do echo ":core:$m:compileKotlinIosArm64 :core:$m:compileTestKotlinIosArm64"; done) \
+            $(for m in platform model engine-api config smart singbox-config app-logic ios-infra; do echo ":core:$m:compileKotlinIosArm64 :core:$m:compileTestKotlinIosArm64"; done) \
             2>&1 | tee build/gradle-ios-arm64.log
       - name: Compile iosSimulatorArm64 (main + test klibs)
         id: sim
@@ -46,7 +46,7 @@ jobs:
         run: |
           set -o pipefail; mkdir -p build
           ./gradlew --no-daemon --continue \
-            $(for m in platform model engine-api config smart singbox-config app-logic; do echo ":core:$m:compileKotlinIosSimulatorArm64 :core:$m:compileTestKotlinIosSimulatorArm64"; done) \
+            $(for m in platform model engine-api config smart singbox-config app-logic ios-infra; do echo ":core:$m:compileKotlinIosSimulatorArm64 :core:$m:compileTestKotlinIosSimulatorArm64"; done) \
             2>&1 | tee build/gradle-ios-sim.log
       - name: Report
         if: always()
@@ -60,7 +60,7 @@ jobs:
             echo "===== Apple compile tasks (every :core:*:compile*Ios* task seen in the logs, with outcome)"
             cat build/gradle-ios-arm64.log build/gradle-ios-sim.log 2>/dev/null | grep -oE "> Task :core:[a-z-]+:compile(Test)?KotlinIos(Arm64|SimulatorArm64)( [A-Z-]+)?" | sed 's/^> Task //' | sort | uniq -c
             echo "===== produced klib outputs"; find core -path '*/build/classes/kotlin/ios*' \( -name '*.klib' -o -name 'manifest' \) -not -path '*/jvm/*' | sort
-            echo "===== expected 28 tasks (7 modules x main+test x 2 targets); klib outputs per target:"; for t in iosArm64 iosSimulatorArm64; do echo "$t main=$(ls -d core/*/build/classes/kotlin/$t/main 2>/dev/null | wc -l) test=$(ls -d core/*/build/classes/kotlin/$t/test 2>/dev/null | wc -l)"; done
+            echo "===== expected 32 tasks (8 modules x main+test x 2 targets); klib outputs per target:"; for t in iosArm64 iosSimulatorArm64; do echo "$t main=$(ls -d core/*/build/classes/kotlin/$t/main 2>/dev/null | wc -l) test=$(ls -d core/*/build/classes/kotlin/$t/test 2>/dev/null | wc -l)"; done
             for f in build/gradle-ios-arm64.log build/gradle-ios-sim.log; do
               [ -f "$f" ] || { echo "===== $f MISSING"; continue; }
               echo "===== $f"
@@ -130,7 +130,7 @@ jobs:
         if: always()
         run: |
           set -o pipefail; mkdir -p build
-          ./gradlew --no-daemon --continue :core:app-logic:jvmTest jvmTest test testSingboxDebugUnitTest 2>&1 | tee build/gradle-test.log
+          ./gradlew --no-daemon --continue :core:app-logic:jvmTest :core:ios-infra:jvmTest jvmTest test testSingboxDebugUnitTest 2>&1 | tee build/gradle-test.log
           # Per-module test totals from JUnit XML (readable via the gradle-errors check-run).
           echo "--- test tasks executed (from gradle log)"; grep -oE "> Task :[a-z:-]+:(jvmTest|test|testSingbox(Debug|Release)UnitTest|allTests)( [A-Z-]+)?" build/gradle-test.log | sort | uniq -c | tee build/test-tasks.txt
           echo "--- test-result directories"; find . -path '*/build/test-results/*' -name '*.xml' | sed -E 's#/TEST-.*##' | sort | uniq -c
@@ -143,7 +143,7 @@ jobs:
           for k in sorted(tot): print(f"{k[0]:28s} {k[1]:28s} tests={tot[k]:4d} failed={fail[k]}")
           print(f"TOTAL tests={sum(tot.values())} failed={sum(fail.values())}")
           PY
-          for m in platform model engine-api config smart singbox-config app-logic; do
+          for m in platform model engine-api config smart singbox-config app-logic ios-infra; do
             ls core/$m/build/test-results/jvmTest/*.xml >/dev/null 2>&1 || { echo "::error::no jvmTest results for :core:$m — KMP tests did not run"; exit 1; }
           done
 
