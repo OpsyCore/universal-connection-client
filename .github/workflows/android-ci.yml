@@ -132,6 +132,35 @@ jobs:
           echo "--- R8 mapping: $(wc -l < app/build/outputs/mapping/singboxRelease/mapping.txt) lines"
           echo "--- resources removed by shrinker:"; grep -c "Skipped unused resource" app/build/outputs/mapping/singboxRelease/resources.txt 2>/dev/null || true
 
+      - name: Stage release artifacts with unmistakable names and verify the staged files
+        if: always()
+        id: stage
+        run: |
+          set -o pipefail
+          SIGNED="${{ steps.keystore.outputs.signed }}"; SUFFIX=$([ "$SIGNED" = "true" ] && echo signed || echo unsigned)
+          mkdir -p build/release-artifacts
+          APK=$(ls app/build/outputs/apk/singbox/release/*.apk | head -1)
+          AAB=$(ls app/build/outputs/bundle/singboxRelease/*.aab | head -1)
+          OUT_APK="build/release-artifacts/universal-connection-client-1.0.0-release-$SUFFIX.apk"
+          OUT_AAB="build/release-artifacts/universal-connection-client-1.0.0-release-$SUFFIX.aab"
+          cp "$APK" "$OUT_APK"; cp "$AAB" "$OUT_AAB"
+          # Re-verify the *staged* file (the exact bytes that get uploaded), independent of inspect-release.sh.
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          B=$("$AAPT" dump badging "$OUT_APK")
+          echo "$B" | grep -E "^package:|^native-code" | tee build/release-artifacts/badging.txt
+          echo "$B" | grep -q "name='io.ucc.app' versionCode='1' versionName='1.0.0'" || { echo "::error::staged APK identity mismatch"; exit 1; }
+          "$AAPT" dump xmltree --file AndroidManifest.xml "$OUT_APK" | grep -q 'debuggable.*=true' && { echo "::error::staged APK debuggable"; exit 1; } || echo "debuggable=false"
+          unzip -l "$OUT_APK" | grep -q 'assets/licenses/GPL-3.0.txt' && echo "GPL asset present" || { echo "::error::GPL asset missing"; exit 1; }
+          sha256sum "$OUT_APK" "$OUT_AAB" | tee build/release-artifacts/SHA256SUMS.txt
+          cp build/release-inspection.txt build/release-artifacts/ 2>/dev/null || true
+          {
+            echo "# Release artifact provenance"
+            echo "commit: $GITHUB_SHA"; echo "run: $GITHUB_RUN_ID"; echo "signed: $SIGNED"
+            echo "built by: ./gradlew :app:assembleSingboxRelease :app:bundleSingboxRelease (minifyEnabled + shrinkResources, R8)"
+            echo; cat build/release-artifacts/SHA256SUMS.txt
+          } > build/release-artifacts/PROVENANCE.txt
+          echo "suffix=$SUFFIX" >> "$GITHUB_OUTPUT"
+
       - name: Remove keystore
         if: always()
         run: rm -f "$RUNNER_TEMP/release.jks"
@@ -169,35 +198,6 @@ jobs:
           name: app-debug
           path: app/build/outputs/apk/singbox/debug/*.apk
           if-no-files-found: ignore
-
-      - name: Stage release artifacts with unmistakable names and verify the staged files
-        if: always()
-        id: stage
-        run: |
-          set -o pipefail
-          SIGNED="${{ steps.keystore.outputs.signed }}"; SUFFIX=$([ "$SIGNED" = "true" ] && echo signed || echo unsigned)
-          mkdir -p build/release-artifacts
-          APK=$(ls app/build/outputs/apk/singbox/release/*.apk | head -1)
-          AAB=$(ls app/build/outputs/bundle/singboxRelease/*.aab | head -1)
-          OUT_APK="build/release-artifacts/universal-connection-client-1.0.0-release-$SUFFIX.apk"
-          OUT_AAB="build/release-artifacts/universal-connection-client-1.0.0-release-$SUFFIX.aab"
-          cp "$APK" "$OUT_APK"; cp "$AAB" "$OUT_AAB"
-          # Re-verify the *staged* file (the exact bytes that get uploaded), independent of inspect-release.sh.
-          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
-          B=$("$AAPT" dump badging "$OUT_APK")
-          echo "$B" | grep -E "^package:|^native-code" | tee build/release-artifacts/badging.txt
-          echo "$B" | grep -q "name='io.ucc.app' versionCode='1' versionName='1.0.0'" || { echo "::error::staged APK identity mismatch"; exit 1; }
-          "$AAPT" dump xmltree --file AndroidManifest.xml "$OUT_APK" | grep -q 'debuggable.*=true' && { echo "::error::staged APK debuggable"; exit 1; } || echo "debuggable=false"
-          unzip -l "$OUT_APK" | grep -q 'assets/licenses/GPL-3.0.txt' && echo "GPL asset present" || { echo "::error::GPL asset missing"; exit 1; }
-          sha256sum "$OUT_APK" "$OUT_AAB" | tee build/release-artifacts/SHA256SUMS.txt
-          cp build/release-inspection.txt build/release-artifacts/ 2>/dev/null || true
-          {
-            echo "# Release artifact provenance"
-            echo "commit: $GITHUB_SHA"; echo "run: $GITHUB_RUN_ID"; echo "signed: $SIGNED"
-            echo "built by: ./gradlew :app:assembleSingboxRelease :app:bundleSingboxRelease (minifyEnabled + shrinkResources, R8)"
-            echo; cat build/release-artifacts/SHA256SUMS.txt
-          } > build/release-artifacts/PROVENANCE.txt
-          echo "suffix=$SUFFIX" >> "$GITHUB_OUTPUT"
 
       - name: Upload release APK
         if: always()
