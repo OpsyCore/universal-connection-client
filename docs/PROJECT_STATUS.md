@@ -355,3 +355,13 @@ Tunnel establishment and real traffic; DNS behaviour and leak testing; routing r
   (**compile verification only**; iOS test execution requires macOS — NOT RUN). JVM/Android in the same run: 394 tests / 0 failed,
   signed release APK/AAB unchanged in identity, permissions, signer and R8.
 - No iOS app / NetworkExtension / Libbox / signing yet.
+
+## KMP Phase 3 — shared application layer `core/app-logic` (see docs/KMP_APP_LOGIC.md)
+
+- Import/Server/Subscription-refresh/Smart-coordination use-cases, ConnectionSettings, LogBuffer/LogSanitizer,
+  AppLanguage, ProfilePreview and the Profile/Subscription/Selection/Settings store interfaces now live in the KMP
+  module `core/app-logic` (jvm + iosArm64 + iosSimulatorArm64). Android keeps its encrypted-file/SharedPreferences
+  implementations, ViewModels, Compose UI, WorkManager, core/vpn and core/engine-singbox unchanged.
+- Verified: CI 35404168866 @ `6b335f0` — 339 tests / 0 failed (app 42×2 variants, app-logic 67, config 90, smart 44,
+  engine-api 24, singbox-config 18, model 3, platform 9; 61 tests moved app→app-logic, 6 new); Apple compile 28/28
+  tasks (klibs only, iOS tests NOT RUN on Linux); signed release APK/AAB unchanged in identity, permissions, signer, R8.
