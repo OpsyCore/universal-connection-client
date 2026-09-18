@@ -125,7 +125,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           {
-            for f in build/gradle-test.log build/gradle-assemble.log build/gradle-lint.log build/gradle-release.log build/release-inspection.txt; do
+            if [ -f build/release-inspection.txt ]; then echo "===== build/release-inspection.txt (full)"; cat build/release-inspection.txt; fi
+            for f in build/gradle-test.log build/gradle-assemble.log build/gradle-lint.log build/gradle-release.log; do
               [ -f "$f" ] || continue
               echo "===== $f"
               grep -E "^e: |Unresolved reference|What went wrong|Could not resolve|Could not find|> Task .* FAILED|tests completed|BUILD (SUCCESSFUL|FAILED)|FAILED$|Exception|error" "$f" | head -120

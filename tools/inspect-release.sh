@@ -22,18 +22,35 @@ VCODE=$(echo "$BADGING" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p")
 
 echo "--- permissions"
 echo "$BADGING" | grep "^uses-permission" | sed "s/uses-permission: name='\([^']*\)'.*/\1/" | sort | tee /tmp/perms.txt
-EXPECTED="android.permission.ACCESS_NETWORK_STATE
+# Permissions the app and its libraries are known to contribute (docs/RELEASE.md §Permissions).
+# Anything outside this allow-list fails the inspection; anything missing from the
+# app-owned set fails too.
+ALLOWED="android.permission.ACCESS_NETWORK_STATE
 android.permission.CAMERA
 android.permission.FOREGROUND_SERVICE
 android.permission.FOREGROUND_SERVICE_SPECIAL_USE
 android.permission.INTERNET
 android.permission.POST_NOTIFICATIONS
 android.permission.QUERY_ALL_PACKAGES
-android.permission.RECEIVE_BOOT_COMPLETED"
-if ! diff <(echo "$EXPECTED") /tmp/perms.txt >/tmp/permdiff.txt; then cat /tmp/permdiff.txt; err "permission set differs from docs/RELEASE.md"; fi
+android.permission.RECEIVE_BOOT_COMPLETED
+android.permission.WAKE_LOCK
+com.google.android.gms.permission.AD_ID
+${PKG}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+REQUIRED="android.permission.ACCESS_NETWORK_STATE
+android.permission.CAMERA
+android.permission.FOREGROUND_SERVICE
+android.permission.FOREGROUND_SERVICE_SPECIAL_USE
+android.permission.INTERNET
+android.permission.POST_NOTIFICATIONS
+android.permission.QUERY_ALL_PACKAGES"
+UNEXPECTED=$(comm -13 <(echo "$ALLOWED" | sort) /tmp/perms.txt || true)
+MISSING=$(comm -23 <(echo "$REQUIRED" | sort) /tmp/perms.txt || true)
+[ -z "$UNEXPECTED" ] || { echo "   unexpected:"; echo "$UNEXPECTED" | sed 's/^/     /'; err "permission(s) not in the documented allow-list"; }
+[ -z "$MISSING" ] || { echo "   missing:"; echo "$MISSING" | sed 's/^/     /'; err "required permission(s) missing"; }
+grep -q "AD_ID" /tmp/perms.txt && err "AD_ID present: the app must not carry the advertising-ID permission (add tools:node=remove)" || true
 # RECEIVE_BOOT_COMPLETED is merged from androidx.work (RescheduleReceiver re-enqueues periodic
 # subscription refresh after reboot). The app declares none itself; verify that is still true.
-grep -rq "RECEIVE_BOOT_COMPLETED" --include=AndroidManifest.xml --exclude-dir=build . 2>/dev/null && grep -rn "RECEIVE_BOOT_COMPLETED" --include=AndroidManifest.xml --exclude-dir=build . | grep -v "<!--\|^\s*No RECEIVE" | grep -q "uses-permission" && err "app declares RECEIVE_BOOT_COMPLETED itself" || echo "   RECEIVE_BOOT_COMPLETED: merged from androidx.work only"
+if grep -rn "RECEIVE_BOOT_COMPLETED" --include=AndroidManifest.xml --exclude-dir=build . 2>/dev/null | grep -q "uses-permission"; then err "app declares RECEIVE_BOOT_COMPLETED itself"; else echo "   RECEIVE_BOOT_COMPLETED: merged from androidx.work only"; fi
 
 echo "--- manifest flags"
 MANIFEST=$("$AAPT" dump xmltree --file AndroidManifest.xml "$APK")

@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-        <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!--
+      The app has no ads or analytics. play-services-basement (a transitive
+      dependency of ML Kit barcode scanning) may merge the advertising-ID
+      permission; strip it so the release manifest never carries it and the
+      Play Data Safety form stays truthful. Verified by tools/inspect-release.sh.
+    -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
     <application
