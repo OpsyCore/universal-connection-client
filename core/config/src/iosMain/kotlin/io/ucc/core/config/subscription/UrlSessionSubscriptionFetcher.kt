@@ -23,6 +23,7 @@ import platform.Foundation.NSURLSessionResponseAllow
 import platform.Foundation.NSURLSessionResponseCancel
 import platform.Foundation.NSURLSessionResponseDisposition
 import platform.Foundation.NSURLSessionTask
+import platform.Foundation.setValue
 import platform.darwin.NSObject
 import platform.posix.memcpy
 import kotlin.coroutines.resume

@@ -61,7 +61,7 @@ jobs:
             for f in build/gradle-ios-arm64.log build/gradle-ios-sim.log; do
               [ -f "$f" ] || { echo "===== $f MISSING"; continue; }
               echo "===== $f"
-              grep -E "^e: |^w: .*(deprecat|cross)|Unresolved reference|What went wrong|Could not resolve|> Task .* FAILED|BUILD (SUCCESSFUL|FAILED)|cinterop|cross-compil" "$f" | head -120
+              grep -A6 -E "^e: " "$f" | head -150; grep -E "^w: .*(deprecat|cross)|What went wrong|Could not resolve|> Task .* FAILED|BUILD (SUCCESSFUL|FAILED)|cinterop|cross-compil" "$f" | head -60
               grep -A 25 "What went wrong" "$f" | head -60
               echo "--- tail:"; tail -15 "$f"
             done
