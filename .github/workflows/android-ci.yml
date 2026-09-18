@@ -154,9 +154,12 @@ jobs:
           APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
           if [ "$SIGNED" = "true" ]; then
             # A signed build must carry a valid v2/v3 signature; anything else fails the job.
-            "$APKSIGNER" verify --verbose --print-certs "$OUT_APK" | tee build/release-artifacts/apksigner-verify.txt
-            grep -q "^Verifies$" build/release-artifacts/apksigner-verify.txt || { echo "::error::apksigner did not verify the signed APK"; exit 1; }
-            grep -qE "Verified using v2 scheme \(APK Signature Scheme v2\): true" build/release-artifacts/apksigner-verify.txt || { echo "::error::v2 signature missing"; exit 1; }
+            # exit status is authoritative; then require a v2 or v3 signature (v1 is disabled for minSdk 24)
+            if ! "$APKSIGNER" verify --verbose --print-certs "$OUT_APK" > build/release-artifacts/apksigner-verify.txt 2>&1; then
+              cat build/release-artifacts/apksigner-verify.txt; echo "::error::apksigner did not verify the signed APK"; exit 1
+            fi
+            cat build/release-artifacts/apksigner-verify.txt
+            grep -qE "Verified using v(2|3) scheme \(APK Signature Scheme v(2|3)(\.1)?\): true" build/release-artifacts/apksigner-verify.txt || { echo "::error::no v2/v3 signature reported"; exit 1; }
           else
             "$APKSIGNER" verify --verbose "$OUT_APK" > build/release-artifacts/apksigner-verify.txt 2>&1 || true
             echo "UNSIGNED build: apksigner verify expected to fail (no UCC_KEYSTORE_BASE64 secret)"; tail -1 build/release-artifacts/apksigner-verify.txt
@@ -166,7 +169,7 @@ jobs:
           {
             echo "# Release artifact provenance"
             echo "commit: $GITHUB_SHA"; echo "run: $GITHUB_RUN_ID"; echo "signed: $SIGNED"
-            [ "$SIGNED" = "true" ] && { echo "signer certificate:"; grep -E "Signer #1 certificate (DN|SHA-256)" build/release-artifacts/apksigner-verify.txt; }
+            [ "$SIGNED" = "true" ] && { echo "signer certificate:"; grep -E "Signer #1 certificate (DN|SHA-256)|Signer .*certificate (DN|SHA-256 digest)" build/release-artifacts/apksigner-verify.txt; }
             echo "built by: ./gradlew :app:assembleSingboxRelease :app:bundleSingboxRelease (minifyEnabled + shrinkResources, R8)"
             echo; cat build/release-artifacts/SHA256SUMS.txt
           } > build/release-artifacts/PROVENANCE.txt
@@ -182,7 +185,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           {
-            for f in build/manifest-permissions.txt build/release-inspection.txt build/release-artifacts/SHA256SUMS.txt; do [ -f "$f" ] && { echo "===== $f (full)"; cat "$f"; }; done
+            for f in build/manifest-permissions.txt build/release-inspection.txt build/release-artifacts/apksigner-verify.txt build/release-artifacts/SHA256SUMS.txt build/release-artifacts/PROVENANCE.txt; do [ -f "$f" ] && { echo "===== $f (full)"; cat "$f"; }; done
             for f in build/gradle-test.log build/gradle-assemble.log build/gradle-lint.log build/gradle-release.log; do
               [ -f "$f" ] || continue
               echo "===== $f"
