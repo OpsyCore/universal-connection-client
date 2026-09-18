@@ -331,3 +331,18 @@ Tunnel establishment and real traffic; DNS behaviour and leak testing; routing r
   SHA-256 `2127f4572843838b488c87086e05cfd5d1ec2aecca03ec21c9d5648ae598e875`, apksigner `Verifies` (v2+v3),
   signer cert SHA-256 `629ef5f0…c5f12b` (CN=Ucc Test — a **test** key; replace secrets with the Play upload key before any store upload).
   Artifacts: app-release-signed 10555180725, app-bundle-signed 10555360630, r8-mapping 10555300736.
+
+## KMP Phase 1 — foundation (DONE)
+
+- `core/model`, `core/engine-api`, `core/config`, `core/smart`, `core/singbox-config` are Kotlin Multiplatform
+  (`jvm()` target only for now); sources in `commonMain`/`commonTest`. New `core/platform` supplies sha256 / Base64 /
+  percent-encoding / UUID / clock / IO dispatcher via expect-actual, with a JVM parity test against the `java.*`
+  calls they replaced.
+- JVM-only by design (`jvmMain`): `HttpSubscriptionFetcher`, `SocketDialer`, platform actuals.
+- Public API changes: `CorePlatform.workingDirectory/cacheDirectory: File → String`; `TcpConnectionTester.SocketDialer`
+  → top-level `io.ucc.core.smart.SocketDialer` (JVM); custom `Dialer`s report failures with `TcpConnectionTester.DialException`.
+- Boundary check forbids `android.*`/`androidx.*`/`java.*`/`javax.*` in commonMain/commonTest. CI runs `jvmTest`
+  explicitly and fails if any KMP module produced no results.
+- Verified: CI 35392808121 @ `06ad1e7` — 394 tests, 0 failures (app 103×2 variants, config 90, smart 44, engine-api 24,
+  singbox-config 18, model 3, platform 9); debug + signed release APK/AAB unchanged in identity, permissions, ABIs, R8.
+- Not started: iOS targets/actuals (Phase 2).
