@@ -1,6 +1,7 @@
 package io.ucc.app.ui.settings
 
 import io.ucc.applogic.ConnectionSettings
+import io.ucc.applogic.LanguageStore
 import io.ucc.app.testing.FakeConnectionManager
 import io.ucc.applogic.InMemorySettingsStore
 import io.ucc.applogic.LogBuffer

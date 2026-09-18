@@ -1,5 +1,6 @@
 package io.ucc.applogic
 
+import io.ucc.applogic.ConnectionSettings.PerAppMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
