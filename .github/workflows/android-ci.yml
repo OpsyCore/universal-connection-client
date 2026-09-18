@@ -63,6 +63,7 @@ jobs:
         run: tools/check-notices.sh
 
       - name: Unit tests (JVM modules + Android unit tests)
+        if: always()
         run: |
           set -o pipefail; mkdir -p build
           ./gradlew --no-daemon --continue test testSingboxDebugUnitTest 2>&1 | tee build/gradle-test.log
@@ -195,6 +196,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           {
+            for f in build/gradle-test.log build/gradle-assemble.log; do
+              [ -f "$f" ] || { echo "===== $f MISSING"; continue; }
+              echo "===== $f (errors first)"
+              grep -E "^e: |Unresolved reference|What went wrong|Could not resolve|Could not find|> Task .* FAILED|BUILD (SUCCESSFUL|FAILED)" "$f" | head -80
+              grep -A 20 "What went wrong" "$f" | head -50
+            done
             for f in build/test-summary.txt build/release-artifacts/SHA256SUMS.txt build/release-artifacts/PROVENANCE.txt; do [ -f "$f" ] && { echo "===== $f (full)"; cat "$f"; }; done
             for f in build/manifest-permissions.txt build/release-inspection.txt build/release-artifacts/apksigner-verify.txt; do [ -f "$f" ] && { echo "===== $f (condensed)"; grep -vE "^\s+(lib/|base/lib/|[0-9]+-->)" "$f" | grep -vE "^[0-9]+\s+<uses-permission" | head -70; }; done
             for f in build/gradle-test.log build/gradle-assemble.log build/gradle-lint.log build/gradle-release.log; do
