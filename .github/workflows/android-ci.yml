@@ -18,6 +18,67 @@ jobs:
   libbox:
     uses: ./.github/workflows/libbox.yml
 
+  apple-kmp:
+    name: Apple KMP compile (iosArm64 + iosSimulatorArm64 klibs, Linux cross-compilation)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - name: Core boundary check
+        run: tools/check-core-boundary.sh
+      - name: Compile iosArm64 (main + test klibs)
+        id: arm64
+        run: |
+          set -o pipefail; mkdir -p build
+          ./gradlew --no-daemon --continue \
+            $(for m in platform model engine-api config smart singbox-config; do echo ":core:$m:compileKotlinIosArm64 :core:$m:compileTestKotlinIosArm64"; done) \
+            2>&1 | tee build/gradle-ios-arm64.log
+      - name: Compile iosSimulatorArm64 (main + test klibs)
+        id: sim
+        if: always()
+        run: |
+          set -o pipefail; mkdir -p build
+          ./gradlew --no-daemon --continue \
+            $(for m in platform model engine-api config smart singbox-config; do echo ":core:$m:compileKotlinIosSimulatorArm64 :core:$m:compileTestKotlinIosSimulatorArm64"; done) \
+            2>&1 | tee build/gradle-ios-sim.log
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "iosArm64 compile: ${{ steps.arm64.outcome }}"
+            echo "iosSimulatorArm64 compile: ${{ steps.sim.outcome }}"
+            echo "iOS test EXECUTION: NOT RUN (Linux host cannot run Apple binaries; klibs compiled only)"
+            echo "===== produced klibs"; find core -path '*/build/classes/kotlin/ios*' -name '*.klib' | sort
+            for f in build/gradle-ios-arm64.log build/gradle-ios-sim.log; do
+              [ -f "$f" ] || { echo "===== $f MISSING"; continue; }
+              echo "===== $f"
+              grep -E "^e: |^w: .*(deprecat|cross)|Unresolved reference|What went wrong|Could not resolve|> Task .* FAILED|BUILD (SUCCESSFUL|FAILED)|cinterop|cross-compil" "$f" | head -120
+              grep -A 25 "What went wrong" "$f" | head -60
+              echo "--- tail:"; tail -15 "$f"
+            done
+          } > build/apple-excerpt.txt || true
+          cat build/apple-excerpt.txt
+          python3 - <<'PY'
+          import json, os, subprocess
+          text = open("build/apple-excerpt.txt", errors="replace").read()[:60000]
+          body = {"name": "apple-kmp-errors", "head_sha": os.environ["GITHUB_SHA"], "status": "completed", "conclusion": "neutral",
+                  "output": {"title": "Apple KMP compile excerpt", "summary": "see text", "text": "```\n" + text + "\n```"}}
+          subprocess.run(["gh", "api", f"repos/{os.environ['GITHUB_REPOSITORY']}/check-runs", "--input", "-"], input=json.dumps(body).encode(), check=False)
+          PY
+      - name: Fail if either target did not compile
+        if: always()
+        run: |
+          [ "${{ steps.arm64.outcome }}" = "success" ] && [ "${{ steps.sim.outcome }}" = "success" ]
+
   build:
     name: Build & test
     needs: libbox

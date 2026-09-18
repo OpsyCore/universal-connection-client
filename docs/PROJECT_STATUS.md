@@ -346,3 +346,10 @@ Tunnel establishment and real traffic; DNS behaviour and leak testing; routing r
 - Verified: CI 35392808121 @ `06ad1e7` — 394 tests, 0 failures (app 103×2 variants, config 90, smart 44, engine-api 24,
   singbox-config 18, model 3, platform 9); debug + signed release APK/AAB unchanged in identity, permissions, ABIs, R8.
 - Not started: iOS targets/actuals (Phase 2).
+
+## KMP Phase 2 — Apple targets & actuals (see docs/KMP_IOS.md)
+
+- `iosArm64` + `iosSimulatorArm64` added to the six shared modules; iOS actuals for sha256 (CommonCrypto),
+  UUID/clock (Foundation), IO dispatcher, `UrlSessionSubscriptionFetcher`, `NwConnectionDialer`.
+- Verified on Linux CI as **compile verification only** (klibs); iOS test execution requires macOS — NOT RUN.
+- No iOS app / NetworkExtension / Libbox / signing yet.

@@ -23,8 +23,24 @@ echo ">> KMP: commonMain/commonTest must not import platform APIs (android.*, an
 if grep -rnE --include='*.kt' "^import (android|androidx|java|javax|kotlin\.jvm)\." core/*/src/commonMain core/*/src/commonTest 2>/dev/null; then fail=1; else echo "   none"; fi
 echo ">> KMP: fully-qualified java./javax. references in commonMain"
 if grep -rnE --include='*.kt' "\b(java|javax)\.[a-z]+\.[A-Z]" core/*/src/commonMain 2>/dev/null | grep -vE ":\s*(\*|//|/\*)"; then fail=1; else echo "   none"; fi
-echo ">> KMP: platform actuals only in core/platform, core/config, core/smart (declared jvmMain boundaries)"
-if ls -d core/*/src/jvmMain 2>/dev/null | grep -vE "^core/(platform|config|smart)/src/jvmMain$"; then echo "   unexpected jvmMain source set (document it here if intentional)"; fail=1; else echo "   OK"; fi
+echo ">> KMP: platform actuals only in core/platform, core/config, core/smart (declared jvmMain/iosMain boundaries)"
+if ls -d core/*/src/jvmMain core/*/src/iosMain 2>/dev/null | grep -vE "^core/(platform|config|smart)/src/(jvmMain|iosMain)$"; then echo "   unexpected platform source set (document it here if intentional)"; fail=1; else echo "   OK"; fi
+echo ">> KMP: Apple APIs (platform.*, kotlinx.cinterop.*) only in iosMain/iosTest"
+if grep -rnE --include='*.kt' "^import (platform|kotlinx\.cinterop)\." core/*/src/commonMain core/*/src/commonTest core/*/src/jvmMain core/*/src/jvmTest 2>/dev/null; then fail=1; else echo "   none"; fi
+echo ">> KMP: JVM APIs (java.*, javax.*, kotlin.jvm.*) never in iosMain/iosTest"
+if grep -rnE --include='*.kt' "^import (java|javax|kotlin\.jvm|android|androidx)\." core/*/src/iosMain core/*/src/iosTest 2>/dev/null; then fail=1; else echo "   none"; fi
+echo ">> KMP: no Swift/Obj-C sources inside core modules"
+if find core -type f \( -name '*.swift' -o -name '*.m' -o -name '*.mm' -o -name '*.h' -o -name '*.def' \) -not -path '*/build/*' | grep .; then fail=1; else echo "   none"; fi
+echo ">> KMP: every expect in commonMain has a jvmMain and an iosMain actual"
+for f in $(grep -rlE --include='*.kt' "^(public |internal )?expect fun" core/*/src/commonMain); do
+  mod=$(echo "$f" | cut -d/ -f1-2)
+  for name in $(grep -oE "expect fun [a-zA-Z0-9_]+" "$f" | awk '{print $3}'); do
+    for ss in jvmMain iosMain; do
+      grep -rqE "actual fun $name\b" "$mod/src/$ss" 2>/dev/null || { echo "   missing $ss actual for $name ($mod)"; fail=1; }
+    done
+  done
+done
+echo "   checked"
 
 if [ $fail -ne 0 ]; then echo "!! core boundary violated"; exit 1; fi
 echo "OK: core boundary intact"
