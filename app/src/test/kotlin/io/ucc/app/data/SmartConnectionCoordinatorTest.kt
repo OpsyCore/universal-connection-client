@@ -134,6 +134,40 @@ class SmartConnectionCoordinatorTest {
         assertEquals(1, manager.connected.size)
     }
 
+    @Test fun `disconnect racing a queued failover connect aborts the tunnel once it starts`() = runTest(dispatcher) {
+        seed(); reachable += listOf("a.example.com", "b.example.com")
+        val co = coordinator(); selection.smartMode = true
+        co.connectSmart(); advanceUntilIdle()
+        val first = manager.connected.single()
+        manager.state.value = ConnectionState.Starting(first)
+        manager.state.value = ConnectionState.Error(first, ConnectionError.ConnectionTimeout("gave up")); advanceUntilIdle()
+        val second = manager.connected[1] // failover handed to the manager, not yet started
+        co.disconnect(); advanceUntilIdle()
+        val before = manager.disconnects
+        manager.state.value = ConnectionState.Starting(second); advanceUntilIdle() // queued connect executes after the disconnect
+        assertEquals(before + 1, manager.disconnects, "coordinator tears down the connect the user cancelled")
+        assertEquals(2, manager.connected.size)
+        // a later user-initiated connect to the same server is not affected
+        manager.state.value = ConnectionState.Disconnected; advanceUntilIdle()
+        co.connectManual(second); advanceUntilIdle()
+        manager.state.value = ConnectionState.Starting(second); advanceUntilIdle()
+        assertEquals(before + 1, manager.disconnects)
+    }
+
+    @Test fun `profile deleted between failover decision and connect ends the session without looping`() = runTest(dispatcher) {
+        seed(); reachable += listOf("a.example.com", "b.example.com", "c.example.com")
+        val co = coordinator(); selection.smartMode = true
+        co.connectSmart(); advanceUntilIdle()
+        val first = manager.connected.single()
+        manager.state.value = ConnectionState.Starting(first)
+        manager.state.value = ConnectionState.Error(first, ConnectionError.ConnectionTimeout("gave up")); advanceUntilIdle()
+        val second = manager.connected[1]
+        store.deleteAll(listOf(second)); advanceUntilIdle()
+        // manager reports what DefaultConnectionManager does for a missing profile
+        manager.state.value = ConnectionState.Error(second, ConnectionError.InvalidConfiguration("profile not found")); advanceUntilIdle()
+        assertEquals(2, manager.connected.size, "InvalidConfiguration is not server-related: no further switch")
+    }
+
     @Test fun `health of deleted profiles is pruned but renamed and re-imported ones keep history`() = runTest(dispatcher) {
         val (a, b) = seed(); reachable += "a.example.com"
         coordinator(); advanceUntilIdle()

@@ -81,6 +81,15 @@ class SmartConnectionCoordinator(
     private val lock = Mutex()
     private var session: SmartFailoverPolicy.Session? = null
     private var connectJob: Job? = null
+    /**
+     * Failover connect that has been handed to the manager but not yet observed
+     * as Starting. If the user disconnects in that window, the manager's
+     * disconnect() runs first (state is still Error, nothing to stop) and the
+     * queued connect would then bring up a tunnel the user just cancelled. We
+     * remember the id and disconnect again as soon as it starts.
+     */
+    private var pendingFailoverId: String? = null
+    private var abortIfStarts: String? = null
     private var lastObserved: ConnectionState = ConnectionState.Disconnected
 
     /** Ranked view of every profile for the Servers/Smart screens. Recomputed on any input change. */
@@ -139,7 +148,11 @@ class SmartConnectionCoordinator(
 
     fun disconnect() {
         connectJob?.cancel()
-        scope.launch { lock.withLock { session = null }; _phase.value = Phase.Idle; manager.disconnect() }
+        scope.launch {
+            lock.withLock { session = null; abortIfStarts = pendingFailoverId; pendingFailoverId = null }
+            _phase.value = Phase.Idle
+            manager.disconnect()
+        }
     }
 
     fun dismissPhase() { if (_phase.value is Phase.NoHealthyServer || _phase.value is Phase.NoCandidates) _phase.value = Phase.Idle }
@@ -153,6 +166,13 @@ class SmartConnectionCoordinator(
     private suspend fun onState(s: ConnectionState) {
         val prev = lastObserved
         lastObserved = s
+        if (s is ConnectionState.Starting) {
+            val abort = lock.withLock {
+                if (pendingFailoverId == s.profileId) pendingFailoverId = null
+                if (abortIfStarts == s.profileId) { abortIfStarts = null; true } else { abortIfStarts = null; false }
+            }
+            if (abort) { manager.disconnect(); return }
+        }
         when (s) {
             is ConnectionState.Connected -> if (prev !is ConnectionState.Connected) recordFor(s.profileId, ConnectionTestResult.TUNNEL_UP)
             is ConnectionState.Error -> {
@@ -183,6 +203,7 @@ class SmartConnectionCoordinator(
             is SmartFailoverPolicy.Decision.Switch -> {
                 val ses = session ?: return
                 _phase.value = Phase.FailingOver(fromId = s.profileId ?: "", toId = decision.to.profile.id, switchNumber = ses.switches)
+                lock.withLock { pendingFailoverId = decision.to.profile.id }
                 manager.connect(decision.to.profile.id)
             }
             is SmartFailoverPolicy.Decision.GiveUp -> {
