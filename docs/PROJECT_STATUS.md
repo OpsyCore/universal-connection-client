@@ -322,7 +322,7 @@ Tunnel establishment and real traffic; DNS behaviour and leak testing; routing r
 ## Release Engineering pass (v1.0.0)
 
 - versionName 1.0.0 / versionCode 1; release = R8 + resource shrinking; signing from env/`keystore.properties` only (unsigned when absent).
-- App-level `RECEIVE_BOOT_COMPLETED` removed (no receiver); it stays in the merged manifest via androidx.work's RescheduleReceiver (subscription auto-refresh after reboot). `QUERY_ALL_PACKAGES` kept — used by per-app routing; Play declaration required.
+- App-level `RECEIVE_BOOT_COMPLETED` removed (no receiver). The merged manifest still carries it, blame-attributed to `androidx.work:work-runtime:2.10.5` (RescheduleReceiver re-arms the 12-hourly subscription refresh after reboot; WorkManager uses `setPersisted(false)`). Retained deliberately with an approval marker in `docs/RELEASE.md`; CI fails if it appears from any other source or without the marker. Latest green CI: run 35339938710 @ `6c467bf`. `QUERY_ALL_PACKAGES` kept — used by per-app routing; Play declaration required.
 - New tooling: `tools/check-secrets.sh`, `tools/check-notices.sh`, `tools/inspect-release.sh`; CI builds and inspects APK+AAB.
 - New docs: `RELEASE.md`, `PRIVACY_POLICY.md` (draft, placeholders), `DATA_SAFETY.md`, `PLAY_STORE_CHECKLIST.md`; `CORE_LICENSE_AUDIT.md` §6.
 - Smart/reconnect audit: one race fixed (disconnect while a failover connect is queued) + 2 regression tests.
