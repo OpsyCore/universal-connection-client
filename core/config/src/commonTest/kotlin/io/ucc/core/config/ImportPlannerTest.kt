@@ -63,7 +63,7 @@ class ImportPlannerTest {
         assertEquals("grpc", u.reason.detail)
     }
 
-    @Test fun `xhttp (Transport Unsupported) is flagged by its own name`() {
+    @Test fun `xhttp Transport Unsupported is flagged by its own name`() {
         val plan = planner.plan(report("vless://b831381d-6324-4d53-ad4f-8cda48b30811@1.2.3.4:443?type=xhttp&security=tls#x"), emptyList())
         val u = assertIs<ImportItem.Status.Unsupported>(plan.items.single().status)
         assertEquals("xhttp", u.reason.detail)

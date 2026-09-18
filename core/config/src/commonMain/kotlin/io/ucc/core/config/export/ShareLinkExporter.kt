@@ -70,7 +70,7 @@ public object ShareLinkExporter {
                 q["type"] = if (t.upgrade) "httpupgrade" else "http"; q["path"] = t.path
                 if (t.host.isNotEmpty()) q["host"] = t.host.joinToString(",")
             }
-            is Transport.Unsupported -> { q["type"] = t.name; t.rawOptions.forEach { (k, v) -> q.putIfAbsent(k, v) } }
+            is Transport.Unsupported -> { q["type"] = t.name; t.rawOptions.forEach { (k, v) -> if (k !in q) q[k] = v } }
         }
     }
 

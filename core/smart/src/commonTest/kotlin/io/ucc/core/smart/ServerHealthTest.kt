@@ -31,7 +31,7 @@ class ServerHealthTest {
         assertEquals(NOW, h.lastCheckedAtEpochMs)
     }
 
-    @Test fun `rolling latency is an EMA, not the last sample`() {
+    @Test fun `rolling latency is an EMA and not the last sample`() {
         val h = ServerHealth.EMPTY.record(ConnectionTestResult.ok(100), NOW, null).record(ConnectionTestResult.ok(200), NOW + 1, null)
         assertEquals(200L, h.latencyMs)
         assertEquals(130L, h.rollingLatencyMs) // 100*0.7 + 200*0.3

@@ -57,7 +57,8 @@ public class UrlSessionSubscriptionFetcher(
             timeoutIntervalForResource = (connectTimeoutMs + readTimeoutMs) / 1000.0
             HTTPShouldSetCookies = false
         }
-        val request = NSMutableURLRequest.requestWithURL(nsUrl).apply {
+        // `requestWithURL` is typed as the NSURLRequest superclass in K/N; use the initWithURL: constructor to keep the mutable type.
+        val request = NSMutableURLRequest(uRL = nsUrl).apply {
             setValue(userAgent, forHTTPHeaderField = "User-Agent")
             setValue("*/*", forHTTPHeaderField = "Accept")
         }

@@ -48,7 +48,7 @@ public class SubscriptionMerger {
         pinnedIds: Set<String> = emptySet(),
     ): Result {
         val groupByFp = LinkedHashMap<String, ConnectionProfile>()
-        existingInGroup.forEach { groupByFp.putIfAbsent(it.fingerprint, it) }
+        existingInGroup.forEach { if (it.fingerprint !in groupByFp) groupByFp[it.fingerprint] = it }  // putIfAbsent (JDK-only)
         val elsewhereFps = existingElsewhere.mapTo(HashSet()) { it.fingerprint }
 
         val upserts = ArrayList<ConnectionProfile>()

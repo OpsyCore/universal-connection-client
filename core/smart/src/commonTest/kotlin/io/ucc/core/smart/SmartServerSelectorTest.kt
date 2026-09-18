@@ -50,12 +50,12 @@ class SmartServerSelectorTest {
         assertEquals("c", chosen(cand("b", b), cand("c", healthy(20, successes = 4, failures = 4))))
     }
 
-    @Test fun `stale healthy data is treated as unknown, fresh data wins`() {
+    @Test fun `stale healthy data is treated as unknown and fresh data wins`() {
         val stale = healthy(10, at = NOW - ServerHealthEvaluator.STALE_AFTER_MS - 1)
         assertEquals("fresh", chosen(cand("stale", stale), cand("fresh", healthy(300))))
     }
 
-    @Test fun `all stale means measurement, best history first, bounded`() {
+    @Test fun `all stale means measurement and best history first and bounded`() {
         val sel3 = SmartServerSelector(maxToTest = 3)
         val cs = (1..10).map { i -> cand("s$i", healthy(10, at = NOW - ServerHealthEvaluator.STALE_AFTER_MS - i * MIN)) } + cand("never")
         val r = assertIs<Selection.NeedsMeasurement>(sel3.select(cs, NOW))
@@ -72,7 +72,7 @@ class SmartServerSelectorTest {
         assertEquals(30L, r.toTest.single().health.latencyMs, "history intact")
     }
 
-    @Test fun `all offline is reported, not chosen`() {
+    @Test fun `all offline is reported and not chosen`() {
         val r = assertIs<Selection.AllUnhealthy>(sel.select(listOf(cand("a", failing(3)), cand("b", failing(5))), NOW))
         assertEquals(listOf("a", "b"), r.ranked.map { it.profile.id })
     }
@@ -87,7 +87,7 @@ class SmartServerSelectorTest {
         assertEquals(listOf("a", "b", "c"), r.ranked.map { it.profile.id })
     }
 
-    @Test fun `nextAfter skips current, excluded and offline`() {
+    @Test fun `nextAfter skips current and excluded and offline`() {
         val ranked = listOf(cand("a", healthy(20)), cand("b", healthy(30)), cand("c", failing(3)), cand("d", healthy(40)))
         assertEquals("b", sel.nextAfter(ranked, "a", NOW, emptySet())?.profile?.id)
         assertEquals("d", sel.nextAfter(ranked, "a", NOW, setOf("b"))?.profile?.id)

@@ -79,7 +79,7 @@ class HealthCheckRunnerTest {
         assertEquals(TestFailure.UNSUPPORTED, tester(null).test(profile("w", Protocol.WIREGUARD)).failure)
     }
 
-    @Test fun `results never carry host, port or exception text`() = runTest {
+    @Test fun `results never carry host and port or exception text`() = runTest {
         val r = TcpConnectionTester(dialer = { _, _, _ -> throw IllegalStateException("password=hunter2 host=1.2.3.4") }, io = kotlinx.coroutines.Dispatchers.Unconfined).test(profile("a"))
         assertEquals(ConnectionTestResult.failed(TestFailure.UNKNOWN), r)
         assertTrue("hunter2" !in r.toString() && "1.2.3.4" !in r.toString())

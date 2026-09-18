@@ -158,7 +158,7 @@ class SingBoxConfigGeneratorTest {
     }
 
     @Test
-    fun `global DNS and routing options are honoured, profile DNS override wins`() {
+    fun `global DNS and routing options are honoured and profile DNS override wins`() {
         val p = base(Protocol.TROJAN, Authentication.Trojan("pw"), TlsSettings(enabled = true, serverName = "s"))
         val opts = CoreStartOptions(remoteDns = "tls://9.9.9.9", directDns = "udp://192.168.1.1", bypassPrivate = false, strictRoute = false)
         val doc = gen.generateDocument(p, opts)
@@ -175,7 +175,7 @@ class SingBoxConfigGeneratorTest {
     }
 
     @Test
-    fun `user routing rules are emitted in order, domains and cidrs split, block maps to reject`() {
+    fun `user routing rules are emitted in order and domains and cidrs split and block maps to reject`() {
         val p = base(Protocol.TROJAN, Authentication.Trojan("pw"))
         val opts = CoreStartOptions(
             bypassPrivate = true,

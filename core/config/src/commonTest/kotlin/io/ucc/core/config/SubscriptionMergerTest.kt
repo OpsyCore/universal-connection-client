@@ -39,7 +39,7 @@ class SubscriptionMergerTest {
         assertEquals(2, r.unchanged)
     }
 
-    @Test fun `removed upstream entries are deleted, favorites survive`() {
+    @Test fun `removed upstream entries are deleted and favorites survive`() {
         val existing = inGroup("$a\n$b").mapIndexed { i, p -> if (i == 1) p.copy(metadata = p.metadata.copy(favorite = true)) else p }
         val r = merger.merge(sub, existing, emptyList(), parse(c), nowMs = 20L)
         assertEquals(listOf(existing[0].id), r.toDeleteIds)
@@ -62,7 +62,7 @@ class SubscriptionMergerTest {
         assertEquals(20L, updatedB.metadata.updatedAtEpochMs)
     }
 
-    @Test fun `matched profiles keep id, favorite and per-profile overrides`() {
+    @Test fun `matched profiles keep id and favorite and per-profile overrides`() {
         val existing = inGroup(a).map {
             it.copy(
                 metadata = it.metadata.copy(favorite = true, lastUsedAtEpochMs = 99L),
@@ -78,7 +78,7 @@ class SubscriptionMergerTest {
         assertEquals("https://1.1.1.1/dns-query", m.dns.remoteDns)
     }
 
-    @Test fun `entries that already exist outside the group are skipped, not duplicated`() {
+    @Test fun `entries that already exist outside the group are skipped and not duplicated`() {
         val manual = parse(a, ProfileSource.Manual)
         val r = merger.merge(sub, emptyList(), manual, parse("$a\n$b"), nowMs = 20L)
         assertEquals(1, r.skippedDuplicates); assertEquals(1, r.added)
@@ -97,7 +97,7 @@ class SubscriptionMergerTest {
         assertEquals(1, r.keptFavorites)
     }
 
-    @Test fun `pinned ids (e g the connected profile) are never deleted`() {
+    @Test fun `pinned ids e g the connected profile are never deleted`() {
         val existing = inGroup("$a\n$b")
         val r = merger.merge(sub, existing, emptyList(), emptyList(), nowMs = 20L, pinnedIds = setOf(existing[0].id))
         assertEquals(listOf(existing[1].id), r.toDeleteIds)

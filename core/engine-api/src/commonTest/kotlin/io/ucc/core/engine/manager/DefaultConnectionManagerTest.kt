@@ -10,6 +10,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import kotlin.test.Test
@@ -27,21 +29,23 @@ class DefaultConnectionManagerTest {
         val network = FakeNetwork()
         val profiles = FakeProfiles(mapOf("p1" to profile("p1"), "p2" to profile("p2")))
         val manager = DefaultConnectionManager(scope, core, host, profiles, network, clock, fastPolicy)
-        val seen = mutableListOf<ConnectionState>()
+        // Atomic snapshot list: written from Dispatchers.Default, read from the test thread (no JVM `synchronized` in common code).
+        private val seenFlow = MutableStateFlow<List<ConnectionState>>(emptyList())
+        val seen: List<ConnectionState> get() = seenFlow.value
 
         init {
-            scope.launch { manager.transitions.collect { synchronized(seen) { seen += it } } }
+            scope.launch { manager.transitions.collect { st -> seenFlow.update { it + st } } }
         }
 
         fun close() = scope.cancel()
 
-        fun seenCount(predicate: (ConnectionState) -> Boolean): Int = synchronized(seen) { seen.count(predicate) }
+        fun seenCount(predicate: (ConnectionState) -> Boolean): Int = seen.count(predicate)
 
         /** Waits on the non-conflated transition log; `state` may skip transient states on fast machines. */
         suspend fun awaitSeen(timeoutMs: Long = 5_000, predicate: (ConnectionState) -> Boolean): ConnectionState =
             kotlinx.coroutines.withTimeout(timeoutMs) {
                 while (true) {
-                    synchronized(seen) { seen.firstOrNull(predicate) }?.let { return@withTimeout it }
+                    seen.firstOrNull(predicate)?.let { return@withTimeout it }
                     delay(5)
                 }
                 @Suppress("UNREACHABLE_CODE") throw IllegalStateException()
@@ -66,7 +70,7 @@ class DefaultConnectionManagerTest {
         assertEquals("p1", (s as ConnectionState.Connected).profileId)
         assertEquals(1, core.startCount)
         assertEquals(1, host.acquireCount)
-        val names = synchronized(seen) { seen.map { it::class.simpleName } }
+        val names = seen.map { it::class.simpleName }
         assertEquals(listOf("Starting", "Connecting", "Connected"), names)
     }
 
@@ -129,7 +133,7 @@ class DefaultConnectionManagerTest {
     }
 
     @Test
-    fun `connect without options asks the StartOptionsProvider, explicit options win`() = runBlocking {
+    fun `connect without options asks the StartOptionsProvider and explicit options win`() = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val core = FakeCore()
         var provided = CoreStartOptions(mtu = 1400, remoteDns = "tls://9.9.9.9")
@@ -183,8 +187,8 @@ class DefaultConnectionManagerTest {
 
     @Test
     fun `network and reconnect events carry their category`() = withHarness {
-        val events = mutableListOf<ConnectionEvent>()
-        val job = scope.launch { manager.events.collect { synchronized(events) { events += it } } }
+        val events = MutableStateFlow<List<ConnectionEvent>>(emptyList())
+        val job = scope.launch { manager.events.collect { ev -> events.update { it + ev } } }
         delay(20)
         network.events.emit(NetworkEvent.DefaultChanged("wifi:1", "wifi"))
         manager.connect("p1")
@@ -192,7 +196,7 @@ class DefaultConnectionManagerTest {
         network.events.emit(NetworkEvent.DefaultChanged("cell:2", "cellular"))
         awaitSeen { it is ConnectionState.Connected && seenCount { st -> st is ConnectionState.Connected } >= 2 }
         delay(20)
-        val cats = synchronized(events) { events.map { it.category } }
+        val cats = events.value.map { it.category }
         assertTrue(ConnectionEvent.Category.NETWORK in cats, "network change must be a NETWORK event: $cats")
         assertTrue(ConnectionEvent.Category.RECONNECT in cats, "successful reconnect must be a RECONNECT event: $cats")
         assertTrue(cats.first() == ConnectionEvent.Category.LIFECYCLE)
@@ -210,7 +214,7 @@ class DefaultConnectionManagerTest {
     }
 
     @Test
-    fun `network lost moves to Reconnecting(attempt 0) and a new network recovers`() = withHarness {
+    fun `network lost moves to Reconnectingattempt 0 and a new network recovers`() = withHarness {
         network.events.emit(NetworkEvent.DefaultChanged("wifi:1", "wifi"))
         manager.connect("p1")
         manager.state.awaitValue { it is ConnectionState.Connected }
