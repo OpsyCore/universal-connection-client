@@ -56,6 +56,12 @@ jobs:
       - name: Core boundary check (no engine leakage into core-agnostic modules)
         run: tools/check-core-boundary.sh
 
+      - name: Secret scan
+        run: tools/check-secrets.sh
+
+      - name: Licence / notice check
+        run: tools/check-notices.sh
+
       - name: Unit tests (JVM modules + Android unit tests)
         run: |
           set -o pipefail; mkdir -p build
@@ -71,13 +77,55 @@ jobs:
         if: always()
         run: ./gradlew --no-daemon :app:lintSingboxDebug 2>&1 | tee build/gradle-lint.log
 
+      # ---- Release artifacts (minified). Signing only when the four secrets are
+      #      configured; otherwise the artifacts are produced UNSIGNED and named so.
+      - name: Materialise release keystore (only if secrets exist)
+        id: keystore
+        if: always()
+        env:
+          KEYSTORE_B64: ${{ secrets.UCC_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "file=$RUNNER_TEMP/release.jks" >> "$GITHUB_OUTPUT"; echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"; echo "::notice::No UCC_KEYSTORE_BASE64 secret — release artifacts will be UNSIGNED"
+          fi
+
+      - name: Build minified release APK + AAB
+        if: always()
+        env:
+          UCC_KEYSTORE_FILE: ${{ steps.keystore.outputs.file }}
+          UCC_KEYSTORE_PASSWORD: ${{ secrets.UCC_KEYSTORE_PASSWORD }}
+          UCC_KEY_ALIAS: ${{ secrets.UCC_KEY_ALIAS }}
+          UCC_KEY_PASSWORD: ${{ secrets.UCC_KEY_PASSWORD }}
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon :app:assembleSingboxRelease :app:bundleSingboxRelease 2>&1 | tee build/gradle-release.log
+          ls -la app/build/outputs/apk/singbox/release app/build/outputs/bundle/singboxRelease
+
+      - name: Inspect release artifacts
+        if: always()
+        run: |
+          set -o pipefail
+          APK=$(ls app/build/outputs/apk/singbox/release/*.apk | head -1)
+          AAB=$(ls app/build/outputs/bundle/singboxRelease/*.aab | head -1)
+          tools/inspect-release.sh "$APK" "$AAB" 2>&1 | tee build/release-inspection.txt
+          echo "--- debug vs release size"; du -h app/build/outputs/apk/singbox/debug/*.apk "$APK" "$AAB"
+          echo "--- R8 mapping: $(wc -l < app/build/outputs/mapping/singboxRelease/mapping.txt) lines"
+          echo "--- resources removed by shrinker:"; grep -c "Skipped unused resource" app/build/outputs/mapping/singboxRelease/resources.txt 2>/dev/null || true
+
+      - name: Remove keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"
+
       - name: Publish error excerpt as check-run output (readable via API)
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           {
-            for f in build/gradle-test.log build/gradle-assemble.log build/gradle-lint.log; do
+            for f in build/gradle-test.log build/gradle-assemble.log build/gradle-lint.log build/gradle-release.log build/release-inspection.txt; do
               [ -f "$f" ] || continue
               echo "===== $f"
               grep -E "^e: |Unresolved reference|What went wrong|Could not resolve|Could not find|> Task .* FAILED|tests completed|BUILD (SUCCESSFUL|FAILED)|FAILED$|Exception|error" "$f" | head -120
@@ -104,6 +152,30 @@ jobs:
           path: app/build/outputs/apk/singbox/debug/*.apk
           if-no-files-found: ignore
 
+      - name: Upload release APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-${{ steps.keystore.outputs.signed == 'true' && 'signed' || 'UNSIGNED' }}
+          path: app/build/outputs/apk/singbox/release/*.apk
+          if-no-files-found: ignore
+
+      - name: Upload release AAB
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-bundle-${{ steps.keystore.outputs.signed == 'true' && 'signed' || 'UNSIGNED' }}
+          path: app/build/outputs/bundle/singboxRelease/*.aab
+          if-no-files-found: ignore
+
+      - name: Upload R8 mapping (needed to de-obfuscate crash traces of this build)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r8-mapping
+          path: app/build/outputs/mapping/singboxRelease/
+          if-no-files-found: ignore
+
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -113,4 +185,5 @@ jobs:
             **/build/reports/tests/**
             **/build/reports/lint-results-*.html
             **/build/test-results/**/*.xml
+            build/release-inspection.txt
           if-no-files-found: ignore
