@@ -1,15 +1,22 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
     jvmToolchain(17)
     explicitApi()
-}
+    jvm()
 
-dependencies {
-    api(libs.kotlinx.serialization.json)
-    testImplementation(libs.kotlin.test.junit)
-    testImplementation(libs.junit4)
+    sourceSets {
+        commonMain.dependencies {
+            api(project(":core:platform"))
+            api(libs.kotlinx.serialization.json)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+
+        }
+
+    }
 }

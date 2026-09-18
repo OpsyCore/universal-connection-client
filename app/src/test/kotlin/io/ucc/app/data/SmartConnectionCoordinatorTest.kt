@@ -44,7 +44,7 @@ class SmartConnectionCoordinatorTest {
     private val network = object : NetworkMonitor { val flow = MutableSharedFlow<NetworkEvent>(); override val events: Flow<NetworkEvent> = flow }
     private var now = 1_700_000_000_000L
     private val reachable = HashSet<String>()
-    private val dialer = TcpConnectionTester.Dialer { host, _, _ -> if (host in reachable) 30L else throw java.net.SocketTimeoutException() }
+    private val dialer = TcpConnectionTester.Dialer { host, _, _ -> if (host in reachable) 30L else throw TcpConnectionTester.DialException(io.ucc.core.smart.TestFailure.TIMEOUT) }
     private var current: SmartConnectionCoordinator? = null
     // Same wiring as AppGraph: the runner stamps records with the coordinator's current transport.
     private val runner = HealthCheckRunner(TcpConnectionTester(dialer, dispatcher, timeoutMs = 10), health, { now }, networkTransport = { current?.transport?.value }, parallelism = 2)

@@ -13,7 +13,7 @@ public class AndroidCorePlatform(
     networkMonitor: AndroidNetworkMonitor,
 ) : CorePlatform {
     private val app = context.applicationContext
-    override val workingDirectory: File = File(app.filesDir, "core").apply { mkdirs() }
-    override val cacheDirectory: File = File(app.cacheDir, "core").apply { mkdirs() }
+    override val workingDirectory: String = File(app.filesDir, "core").apply { mkdirs() }.absolutePath
+    override val cacheDirectory: String = File(app.cacheDir, "core").apply { mkdirs() }.absolutePath
     override val underlyingNetwork: StateFlow<UnderlyingNetwork?> = networkMonitor.underlying
 }

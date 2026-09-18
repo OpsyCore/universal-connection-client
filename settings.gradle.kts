@@ -23,6 +23,7 @@ dependencyResolutionManagement {
 rootProject.name = "universal-connection-client"
 
 include(":app")
+include(":core:platform")
 include(":core:model")
 include(":core:engine-api")
 include(":core:singbox-config")

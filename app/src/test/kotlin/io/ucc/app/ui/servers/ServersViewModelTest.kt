@@ -53,7 +53,7 @@ class ServersViewModelTest {
     private val refresher = SubscriptionRefresher(testImporter(), fetcher, store, subs, manager, now = { 5L }, parseDispatcher = dispatcher)
     private val importer = testImporter()
 
-    private val dialer = TcpConnectionTester.Dialer { host, _, _ -> if (host.startsWith("1.2.3")) 25L else throw java.net.SocketTimeoutException() }
+    private val dialer = TcpConnectionTester.Dialer { host, _, _ -> if (host.startsWith("1.2.3")) 25L else throw TcpConnectionTester.DialException(io.ucc.core.smart.TestFailure.TIMEOUT) }
     private val tester = TcpConnectionTester(dialer, dispatcher, timeoutMs = 10)
     private val healthStore = InMemoryServerHealthStore()
     private val runner = HealthCheckRunner(tester, healthStore, { 5L })

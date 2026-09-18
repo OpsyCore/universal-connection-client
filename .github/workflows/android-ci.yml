@@ -66,6 +66,16 @@ jobs:
         run: |
           set -o pipefail; mkdir -p build
           ./gradlew --no-daemon --continue test testSingboxDebugUnitTest 2>&1 | tee build/gradle-test.log
+          # Per-module test totals from JUnit XML (readable via the gradle-errors check-run).
+          python3 - <<'PY' | tee build/test-summary.txt
+          import glob, xml.etree.ElementTree as ET, collections
+          tot = collections.Counter(); fail = collections.Counter()
+          for f in glob.glob('**/build/test-results/**/*.xml', recursive=True):
+              r = ET.parse(f).getroot(); mod = f.split('/build/')[0]; task = f.split('test-results/')[1].split('/')[0]
+              tot[(mod, task)] += int(r.get('tests', 0)); fail[(mod, task)] += int(r.get('failures', 0)) + int(r.get('errors', 0))
+          for k in sorted(tot): print(f"{k[0]:28s} {k[1]:28s} tests={tot[k]:4d} failed={fail[k]}")
+          print(f"TOTAL tests={sum(tot.values())} failed={sum(fail.values())}")
+          PY
 
       - name: Assemble debug APK
         if: always()
@@ -185,7 +195,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           {
-            for f in build/manifest-permissions.txt build/release-inspection.txt build/release-artifacts/apksigner-verify.txt build/release-artifacts/SHA256SUMS.txt build/release-artifacts/PROVENANCE.txt; do [ -f "$f" ] && { echo "===== $f (full)"; cat "$f"; }; done
+            for f in build/test-summary.txt build/manifest-permissions.txt build/release-inspection.txt build/release-artifacts/apksigner-verify.txt build/release-artifacts/SHA256SUMS.txt build/release-artifacts/PROVENANCE.txt; do [ -f "$f" ] && { echo "===== $f (full)"; cat "$f"; }; done
             for f in build/gradle-test.log build/gradle-assemble.log build/gradle-lint.log build/gradle-release.log; do
               [ -f "$f" ] || continue
               echo "===== $f"

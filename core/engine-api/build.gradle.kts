@@ -1,18 +1,24 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
     jvmToolchain(17)
     explicitApi()
-}
+    jvm()
 
-dependencies {
-    api(project(":core:model"))
-    api(libs.kotlinx.coroutines.core)
-    testImplementation(libs.kotlin.test.junit)
-    testImplementation(libs.junit4)
-    testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.turbine)
+    sourceSets {
+        commonMain.dependencies {
+            api(project(":core:model"))
+            api(project(":core:platform"))
+            api(libs.kotlinx.coroutines.core)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.turbine)
+        }
+
+    }
 }
