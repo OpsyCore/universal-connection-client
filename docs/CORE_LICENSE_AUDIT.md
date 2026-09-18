@@ -512,3 +512,38 @@ repository license metadata for `SagerNet/{quic-go,gvisor,wireguard-go,gomobile}
 
 - Last CI run on `337d414`: **success** — `test testDebugUnitTest` (76 tests: engine-api 17, singbox-config 16, config 43), `:app:assembleDebug`, `:app:lintDebug`; artifacts `app-debug`, `libbox-aar`, `reports`.
 - No production code modified by this audit. Device verification: NOT AVAILABLE.
+
+---
+
+## 6. Release-pass addendum (v1.0.0, added during Release Engineering)
+
+Evidence from the actual release artifact (see CI step "Inspect release artifacts"):
+
+| dependency | version | licence | in release artifact? | notice required? | where provided |
+|---|---|---|---|---|---|
+| sing-box / libbox (`libgojni.so` per ABI + `io.nekohasekai.libbox` classes) | v1.13.21 | GPL-3.0-or-later + naming clause | **yes** (native + dex) | yes — full licence text + copyright + source offer | `LICENSE`, `THIRD_PARTY_NOTICES.md` §1, in-app licences |
+| sing, sing-tun, sing-quic, sing-vmess, sing-shadowsocks2, sing-mux, cronet-go (statically linked into libbox) | per sing-box go.mod at the tag | GPL-3.0-or-later | yes (inside `libgojni.so`) | yes | `THIRD_PARTY_NOTICES.md` §1 |
+| quic-go (sagernet fork), wireguard-go, gVisor, utls, tailscale, gomobile | per go.mod | MIT / MIT / Apache-2.0 / BSD-3 / BSD-3 / BSD-3 | yes (inside `libgojni.so`) | yes (attribution) | `THIRD_PARTY_NOTICES.md` §1 |
+| Kotlin stdlib, kotlinx-coroutines, kotlinx-serialization | 2.2.21 / 1.10.2 / 1.9.0 | Apache-2.0 | yes | attribution | notices §2 |
+| AndroidX (core, appcompat, activity, lifecycle, navigation, datastore, work, camera-*) | catalog | Apache-2.0 | yes | attribution | notices §2 |
+| Jetpack Compose (BOM 2025.09.01), Material 3, material-icons-extended | BOM | Apache-2.0 | yes | attribution | notices §2 |
+| ML Kit barcode-scanning + transitive play-services-basement / mlkit common / vision-common / barcode-scanning-common | 17.3.0 / 18.4.0 / 18.11.0 / 17.3.0 / 17.0.0 | Android SDK Licence + ML Kit ToS (proprietary) | **yes** | terms notice | notices §3, in-app |
+| Room, security-crypto, OkHttp, Turbine, Robolectric, MockWebServer | catalog only | — | **no** (not applied/test-only) | no | — |
+
+**Legal-review items that remain open** (technical evidence cannot close them):
+
+1. **Corresponding source offer.** Distributing the APK/AAB triggers GPLv3 §6. The
+   application source is itself GPL-3.0-or-later, but the repository is private at the
+   time of writing. Before any public distribution the repo must be public (or a written
+   offer provided), including `tools/build-libbox.sh` and the pinned tag so the exact
+   `libgojni.so` can be rebuilt.
+2. **Proprietary ML Kit binary inside a GPL-licensed APK.** Whether the aggregate is
+   permissible under GPLv3 §5/§7 (system-library exception does not obviously apply to a
+   bundled Play-services library) needs counsel. Technical fallback exists: ZXing
+   (Apache-2.0) could replace ML Kit; not done in this pass.
+3. **sing-box naming clause.** App name, package (`io.ucc.app`) and icon do not contain
+   "sing-box"; UI shows the core name only as factual attribution and a non-affiliation
+   statement. Counsel should confirm this satisfies "no derivative work may … imply association".
+4. **Licence text delivery inside the artifact.** `LICENSE` and notices are rendered in-app
+   from `Notices.kt`; the full GPL text is shown from a bundled copy. Confirm this is an
+   acceptable §4/§5 notice mechanism for the store build (many GPL Android apps do the same).

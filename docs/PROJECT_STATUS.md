@@ -318,3 +318,12 @@ Tunnel establishment and real traffic; DNS behaviour and leak testing; routing r
 
 ---
 *Audit performed by Arena.ai Agent Mode. No production code changed; this document is the only new file.*
+
+## Release Engineering pass (v1.0.0)
+
+- versionName 1.0.0 / versionCode 1; release = R8 + resource shrinking; signing from env/`keystore.properties` only (unsigned when absent).
+- `RECEIVE_BOOT_COMPLETED` removed (no receiver). `QUERY_ALL_PACKAGES` kept — used by per-app routing; Play declaration required.
+- New tooling: `tools/check-secrets.sh`, `tools/check-notices.sh`, `tools/inspect-release.sh`; CI builds and inspects APK+AAB.
+- New docs: `RELEASE.md`, `PRIVACY_POLICY.md` (draft, placeholders), `DATA_SAFETY.md`, `PLAY_STORE_CHECKLIST.md`; `CORE_LICENSE_AUDIT.md` §6.
+- Smart/reconnect audit: one race fixed (disconnect while a failover connect is queued) + 2 regression tests.
+- Device verification of the minified release build: NOT AVAILABLE in this environment.
