@@ -1,5 +1,6 @@
-package io.ucc.app.data
+package io.ucc.applogic
 
+import io.ucc.core.platform.currentTimeMillis
 import io.ucc.core.config.ConfigImporter
 import io.ucc.core.config.ImportPlan
 import io.ucc.core.config.ImportPlanner
@@ -24,7 +25,7 @@ class ImportRepository(
     private val profiles: ProfileStore,
     private val subscriptions: SubscriptionStore,
     private val fetcher: SubscriptionFetcher,
-    private val now: () -> Long = System::currentTimeMillis,
+    private val now: () -> Long = ::currentTimeMillis,
     private val parseDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     /** Text from paste / clipboard / QR / file. Runs on Default because base64 + JSON parsing can be sizeable. */
@@ -75,21 +76,3 @@ class ImportRepository(
 data class SubscriptionPlan(val url: String, val subscriptionId: String, val fetched: SubscriptionFetchResult, val plan: ImportPlan)
 
 data class CommitResult(val savedIds: List<String>, val skipped: Int)
-
-/** Storage contracts the repository needs; implemented by JsonProfileStore / JsonSubscriptionStore today, Room later. */
-interface ProfileStore {
-    val profiles: kotlinx.coroutines.flow.StateFlow<List<ConnectionProfile>>
-    fun current(): List<ConnectionProfile>
-    suspend fun upsertAll(profiles: List<ConnectionProfile>)
-    suspend fun deleteAll(ids: Collection<String>)
-    /** One atomic write: apply [upserts] then remove [deleteIds]. */
-    suspend fun apply(upserts: List<ConnectionProfile>, deleteIds: Collection<String>)
-}
-
-interface SubscriptionStore {
-    val all: kotlinx.coroutines.flow.StateFlow<List<Subscription>>
-    suspend fun byId(id: String): Subscription?
-    suspend fun upsert(subscription: Subscription)
-    suspend fun delete(id: String)
-}
-

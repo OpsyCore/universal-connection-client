@@ -1,4 +1,4 @@
-package io.ucc.app.data
+package io.ucc.applogic
 
 /**
  * Languages the app ships. `tag` is a BCP‑47 tag matching a `values-<tag>`

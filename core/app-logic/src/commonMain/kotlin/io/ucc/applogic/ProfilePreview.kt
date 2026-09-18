@@ -1,4 +1,4 @@
-package io.ucc.app.ui.import
+package io.ucc.applogic
 
 import io.ucc.core.model.Authentication
 import io.ucc.core.model.ConnectionProfile

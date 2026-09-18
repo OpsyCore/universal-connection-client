@@ -1,8 +1,8 @@
 package io.ucc.app.ui.import
 
-import io.ucc.app.data.FakeFetcher
-import io.ucc.app.data.FakeProfileStore
-import io.ucc.app.data.newRepository
+import io.ucc.app.testing.FakeFetcher
+import io.ucc.app.testing.FakeProfileStore
+import io.ucc.app.testing.newRepository
 import io.ucc.core.config.subscription.SubscriptionFetchError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

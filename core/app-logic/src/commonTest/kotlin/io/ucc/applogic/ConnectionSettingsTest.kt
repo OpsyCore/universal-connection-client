@@ -1,6 +1,5 @@
-package io.ucc.app.data
+package io.ucc.applogic
 
-import io.ucc.app.data.ConnectionSettings.PerAppMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -58,7 +57,7 @@ class ConnectionSettingsTest {
         assertEquals(ConnectionSettings.Rule.Item.Invalid, ConnectionSettings.Rule.classify("999.1.1.1"))
     }
 
-    @Test fun `disabled and empty rules never reach the core, order preserved`() {
+    @Test fun `disabled and empty rules never reach the core and order preserved`() {
         val s = ConnectionSettings(rules = listOf(
             ConnectionSettings.Rule("a", io.ucc.core.engine.RouteAction.BLOCK, listOf("ads.example")),
             ConnectionSettings.Rule("b", io.ucc.core.engine.RouteAction.DIRECT, listOf("x.ir"), enabled = false),

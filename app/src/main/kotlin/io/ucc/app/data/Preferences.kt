@@ -2,6 +2,7 @@ package io.ucc.app.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import io.ucc.applogic.SelectionStore
 import io.ucc.core.vpn.LastProfileStore
 
 /**
@@ -9,16 +10,6 @@ import io.ucc.core.vpn.LastProfileStore
  * its main thread during `onStartCommand` (DataStore would require blocking).
  * Only non-secret identifiers are stored here.
  */
-/** Selection state shared by Home and Servers; abstracted so view-models are testable without a Context. */
-interface SelectionStore {
-    val selectedProfileIdFlow: kotlinx.coroutines.flow.StateFlow<String?>
-    var selectedProfileId: String?
-
-    /** true = Smart selection picks the server on connect; false = the user's [selectedProfileId] is used. */
-    val smartModeFlow: kotlinx.coroutines.flow.StateFlow<Boolean>
-    var smartMode: Boolean
-}
-
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 interface ThemeStore {

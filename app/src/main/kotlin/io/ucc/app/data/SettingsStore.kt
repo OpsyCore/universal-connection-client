@@ -2,16 +2,13 @@ package io.ucc.app.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import io.ucc.applogic.ConnectionSettings
+import io.ucc.applogic.SettingsStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.Json
 
-/** Settings are read by the VpnService on the main thread at start; SharedPreferences (sync) is the right tool. No secrets live here. */
-interface SettingsStore {
-    val settings: StateFlow<ConnectionSettings>
-    fun update(transform: (ConnectionSettings) -> ConnectionSettings)
-}
-
+/** Android implementation of the shared [SettingsStore]: settings are read by the VpnService on the main thread at start; SharedPreferences (sync) is the right tool. No secrets live here. */
 class PrefsSettingsStore(context: Context) : SettingsStore {
     private val prefs: SharedPreferences = context.applicationContext.getSharedPreferences("ucc_settings", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
@@ -30,9 +27,4 @@ class PrefsSettingsStore(context: Context) : SettingsStore {
     }
 
     private companion object { const val KEY = "connection_settings_v1" }
-}
-
-class InMemorySettingsStore(initial: ConnectionSettings = ConnectionSettings()) : SettingsStore {
-    override val settings = MutableStateFlow(initial)
-    override fun update(transform: (ConnectionSettings) -> ConnectionSettings) { settings.value = transform(settings.value) }
 }

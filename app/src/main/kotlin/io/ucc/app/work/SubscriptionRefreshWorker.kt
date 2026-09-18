@@ -10,7 +10,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import io.ucc.app.UccApplication
-import io.ucc.app.data.SubscriptionRefresher
+import io.ucc.applogic.SubscriptionRefresher
 import java.util.concurrent.TimeUnit
 
 /**

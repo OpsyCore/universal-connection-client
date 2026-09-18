@@ -1,4 +1,4 @@
-package io.ucc.app.data
+package io.ucc.applogic
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

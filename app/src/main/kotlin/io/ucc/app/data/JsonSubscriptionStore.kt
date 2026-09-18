@@ -1,5 +1,6 @@
 package io.ucc.app.data
 
+import io.ucc.applogic.SubscriptionStore
 import android.content.Context
 import io.ucc.app.data.crypto.AesGcmFileCodec
 import io.ucc.app.data.crypto.FileCodec

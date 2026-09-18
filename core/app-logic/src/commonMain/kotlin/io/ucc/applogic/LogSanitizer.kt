@@ -1,4 +1,4 @@
-package io.ucc.app.data
+package io.ucc.applogic
 
 /**
  * Last line of defence before a log line is shown, copied or shared. Producers

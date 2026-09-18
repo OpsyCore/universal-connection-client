@@ -1,11 +1,11 @@
-package io.ucc.app.data
+package io.ucc.applogic
 
+import io.ucc.core.platform.currentTimeMillis
 import io.ucc.core.config.ConfigImporter
 import io.ucc.core.config.subscription.Subscription
 import io.ucc.core.config.subscription.SubscriptionFetchError
 import io.ucc.core.config.subscription.SubscriptionFetcher
 import io.ucc.core.config.subscription.SubscriptionMerger
-import io.ucc.app.data.ServerRepository.Companion.boundProfileId
 import io.ucc.core.engine.manager.ConnectionManager
 import io.ucc.core.model.ProfileSource
 import kotlinx.coroutines.CoroutineDispatcher
@@ -32,7 +32,7 @@ class SubscriptionRefresher(
     private val subscriptions: SubscriptionStore,
     private val manager: ConnectionManager,
     private val merger: SubscriptionMerger = SubscriptionMerger(),
-    private val now: () -> Long = System::currentTimeMillis,
+    private val now: () -> Long = ::currentTimeMillis,
     private val parseDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     sealed class Outcome {
@@ -84,7 +84,7 @@ class SubscriptionRefresher(
                 val last = s.lastFetchedAtEpochMs ?: 0L
                 t - last >= interval
             }
-            .map { s -> try { refresh(s.id) } catch (e: Exception) { Outcome.Failed(s.id, SubscriptionFetchError.Network(e.javaClass.simpleName)) } }
+            .map { s -> try { refresh(s.id) } catch (e: Exception) { Outcome.Failed(s.id, SubscriptionFetchError.Network(e::class.simpleName ?: "Exception")) } }
     }
 
     private fun SubscriptionFetchError.redactedLabel(): String = when (this) {

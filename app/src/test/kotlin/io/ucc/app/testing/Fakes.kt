@@ -1,5 +1,14 @@
-package io.ucc.app.data
+package io.ucc.app.testing
 
+/*
+ * Android-side copies of the shared fakes (core/app-logic commonTest). Kept here so app view-model
+ * tests need no cross-module test-fixture plumbing. Keep in sync with core/app-logic/src/commonTest/.../Fakes.kt.
+ */
+
+import io.ucc.applogic.ImportRepository
+import io.ucc.applogic.ProfileStore
+import io.ucc.applogic.SelectionStore
+import io.ucc.applogic.SubscriptionStore
 import io.ucc.core.config.CapabilityCheck
 import io.ucc.core.config.ConfigImporter
 import io.ucc.core.config.ImportPlanner

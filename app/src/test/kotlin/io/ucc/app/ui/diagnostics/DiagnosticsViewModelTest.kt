@@ -1,12 +1,12 @@
 package io.ucc.app.ui.diagnostics
 
-import io.ucc.app.data.FakeConnectionManager
-import io.ucc.app.data.FakeProfileStore
-import io.ucc.app.data.FakeSelection
-import io.ucc.app.data.InMemorySettingsStore
-import io.ucc.app.data.LogBuffer
-import io.ucc.app.data.testCapabilities
-import io.ucc.app.data.testImporter
+import io.ucc.app.testing.FakeConnectionManager
+import io.ucc.app.testing.FakeProfileStore
+import io.ucc.app.testing.FakeSelection
+import io.ucc.applogic.InMemorySettingsStore
+import io.ucc.applogic.LogBuffer
+import io.ucc.app.testing.testCapabilities
+import io.ucc.app.testing.testImporter
 import io.ucc.core.engine.ConnectionError
 import io.ucc.core.engine.ConnectionState
 import io.ucc.core.engine.UnderlyingNetwork

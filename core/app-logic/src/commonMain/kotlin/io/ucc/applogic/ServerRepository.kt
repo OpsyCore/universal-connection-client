@@ -1,5 +1,6 @@
-package io.ucc.app.data
+package io.ucc.applogic
 
+import io.ucc.core.platform.currentTimeMillis
 import io.ucc.core.config.export.ShareLinkExporter
 import io.ucc.core.config.subscription.Subscription
 import io.ucc.core.engine.ConnectionState
@@ -20,7 +21,7 @@ class ServerRepository(
     private val profiles: ProfileStore,
     private val subscriptions: SubscriptionStore,
     private val manager: ConnectionManager,
-    private val now: () -> Long = System::currentTimeMillis,
+    private val now: () -> Long = ::currentTimeMillis,
 ) {
     /** Stable, display-oriented grouping of the store: `null` group = manual/ungrouped profiles. */
     data class Group(val subscription: Subscription?, val profiles: List<ConnectionProfile>)

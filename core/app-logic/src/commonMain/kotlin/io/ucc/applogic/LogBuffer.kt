@@ -1,4 +1,4 @@
-package io.ucc.app.data
+package io.ucc.applogic
 
 import io.ucc.core.engine.CoreLogLine
 import io.ucc.core.engine.manager.ConnectionEvent
@@ -66,11 +66,8 @@ class LogBuffer(
         "${iso(it.epochMs)} ${it.level.name.padEnd(5)} ${it.source.name.padEnd(4)} ${it.category.name.padEnd(9)} ${LogSanitizer.sanitize(it.message)}"
     }
 
-    private fun iso(ms: Long): String {
-        val f = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US)
-        f.timeZone = java.util.TimeZone.getTimeZone("UTC")
-        return f.format(java.util.Date(ms))
-    }
+    /** ISO-8601 UTC with milliseconds; same text as the former `SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")`. */
+    private fun iso(ms: Long): String = isoUtc(ms)
 
     private companion object {
         /** sing-box/libbox levels: 0 panic,1 fatal,2 error,3 warn,4 info,5 debug,6 trace. */

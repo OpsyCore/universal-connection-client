@@ -79,7 +79,7 @@ import io.ucc.core.smart.TestFailure
 import io.ucc.app.ui.smart.healthLabel
 import io.ucc.app.ui.smart.failureLabel
 import io.ucc.app.ui.smart.HealthColors
-import io.ucc.app.data.SubscriptionRefresher
+import io.ucc.applogic.SubscriptionRefresher
 import io.ucc.app.ui.formatBytes
 import io.ucc.core.config.subscription.Subscription
 import io.ucc.core.config.subscription.SubscriptionFetchError

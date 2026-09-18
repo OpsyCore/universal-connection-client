@@ -51,11 +51,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.ucc.app.R
-import io.ucc.app.data.ConnectionSettings
-import io.ucc.app.data.ConnectionSettings.PerAppMode
-import io.ucc.app.data.ConnectionSettings.Problem
+import io.ucc.applogic.ConnectionSettings
+import io.ucc.applogic.ConnectionSettings.PerAppMode
+import io.ucc.applogic.ConnectionSettings.Problem
 import io.ucc.app.data.ThemeMode
-import io.ucc.app.data.AppLanguage
+import io.ucc.applogic.AppLanguage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ucc.core.engine.RouteAction
 import io.ucc.core.vpn.LockdownStatus

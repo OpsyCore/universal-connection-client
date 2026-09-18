@@ -1,8 +1,9 @@
-package io.ucc.app.ui.import
+package io.ucc.applogic
 
 import io.ucc.core.config.ParseResult
 import io.ucc.core.config.parser.LinkParser
-import java.util.Base64
+import io.ucc.core.platform.Base64Codec
+import io.ucc.core.platform.UrlCodec
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -25,15 +26,15 @@ class ProfilePreviewTest {
     }
 
     @Test fun `passwords and keys never appear`() {
-        val ss = preview("ss://" + Base64.getEncoder().encodeToString("aes-256-gcm:SuperSecretPw".toByteArray()) + "@5.6.7.8:8388#SS")
+        val ss = preview("ss://" + Base64Codec.encode("aes-256-gcm:SuperSecretPw".encodeToByteArray()) + "@5.6.7.8:8388#SS")
         assertFalse(ss.allText().contains("SuperSecretPw")); assertTrue(ss.details.any { it == ("method" to "aes-256-gcm") })
         val tr = preview("trojan://TrojanSecret@t.example.com:443?allowInsecure=1#T")
         assertFalse(tr.allText().contains("TrojanSecret")); assertTrue(tr.insecureTls)
         val hy = preview("hy2://HyPw@h.example.com:443?obfs=salamander&obfs-password=ObfsSecret#H")
         assertFalse(hy.allText().contains("HyPw")); assertFalse(hy.allText().contains("ObfsSecret")); assertEquals("QUIC", hy.transport)
-        val priv = Base64.getEncoder().encodeToString(ByteArray(32) { 7 })
-        val pub = Base64.getEncoder().encodeToString(ByteArray(32) { 9 })
-        val wg = preview("wg://${java.net.URLEncoder.encode(priv, "UTF-8")}@1.2.3.4:51820?publickey=${java.net.URLEncoder.encode(pub, "UTF-8")}&address=10.0.0.2#W")
+        val priv = Base64Codec.encode(ByteArray(32) { 7 })
+        val pub = Base64Codec.encode(ByteArray(32) { 9 })
+        val wg = preview("wg://${UrlCodec.encode(priv)}@1.2.3.4:51820?publickey=${UrlCodec.encode(pub)}&address=10.0.0.2#W")
         assertFalse(wg.allText().contains(priv)); assertTrue(wg.details.any { it.first == "addresses" })
         val socks = preview("socks5://user:P%40ss@1.2.3.4:1080#S")
         assertFalse(socks.allText().contains("P@ss")); assertTrue(socks.details.any { it == ("user" to "user") })

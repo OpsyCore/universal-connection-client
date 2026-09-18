@@ -1,13 +1,13 @@
 package io.ucc.app.ui.settings
 
-import io.ucc.app.data.ConnectionSettings
-import io.ucc.app.data.FakeConnectionManager
-import io.ucc.app.data.InMemorySettingsStore
-import io.ucc.app.data.LogBuffer
+import io.ucc.applogic.ConnectionSettings
+import io.ucc.app.testing.FakeConnectionManager
+import io.ucc.applogic.InMemorySettingsStore
+import io.ucc.applogic.LogBuffer
 import io.ucc.app.data.Notices
 import io.ucc.app.data.ThemeMode
 import io.ucc.app.data.ThemeStore
-import io.ucc.app.data.testCapabilities
+import io.ucc.app.testing.testCapabilities
 import io.ucc.core.engine.CoreAdapter
 import io.ucc.core.engine.CoreCapabilities
 import io.ucc.core.engine.CoreDescriptor
@@ -108,10 +108,10 @@ class SettingsViewModelTest {
 
     @Test fun `language choice is written to the language store`() = runTest {
         val vm = vm()
-        vm.setLanguage(io.ucc.app.data.AppLanguage.PERSIAN)
-        assertEquals(io.ucc.app.data.AppLanguage.PERSIAN, languages.language)
-        assertEquals(io.ucc.app.data.AppLanguage.PERSIAN, vm.language.value)
-        vm.setLanguage(io.ucc.app.data.AppLanguage.SYSTEM)
-        assertEquals(io.ucc.app.data.AppLanguage.SYSTEM, languages.language)
+        vm.setLanguage(io.ucc.applogic.AppLanguage.PERSIAN)
+        assertEquals(io.ucc.applogic.AppLanguage.PERSIAN, languages.language)
+        assertEquals(io.ucc.applogic.AppLanguage.PERSIAN, vm.language.value)
+        vm.setLanguage(io.ucc.applogic.AppLanguage.SYSTEM)
+        assertEquals(io.ucc.applogic.AppLanguage.SYSTEM, languages.language)
     }
 }

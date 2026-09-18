@@ -1,4 +1,4 @@
-package io.ucc.app.data
+package io.ucc.applogic
 
 import io.ucc.core.engine.CoreCapabilities
 import io.ucc.core.engine.CoreStartOptions

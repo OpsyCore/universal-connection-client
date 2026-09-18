@@ -34,7 +34,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.ucc.app.R
-import io.ucc.app.data.LogBuffer
+import io.ucc.applogic.LogBuffer
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

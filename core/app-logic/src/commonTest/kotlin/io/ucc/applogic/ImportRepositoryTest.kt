@@ -1,4 +1,4 @@
-package io.ucc.app.data
+package io.ucc.applogic
 
 import io.ucc.core.config.ImportItem
 import io.ucc.core.config.InputFormat
@@ -6,7 +6,7 @@ import io.ucc.core.config.subscription.SubscriptionFetchError
 import io.ucc.core.config.subscription.SubscriptionInfo
 import io.ucc.core.model.ProfileSource
 import kotlinx.coroutines.test.runTest
-import java.util.Base64
+import io.ucc.core.platform.Base64Codec
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -51,7 +51,7 @@ class ImportRepositoryTest {
     @Test fun `subscription plan groups profiles and persists the subscription on commit only`() = runTest {
         val store = FakeProfileStore(); val subs = FakeSubscriptionStore()
         val fetcher = FakeFetcher().apply {
-            body = Base64.getEncoder().encodeToString(links.toByteArray())
+            body = Base64Codec.encode(links.encodeToByteArray())
             info = SubscriptionInfo(uploadBytes = 1, downloadBytes = 2, totalBytes = 100, expireEpochSeconds = 999_999_999)
             name = "My Provider"
         }
@@ -96,7 +96,7 @@ class ImportRepositoryTest {
         val store = FakeProfileStore().apply { failNextWrite = true }
         val repo = newRepository(profiles = store)
         val plan = repo.planFromText(links, ProfileSource.Manual)
-        assertFailsWith<java.io.IOException> { repo.commit(plan, plan.items.map { it.profile.id }.toSet()) }
+        assertFailsWith<StorageFailure> { repo.commit(plan, plan.items.map { it.profile.id }.toSet()) }
         assertTrue(store.current().isEmpty())
     }
 

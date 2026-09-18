@@ -42,5 +42,11 @@ for f in $(grep -rlE --include='*.kt' "^(public |internal )?expect fun" core/*/s
 done
 echo "   checked"
 
+echo ">> KMP: core/app-logic must not depend on UI toolkits, Android, or engine modules"
+if grep -rnE --include='*.kt' "^import (androidx\.compose|androidx\.lifecycle|android|androidx|java|javax|kotlin\.jvm|io\.ucc\.core\.singbox|io\.ucc\.core\.vpn|io\.ucc\.app)\." core/app-logic/src 2>/dev/null; then fail=1; else echo "   none"; fi
+if grep -nE 'compose|lifecycle|androidx|engine-singbox|singbox-config|core:vpn' core/app-logic/build.gradle.kts | grep -v "^\s*//" | grep -v "^[0-9]*:\s*\*"; then echo "   forbidden dependency in core/app-logic/build.gradle.kts"; fail=1; else echo "   build script OK"; fi
+echo ">> app: shared application logic lives in core/app-logic, not app/data (only platform adapters may remain)"
+if grep -rlE --include='*.kt' "^(class|object|interface) (ImportRepository|ServerRepository|SubscriptionRefresher|SmartConnectionCoordinator|LogBuffer|LogSanitizer|ConnectionSettings|ProfileStore|SubscriptionStore|SelectionStore|SettingsStore)\b" app/src/main 2>/dev/null; then echo "   duplicate of a shared type in app"; fail=1; else echo "   OK"; fi
+
 if [ $fail -ne 0 ]; then echo "!! core boundary violated"; exit 1; fi
 echo "OK: core boundary intact"

@@ -1,13 +1,13 @@
 package io.ucc.app.ui.servers
 
-import io.ucc.app.data.FakeConnectionManager
-import io.ucc.app.data.FakeFetcher
-import io.ucc.app.data.FakeProfileStore
-import io.ucc.app.data.FakeSelection
-import io.ucc.app.data.FakeSubscriptionStore
-import io.ucc.app.data.ServerRepository
-import io.ucc.app.data.SubscriptionRefresher
-import io.ucc.app.data.testImporter
+import io.ucc.app.testing.FakeConnectionManager
+import io.ucc.app.testing.FakeFetcher
+import io.ucc.app.testing.FakeProfileStore
+import io.ucc.app.testing.FakeSelection
+import io.ucc.app.testing.FakeSubscriptionStore
+import io.ucc.applogic.ServerRepository
+import io.ucc.applogic.SubscriptionRefresher
+import io.ucc.app.testing.testImporter
 import io.ucc.core.smart.ConnectionTestResult
 import io.ucc.core.smart.HealthCheckRunner
 import io.ucc.core.smart.HealthStatus

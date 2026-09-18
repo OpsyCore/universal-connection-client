@@ -1,4 +1,4 @@
-package io.ucc.app.data
+package io.ucc.applogic
 
 import io.ucc.core.engine.ConnectionState
 import io.ucc.core.model.ProfileSource
@@ -20,7 +20,7 @@ class ServerRepositoryTest {
     private suspend fun seed(text: String, source: ProfileSource = ProfileSource.Manual) =
         importer.import(text, source).profiles.also { store.upsertAll(it) }
 
-    @Test fun `rename marks userRenamed and bumps updatedAt, blank or same name is a no-op`() = runTest {
+    @Test fun `rename marks userRenamed and bumps updatedAt and blank or same name is a no-op`() = runTest {
         val (p) = seed("trojan://pw@1.2.3.4:443#A")
         assertFalse(repo.rename(p.id, "   "))
         assertFalse(repo.rename(p.id, "A"))
@@ -59,7 +59,7 @@ class ServerRepositoryTest {
         assertEquals(1, r.deleted); assertFalse(r.blockedActive)
     }
 
-    @Test fun `deleteSubscription removes members and the record, favorites included`() = runTest {
+    @Test fun `deleteSubscription removes members and the record and favorites included`() = runTest {
         val sub = io.ucc.core.config.subscription.Subscription("s1", "https://x/sub", "S", 1L)
         subs.upsert(sub)
         val members = importer.import("trojan://pw@1.2.3.4:443#A\ntrojan://pw@1.2.3.5:443#B", ProfileSource.Subscription("s1")).profiles
@@ -94,7 +94,7 @@ class ServerRepositoryTest {
         assertEquals(ps.map { it.fingerprint }, again.map { it.fingerprint })
     }
 
-    @Test fun `groups puts manual first then one group per subscription, orphans fall back to manual`() = runTest {
+    @Test fun `groups puts manual first then one group per subscription and orphans fall back to manual`() = runTest {
         subs.upsert(io.ucc.core.config.subscription.Subscription("s1", "https://x/sub", "S", 1L))
         seed("trojan://pw@9.9.9.9:443#manual")
         val member = importer.import("trojan://pw@1.2.3.4:443#A", ProfileSource.Subscription("s1")).profiles.single()

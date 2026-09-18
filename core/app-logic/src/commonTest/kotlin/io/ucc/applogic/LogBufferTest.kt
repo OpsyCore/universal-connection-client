@@ -1,4 +1,4 @@
-package io.ucc.app.data
+package io.ucc.applogic
 
 import io.ucc.core.engine.CoreLogLine
 import io.ucc.core.engine.manager.ConnectionEvent
@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LogBufferTest {
-    @Test fun `merges core and app entries, maps levels, caps size, renders and clears`() = runTest(UnconfinedTestDispatcher()) {
+    @Test fun `merges core and app entries and maps levels and caps size and renders and clears`() = runTest(UnconfinedTestDispatcher()) {
         val core = MutableSharedFlow<CoreLogLine>()
         val app = MutableSharedFlow<ConnectionEvent>()
         val buf = LogBuffer(backgroundScope, core, app, capacity = 3)
@@ -29,7 +29,7 @@ class LogBufferTest {
         assertTrue(buf.entries.value.isEmpty())
     }
 
-    @Test fun `categories and levels follow event category, filtered export`() = runTest(UnconfinedTestDispatcher()) {
+    @Test fun `categories and levels follow event category and filtered export`() = runTest(UnconfinedTestDispatcher()) {
         val app = MutableSharedFlow<ConnectionEvent>()
         val buf = LogBuffer(backgroundScope, MutableSharedFlow(), app)
         app.emit(ConnectionEvent(1, "net", category = ConnectionEvent.Category.NETWORK))

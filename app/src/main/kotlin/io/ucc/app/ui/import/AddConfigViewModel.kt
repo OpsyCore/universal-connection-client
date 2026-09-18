@@ -1,10 +1,11 @@
 package io.ucc.app.ui.import
 
+import io.ucc.applogic.ProfilePreview
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import io.ucc.app.data.ImportRepository
-import io.ucc.app.data.SubscriptionPlan
+import io.ucc.applogic.ImportRepository
+import io.ucc.applogic.SubscriptionPlan
 import io.ucc.core.config.ImportPlan
 import io.ucc.core.config.subscription.SubscriptionFetchError
 import io.ucc.core.model.ProfileSource

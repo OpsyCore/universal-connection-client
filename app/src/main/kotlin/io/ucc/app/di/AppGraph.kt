@@ -4,14 +4,14 @@ import android.content.Context
 import android.content.Intent
 import io.ucc.app.BuildConfig
 import io.ucc.app.MainActivity
-import io.ucc.app.data.ImportRepository
+import io.ucc.applogic.ImportRepository
 import io.ucc.app.data.JsonProfileStore
 import io.ucc.app.data.JsonSubscriptionStore
-import io.ucc.app.data.LogBuffer
+import io.ucc.applogic.LogBuffer
 import io.ucc.app.data.PrefsSettingsStore
-import io.ucc.app.data.SettingsStore
-import io.ucc.app.data.ServerRepository
-import io.ucc.app.data.SubscriptionRefresher
+import io.ucc.applogic.SettingsStore
+import io.ucc.applogic.ServerRepository
+import io.ucc.applogic.SubscriptionRefresher
 import io.ucc.app.work.SubscriptionRefreshWorker
 import io.ucc.core.config.CapabilityCheck
 import io.ucc.core.config.ConfigImporter
@@ -46,7 +46,7 @@ class AppGraph(context: Context) {
 
     val preferences = Preferences(app)
     /** Lazy: AppCompat restores stored locales when the first activity attaches, so read it after that. */
-    val languageStore: io.ucc.app.data.LanguageStore by lazy { io.ucc.app.data.AppCompatLanguageStore() }
+    val languageStore: io.ucc.applogic.LanguageStore by lazy { io.ucc.app.data.AppCompatLanguageStore() }
     val settingsStore: SettingsStore = PrefsSettingsStore(app)
     val profileStore = JsonProfileStore(app)
     val networkMonitor = AndroidNetworkMonitor(app)
@@ -96,8 +96,8 @@ class AppGraph(context: Context) {
         clock = { System.currentTimeMillis() },
         networkTransport = { smart.transport.value },
     )
-    val smart: io.ucc.app.data.SmartConnectionCoordinator by lazy {
-        io.ucc.app.data.SmartConnectionCoordinator(
+    val smart: io.ucc.applogic.SmartConnectionCoordinator by lazy {
+        io.ucc.applogic.SmartConnectionCoordinator(
             scope = appScope, manager = connectionManager, profiles = profileStore, health = healthStore, runner = healthRunner,
             capabilities = CapabilityCheck(core.capabilities), selection = preferences, networkMonitor = networkMonitor,
         )

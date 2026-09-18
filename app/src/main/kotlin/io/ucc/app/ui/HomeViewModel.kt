@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import io.ucc.app.data.JsonProfileStore
 import io.ucc.app.data.Preferences
-import io.ucc.app.data.SmartConnectionCoordinator
+import io.ucc.applogic.SmartConnectionCoordinator
 import io.ucc.core.engine.ConnectionState
 import io.ucc.core.engine.CoreStatistics
 import io.ucc.core.engine.manager.ConnectionEvent

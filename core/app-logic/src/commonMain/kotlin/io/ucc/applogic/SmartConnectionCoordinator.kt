@@ -1,5 +1,6 @@
-package io.ucc.app.data
+package io.ucc.applogic
 
+import io.ucc.core.platform.currentTimeMillis
 import io.ucc.core.config.CapabilityCheck
 import io.ucc.core.engine.ConnectionState
 import io.ucc.core.engine.manager.ConnectionManager
@@ -59,7 +60,7 @@ class SmartConnectionCoordinator(
     networkMonitor: NetworkMonitor,
     private val selector: SmartServerSelector = SmartServerSelector(),
     private val failover: SmartFailoverPolicy = SmartFailoverPolicy(selector),
-    private val now: () -> Long = System::currentTimeMillis,
+    private val now: () -> Long = ::currentTimeMillis,
 ) {
     /** What Smart is doing right now, for the Home hero card. */
     sealed class Phase {

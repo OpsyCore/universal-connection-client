@@ -1,4 +1,4 @@
-package io.ucc.app.data
+package io.ucc.applogic
 
 import io.ucc.core.config.subscription.Subscription
 import io.ucc.core.config.subscription.SubscriptionFetchError
@@ -98,7 +98,7 @@ class SubscriptionRefresherTest {
         assertEquals(0, store.writes)
     }
 
-    @Test fun `refreshAllDue honours autoUpdate, minimum interval and server interval`() = runTest {
+    @Test fun `refreshAllDue honours autoUpdate and minimum interval and server interval`() = runTest {
         clock = 100L * 3_600_000L
         addSubscription("due", lastFetched = clock - 13 * 3_600_000L)
         addSubscription("fresh", lastFetched = clock - 1 * 3_600_000L)

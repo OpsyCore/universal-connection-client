@@ -1,4 +1,4 @@
-package io.ucc.app.data
+package io.ucc.applogic
 
 import io.ucc.core.config.CapabilityCheck
 import io.ucc.core.engine.ConnectionError
@@ -94,7 +94,7 @@ class SmartConnectionCoordinatorTest {
         assertEquals(listOf(a.id), manager.connected, "manual mode never fails over")
     }
 
-    @Test fun `smart session fails over after terminal error, bounded, never revisits`() = runTest(dispatcher) {
+    @Test fun `smart session fails over after terminal error and bounded and never revisits`() = runTest(dispatcher) {
         val (a, b, c) = seed(); reachable += listOf("a.example.com", "b.example.com", "c.example.com")
         val co = coordinator(); selection.smartMode = true
         co.connectSmart(); advanceUntilIdle()

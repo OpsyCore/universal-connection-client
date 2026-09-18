@@ -3,8 +3,8 @@ package io.ucc.app.ui.smart
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import io.ucc.app.data.SelectionStore
-import io.ucc.app.data.SmartConnectionCoordinator
+import io.ucc.applogic.SelectionStore
+import io.ucc.applogic.SmartConnectionCoordinator
 import io.ucc.core.smart.Candidate
 import io.ucc.core.smart.HealthStatus
 import io.ucc.core.smart.Selection

@@ -3,10 +3,10 @@ package io.ucc.app.ui.servers
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import io.ucc.app.data.SelectionStore
-import io.ucc.app.data.ServerRepository
-import io.ucc.app.data.ServerRepository.Companion.boundProfileId
-import io.ucc.app.data.SubscriptionRefresher
+import io.ucc.applogic.SelectionStore
+import io.ucc.applogic.ServerRepository
+import io.ucc.applogic.ServerRepository.Companion.boundProfileId
+import io.ucc.applogic.SubscriptionRefresher
 import io.ucc.core.smart.ConnectionTestResult
 import io.ucc.core.smart.HealthCheckRunner
 import io.ucc.core.smart.HealthStatus
@@ -268,7 +268,7 @@ class ServersViewModel(
         private val refresher: SubscriptionRefresher,
         private val preferences: SelectionStore,
         private val manager: ConnectionManager,
-        private val smart: io.ucc.app.data.SmartConnectionCoordinator,
+        private val smart: io.ucc.applogic.SmartConnectionCoordinator,
         private val health: ServerHealthStore,
         private val runner: HealthCheckRunner,
     ) : ViewModelProvider.Factory {
