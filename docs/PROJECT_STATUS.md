@@ -327,3 +327,7 @@ Tunnel establishment and real traffic; DNS behaviour and leak testing; routing r
 - New docs: `RELEASE.md`, `PRIVACY_POLICY.md` (draft, placeholders), `DATA_SAFETY.md`, `PLAY_STORE_CHECKLIST.md`; `CORE_LICENSE_AUDIT.md` §6.
 - Smart/reconnect audit: one race fixed (disconnect while a failover connect is queued) + 2 regression tests.
 - Device verification of the minified release build: NOT AVAILABLE in this environment.
+- First **signed** release run: CI 35360230312 @ `0e4ec8c` — `universal-connection-client-1.0.0-release-signed.apk`
+  SHA-256 `2127f4572843838b488c87086e05cfd5d1ec2aecca03ec21c9d5648ae598e875`, apksigner `Verifies` (v2+v3),
+  signer cert SHA-256 `629ef5f0…c5f12b` (CN=Ucc Test — a **test** key; replace secrets with the Play upload key before any store upload).
+  Artifacts: app-release-signed 10555180725, app-bundle-signed 10555360630, r8-mapping 10555300736.
