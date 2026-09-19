@@ -89,13 +89,13 @@ public class UccPacketTunnelProvider : NEPacketTunnelProvider() {
         }
     }
 
-    public companion object {
-        public const val ERROR_DOMAIN: String = "io.ucc.iosvpn"
-    }
 }
 
+/** NSError domain used for every failure surfaced to the system by the provider. */
+public const val UCC_TUNNEL_ERROR_DOMAIN: String = "io.ucc.iosvpn"
+
 internal fun VpnError.toNSError(): NSError = NSError.errorWithDomain(
-    UccPacketTunnelProvider.ERROR_DOMAIN,
+    UCC_TUNNEL_ERROR_DOMAIN,
     code.hashCode().toLong(),
     mapOf<Any?, Any?>(NSLocalizedDescriptionKey to "$code: $detail"),
 )
