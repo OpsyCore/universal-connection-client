@@ -138,7 +138,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         id: upload
         if: success()
-        continue-on-error: true
         with:
           name: libbox-xcframework-${{ steps.pin.outputs.tag }}
           path: |
@@ -148,8 +147,32 @@ jobs:
           retention-days: 90
           if-no-files-found: error
 
-      - name: Artifact upload status
+      - name: Artifact upload status (self-verified via API)
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPLOAD_OUTCOME: ${{ steps.upload.outcome }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
         run: |
-          if [ "${{ steps.upload.outcome }}" = "success" ]; then echo "artifact uploaded: libbox-xcframework-${{ steps.pin.outputs.tag }}";
-          else echo "::warning::Libbox.xcframework artifact upload FAILED (outcome=${{ steps.upload.outcome }}) — usually the account's Actions storage quota. Framework was built and validated (see libbox-apple-provenance check-run); free storage or rebuild locally with tools/build-libbox-apple.sh"; fi
+          {
+            echo "upload step outcome: ${UPLOAD_OUTCOME}"
+            echo "artifact-id: ${ARTIFACT_ID:-<none>}"
+            echo "artifact-url: ${ARTIFACT_URL:-<none>}"
+            echo "artifact-digest: ${ARTIFACT_DIGEST:-<none>}"
+            echo "API view of this run's artifacts:"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" --jq '.total_count, (.artifacts[] | "  id=\(.id) name=\(.name) size=\(.size_in_bytes) expires=\(.expires_at)")' || echo "  (api query failed)"
+          } | tee build/artifact-status.txt
+          python3 - <<'PY'
+          import json, os, subprocess
+          text = open("build/artifact-status.txt", errors="replace").read()[:20000]
+          body = {"name": "libbox-apple-artifact", "head_sha": os.environ["GITHUB_SHA"], "status": "completed",
+                  "conclusion": "success" if os.environ.get("ARTIFACT_ID") else "neutral",
+                  "output": {"title": "Libbox.xcframework artifact", "summary": "upload-artifact outputs + API listing", "text": "```\n" + text + "\n```"}}
+          subprocess.run(["gh", "api", "-X", "POST", "-H", "Accept: application/vnd.github+json", "--input", "-",
+                          f"repos/{os.environ['GITHUB_REPOSITORY']}/check-runs"], input=json.dumps(body).encode(), check=False)
+          PY
+          if [ "${UPLOAD_OUTCOME}" != "success" ] || [ -z "${ARTIFACT_ID}" ]; then
+            echo "::warning::Libbox.xcframework artifact was NOT retained (outcome=${UPLOAD_OUTCOME}, id=${ARTIFACT_ID:-none}); see libbox-apple-artifact check-run"
+          fi
