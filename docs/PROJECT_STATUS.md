@@ -387,3 +387,11 @@ artifact verified by SHA-256 + provenance. An Apple `CoreFactory`/`CoreAdapter`
 module is deferred to Phase 6 because it needs the framework for cinterop and
 cannot be compiled honestly on Linux. Android libbox.aar pin unchanged.
 Verification: see the `libbox-apple-provenance` check-run on the commit recorded below.
+Verification (Phase 5): libbox-apple run 35435865871 on `5c70f68` — macOS build success,
+slices ios-arm64 + ios-arm64_x86_64-simulator validated, zip SHA-256
+`618934255787d0ac61a3b8ed65f596b13589125eeacdf1314409abe7a9ddd781` (third distinct
+hash for identical inputs → gomobile output not reproducible; pin left `unpinned`).
+The artifact was NOT retained: the API lists 0 artifacts for the run (account
+artifact storage quota). Android CI run 35438391052 on `c7d42a7`: 365 tests / 0
+failed, debug + release builds, lint, boundary, secrets, notices green; Android
+libbox.aar pin unchanged.
