@@ -5,6 +5,7 @@ name: libbox-apple (sing-box core for iOS)
 # committed to Git; later iOS builds download the artifact and verify the
 # SHA-256 against core/engine-singbox/libbox-apple.sha256 (see docs/LIBBOX_APPLE.md).
 # No signing, notarization or App Store work happens here.
+# Re-run 2026-09-19: artifact storage freed (16.8 GB -> 1.1 GB); retain + pin the framework.
 
 on:
   push:
