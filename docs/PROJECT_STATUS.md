@@ -375,3 +375,15 @@ checks green, iosArm64 + iosSimulatorArm64 klib compile 32/32 tasks (8 modules).
 iOS test EXECUTION: NOT RUN (Linux host). Device/simulator verification: NOT AVAILABLE.
 Android storage code and formats unchanged; iOS envelope is `UCC2` (AES-256-CBC + HMAC-SHA-256,
 CommonCrypto), JSON documents identical to Android.
+
+## KMP Phase 5 — Apple Libbox build pipeline (see docs/LIBBOX_APPLE.md)
+
+Scope: build + verify `Libbox.xcframework` from the pinned sing-box `v1.13.21`
+(commit `628cb31ffa79cffffd34c2f9cde6cae044e4fc12`) on a macOS runner; no Network
+Extension, no iOS UI, no signing/TestFlight. Files: `tools/build-libbox-apple.sh`,
+`.github/workflows/libbox-apple.yml`, pins `core/engine-singbox/singbox.commit` and
+`core/engine-singbox/libbox-apple.sha256`. Framework is not committed; it is a CI
+artifact verified by SHA-256 + provenance. An Apple `CoreFactory`/`CoreAdapter`
+module is deferred to Phase 6 because it needs the framework for cinterop and
+cannot be compiled honestly on Linux. Android libbox.aar pin unchanged.
+Verification: see the `libbox-apple-provenance` check-run on the commit recorded below.

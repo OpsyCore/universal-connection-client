@@ -49,6 +49,14 @@ echo ">> KMP: core/ios-infra commonMain is pure Kotlin (no Apple, JVM, Android, 
 if grep -rnE --include='*.kt' "^import (platform|kotlinx\\.cinterop|android|androidx|java|javax|kotlin\\.jvm|io\\.ucc\\.core\\.singbox|io\\.ucc\\.core\\.vpn|io\\.ucc\\.app)\\." core/ios-infra/src/commonMain core/ios-infra/src/commonTest 2>/dev/null; then fail=1; else echo "   commonMain/commonTest OK"; fi
 if grep -rnE --include='*.kt' "^import (android|androidx|io\\.ucc\\.core\\.singbox|io\\.ucc\\.core\\.vpn|io\\.ucc\\.app)\\.|platform\\.NetworkExtension|Libbox" core/ios-infra/src 2>/dev/null; then fail=1; else echo "   no VPN/Libbox/NetworkExtension/app leakage"; fi
 if grep -nE 'compose|lifecycle|androidx|engine-singbox|singbox-config|core:vpn|:app"' core/ios-infra/build.gradle.kts | grep -v "^[0-9]*:\s*\*" | grep -v "^[0-9]*:\s*//"; then echo "   forbidden dependency in core/ios-infra/build.gradle.kts"; fail=1; else echo "   build script OK"; fi
+echo ">> Apple libbox: no NetworkExtension / Libbox cinterop / Swift sources outside a future core/engine-singbox-apple module (Phase 6)"
+if grep -rnE --include='*.kt' --include='*.def' "platform\\.NetworkExtension|NEPacketTunnelProvider|import cocoapods\\.Libbox|import Libbox\\." app core tools 2>/dev/null | grep -v "^core/engine-singbox-apple/"; then fail=1; else echo "   none"; fi
+echo ">> Apple libbox pins: singbox.version, singbox.commit, libbox-apple.sha256 present and well-formed"
+[ -s core/engine-singbox/singbox.version ] && grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$' core/engine-singbox/singbox.version || { echo "   singbox.version malformed"; fail=1; }
+grep -qE '^[0-9a-f]{40}$' core/engine-singbox/singbox.commit || { echo "   singbox.commit must be a 40-hex commit"; fail=1; }
+grep -qE '^([0-9a-f]{64}|unpinned)$' core/engine-singbox/libbox-apple.sha256 || { echo "   libbox-apple.sha256 must be 64-hex or 'unpinned'"; fail=1; }
+grep -qE '^([0-9a-f]{64}|unpinned)$' core/engine-singbox/libbox.sha256 || { echo "   libbox.sha256 must be 64-hex or 'unpinned'"; fail=1; }
+echo "   pins OK"
 echo ">> app: shared application logic lives in core/app-logic, not app/data (only platform adapters may remain)"
 if grep -rlE --include='*.kt' "^(class|object|interface) (ImportRepository|ServerRepository|SubscriptionRefresher|SmartConnectionCoordinator|LogBuffer|LogSanitizer|ConnectionSettings|ProfileStore|SubscriptionStore|SelectionStore|SettingsStore)\b" app/src/main 2>/dev/null; then echo "   duplicate of a shared type in app"; fail=1; else echo "   OK"; fi
 
