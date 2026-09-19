@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+@file:OptIn(kotlin.experimental.ExperimentalObjCName::class, ExperimentalForeignApi::class, BetaInteropApi::class)
 
 package io.ucc.iosvpn
 
@@ -28,16 +28,28 @@ import kotlin.coroutines.resumeWithException
  * only translates Apple callbacks. Subclass it in the extension target as
  * `@objc(PacketTunnelProvider) class PacketTunnelProvider: UccPacketTunnelProvider {}`
  * (or set `NSExtensionPrincipalClass` to the Kotlin-exported name) and supply the
- * engine factory — Phase 6 ships only [TunnelEngine.None].
+ * engine via [TunnelEngineFactory.install] (Kotlin/Native cannot subclass an Objective-C
+ * class non-finally) — Phase 6 ships only [TunnelEngine.None].
  */
-public open class UccPacketTunnelProvider : NEPacketTunnelProvider() {
+/**
+ * Process-wide hook the extension binary uses to plug a real engine in (Phase 7: Libbox).
+ * Must be installed before the system instantiates the provider (e.g. from a Swift
+ * `@objc` load hook or the extension's principal-class initializer); unset → [TunnelEngine.None].
+ */
+public object TunnelEngineFactory {
+    private var factory: () -> TunnelEngine = { TunnelEngine.None }
+    public fun install(create: () -> TunnelEngine) { factory = create }
+    public fun create(): TunnelEngine = factory()
+}
+
+@ObjCName("UccPacketTunnelProvider", exact = true)
+public class UccPacketTunnelProvider : NEPacketTunnelProvider() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val clock = object : Clock { override fun nowMs(): Long = io.ucc.core.platform.currentTimeMillis() }
 
     /** Override to plug the Libbox engine in Phase 7. */
-    protected open fun createEngine(): TunnelEngine = TunnelEngine.None
 
-    private val session: TunnelSession by lazy { TunnelSession(createEngine(), clock) { NSLog("[ucc.tunnel] %s", it) } }
+    private val session: TunnelSession by lazy { TunnelSession(TunnelEngineFactory.create(), clock) { NSLog("[ucc.tunnel] %s", it) } }
 
     override fun startTunnelWithOptions(options: Map<Any?, *>?, completionHandler: (NSError?) -> Unit) {
         val proto = protocolConfiguration as? NETunnelProviderProtocol

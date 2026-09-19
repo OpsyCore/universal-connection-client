@@ -403,7 +403,7 @@ typed `TunnelConfiguration` → `NEPacketTunnelNetworkSettings`, versioned typed
 (`sendProviderMessage`), `TunnelSession` provider lifecycle, `UccPacketTunnelProvider`,
 `NetworkExtensionVpnController`, `AppGroupStorage` (reuses Phase 4 stores),
 `ExtensionTunnelHost`, `VpnError`. Declarative `ios/` entitlements + extension plist +
-Swift principal-class shim. Only `TunnelEngine.None` exists: the provider fails
+engine-bootstrap note. Only `TunnelEngine.None` exists: the provider fails
 deterministically until Libbox is linked — nothing is faked.
 Verification: JVM tests (commonTest) + iOS klib compile in Linux CI; Apple runtime
 behaviour NOT verified (no device/simulator). Run id recorded below once green.

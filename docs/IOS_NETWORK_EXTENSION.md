@@ -132,7 +132,8 @@ Both targets (app + `io.ucc.ios.tunnel`), files provided under `ios/`:
 * `keychain-access-groups` = `[$(AppIdentifierPrefix)group.io.ucc.ios]`.
 
 Extension target: `NSExtensionPointIdentifier = com.apple.networkextension.packet-tunnel`,
-`NSExtensionPrincipalClass = PacketTunnelProvider` (Swift shim subclassing the Kotlin
-`UccPacketTunnelProvider`, `ios/PacketTunnel/PacketTunnelProvider.swift`), bundle id
+`NSExtensionPrincipalClass = UccPacketTunnelProvider` (the Kotlin class itself — K/N
+subclasses of Objective-C classes are final, so the engine is injected through
+`TunnelEngineFactory.install` before instantiation; see `ios/PacketTunnel/TunnelEngineBootstrap.swift`), bundle id
 `io.ucc.ios.tunnel`, embedded in the app. Provisioning profiles with these entitlements,
 signing, TestFlight: later phases, not configured.

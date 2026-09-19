@@ -12,9 +12,9 @@
 	<dict>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.networkextension.packet-tunnel</string>
-		<!-- Swift shim in the extension target: `@objc(PacketTunnelProvider) final class PacketTunnelProvider: UccPacketTunnelProvider {}` -->
+		<!-- Kotlin class exported by the :core:ios-vpn framework (final; K/N cannot be subclassed from Swift). Engine injected via TunnelEngineFactory.install. -->
 		<key>NSExtensionPrincipalClass</key>
-		<string>PacketTunnelProvider</string>
+		<string>UccPacketTunnelProvider</string>
 	</dict>
 </dict>
 </plist>
