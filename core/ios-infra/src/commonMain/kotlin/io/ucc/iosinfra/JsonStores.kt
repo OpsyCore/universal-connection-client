@@ -177,12 +177,13 @@ public class FileServerHealthStore(
 
     override suspend fun clear(): Unit = write { emptyMap() }
 
-    private suspend fun write(block: (Map<String, ServerHealth>) -> Map<String, ServerHealth>) = withContext(io) {
+    private suspend fun write(block: (Map<String, ServerHealth>) -> Map<String, ServerHealth>): Unit = withContext(io) {
         mutex.withLock {
             val next = block(_all.value)
             if (next == _all.value) return@withLock
             _all.value = next
-            runCatching { file.write(json.encodeToString(serializer, next).encodeToByteArray()) }
+            runCatching { file.write(json.encodeToString(serializer, next).encodeToByteArray()) } // cache: a failed write is not fatal
+            Unit
         }
     }
 }
