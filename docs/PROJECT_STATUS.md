@@ -406,7 +406,7 @@ typed `TunnelConfiguration` → `NEPacketTunnelNetworkSettings`, versioned typed
 engine-bootstrap note. Only `TunnelEngine.None` exists: the provider fails
 deterministically until Libbox is linked — nothing is faked.
 Verification: JVM tests (commonTest) + iOS klib compile in Linux CI; Apple runtime
-behaviour NOT verified (no device/simulator). Run id recorded below once green.
+behaviour NOT verified (no device/simulator). Green Android CI run 35453968672 on cd0ca77: 398 JVM tests / 0 failed (33 in core/ios-vpn), iOS klib compile 36/36 tasks, Android debug+release built, signer unchanged.
 
 **Phase 5 Libbox status:** macOS build green (5 successful builds, v1.13.21 @ 628cb31f),
 but artifact retention blocked by the account Actions storage/billing limit —
