@@ -365,3 +365,13 @@ Tunnel establishment and real traffic; DNS behaviour and leak testing; routing r
 - Verified: CI 35404168866 @ `6b335f0` — 339 tests / 0 failed (app 42×2 variants, app-logic 67, config 90, smart 44,
   engine-api 24, singbox-config 18, model 3, platform 9; 61 tests moved app→app-logic, 6 new); Apple compile 28/28
   tasks (klibs only, iOS tests NOT RUN on Linux); signed release APK/AAB unchanged in identity, permissions, signer, R8.
+
+## KMP Phase 4 — iOS platform infrastructure `core/ios-infra` (see docs/KMP_IOS_INFRA.md)
+
+Status: DONE (infrastructure only; no iOS UI, NetworkExtension, Libbox or macOS CI).
+Verification run: 35412221054 on `5ed395b` — JVM/Android tests 365 passed / 0 failed
+(`:core:ios-infra:jvmTest` 26/0), Android debug + release builds green, boundary/secret/notice
+checks green, iosArm64 + iosSimulatorArm64 klib compile 32/32 tasks (8 modules).
+iOS test EXECUTION: NOT RUN (Linux host). Device/simulator verification: NOT AVAILABLE.
+Android storage code and formats unchanged; iOS envelope is `UCC2` (AES-256-CBC + HMAC-SHA-256,
+CommonCrypto), JSON documents identical to Android.
