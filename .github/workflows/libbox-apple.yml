@@ -1,0 +1,123 @@
+name: libbox-apple (sing-box core for iOS)
+
+# Builds Libbox.xcframework from the pinned sing-box tag on a macOS runner and
+# publishes it as a workflow artifact + provenance. The framework is NOT
+# committed to Git; later iOS builds download the artifact and verify the
+# SHA-256 against core/engine-singbox/libbox-apple.sha256 (see docs/LIBBOX_APPLE.md).
+# No signing, notarization or App Store work happens here.
+
+on:
+  push:
+    paths:
+      - "core/engine-singbox/singbox.version"
+      - "core/engine-singbox/singbox.commit"
+      - "core/engine-singbox/libbox-apple.sha256"
+      - "tools/build-libbox-apple.sh"
+      - ".github/workflows/libbox-apple.yml"
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: "gomobile targets"
+        default: "ios,iossimulator"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: libbox-apple-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Libbox.xcframework (macOS)
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      LIBBOX_PLATFORMS: ${{ github.event.inputs.platforms || 'ios,iossimulator' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Pinned inputs
+        id: pin
+        run: |
+          set -euo pipefail
+          TAG=$(tr -d ' \n' < core/engine-singbox/singbox.version)
+          COMMIT=$(tr -d ' \n' < core/engine-singbox/singbox.commit)
+          PIN=$(tr -d ' \n' < core/engine-singbox/libbox-apple.sha256)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"; echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"; echo "pin=$PIN" >> "$GITHUB_OUTPUT"
+          echo "sing-box $TAG @ $COMMIT ; framework pin: $PIN"
+          # The tag must still point at the pinned commit upstream (detects a moved/retagged release).
+          UPSTREAM=$(git ls-remote https://github.com/SagerNet/sing-box.git "refs/tags/$TAG" | cut -f1)
+          echo "upstream refs/tags/$TAG = $UPSTREAM"
+          [ -n "$UPSTREAM" ] || { echo "::error::tag $TAG not found upstream"; exit 1; }
+          if [ "$UPSTREAM" != "$COMMIT" ]; then
+            # annotated tag? resolve the peeled commit
+            PEELED=$(git ls-remote https://github.com/SagerNet/sing-box.git "refs/tags/$TAG^{}" | cut -f1)
+            [ "$PEELED" = "$COMMIT" ] || { echo "::error::upstream tag $TAG points at ${PEELED:-$UPSTREAM}, pinned $COMMIT"; exit 1; }
+          fi
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          sudo xcode-select -s /Applications/Xcode.app
+          xcodebuild -version
+          sw_vers
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+          cache: false
+
+      - name: Go module cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/Library/Caches/go-build
+          key: libbox-apple-go-${{ steps.pin.outputs.tag }}-${{ hashFiles('tools/build-libbox-apple.sh') }}
+          restore-keys: libbox-apple-go-
+
+      - name: Build
+        env:
+          SING_BOX_TAG: ${{ steps.pin.outputs.tag }}
+          SING_BOX_COMMIT: ${{ steps.pin.outputs.commit }}
+          LIBBOX_OUT: ${{ github.workspace }}/build/libbox-apple
+        run: tools/build-libbox-apple.sh
+
+      - name: Verify against repository pin
+        run: |
+          set -euo pipefail
+          ACTUAL=$(cut -d' ' -f1 build/libbox-apple/Libbox.xcframework.zip.sha256)
+          PIN="${{ steps.pin.outputs.pin }}"
+          echo "actual=$ACTUAL pin=$PIN"
+          if [ "$PIN" = "unpinned" ]; then
+            echo "::warning::core/engine-singbox/libbox-apple.sha256 is unpinned — pin it to $ACTUAL after reviewing PROVENANCE.txt"
+          elif [ "$PIN" != "$ACTUAL" ]; then
+            echo "::error::Libbox.xcframework.zip SHA-256 $ACTUAL does not match pinned $PIN (toolchain drift or upstream change — investigate, do not blindly re-pin)"; exit 1
+          else
+            echo "pin OK"
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Libbox.xcframework"
+            if [ -f build/libbox-apple/PROVENANCE.txt ]; then echo '```'; cat build/libbox-apple/PROVENANCE.txt; echo '```'; else echo "build failed before provenance was written"; fi
+            echo; echo "iOS runtime verification: NOT PERFORMED (framework built + structurally validated only)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: libbox-xcframework-${{ steps.pin.outputs.tag }}
+          path: |
+            build/libbox-apple/Libbox.xcframework.zip
+            build/libbox-apple/Libbox.xcframework.zip.sha256
+            build/libbox-apple/PROVENANCE.txt
+          retention-days: 90
+          if-no-files-found: error
