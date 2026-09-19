@@ -96,12 +96,17 @@ jobs:
           ACTUAL=$(cut -d' ' -f1 build/libbox-apple/Libbox.xcframework.zip.sha256)
           PIN="${{ steps.pin.outputs.pin }}"
           echo "actual=$ACTUAL pin=$PIN"
+          # gomobile's Apple output is not bit-reproducible across builds (two runs on identical
+          # Go 1.25.14 / Xcode 16.4 / macos-15 produced a320843e… and 52b441d5…), so the pin identifies
+          # the ONE artifact that was reviewed and accepted, not "any build of this tag". A fresh build
+          # therefore reports, but does not fail on, a different hash; the hard check happens where
+          # the artifact is consumed (download → shasum -c → compare with the pin).
           if [ "$PIN" = "unpinned" ]; then
-            echo "::warning::core/engine-singbox/libbox-apple.sha256 is unpinned — pin it to $ACTUAL after reviewing PROVENANCE.txt"
+            echo "::notice::libbox-apple.sha256 is unpinned; this build's hash is $ACTUAL (pin it only once the artifact is retained somewhere)"
           elif [ "$PIN" != "$ACTUAL" ]; then
-            echo "::error::Libbox.xcframework.zip SHA-256 $ACTUAL does not match pinned $PIN (toolchain drift or upstream change — investigate, do not blindly re-pin)"; exit 1
+            echo "::warning::fresh build hash $ACTUAL differs from pinned artifact $PIN — expected for a non-reproducible toolchain; compare per_file_sha256 in the provenance check-run to see which slices differ"
           else
-            echo "pin OK"
+            echo "pin reproduced exactly"
           fi
 
       - name: Summary + check-run (provenance stays readable even if artifact storage is full)

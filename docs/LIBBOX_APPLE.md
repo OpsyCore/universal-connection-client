@@ -55,8 +55,8 @@ Optional: `LIBBOX_EXPECTED_SHA256=<hex>` makes the script fail on mismatch;
 * `macos-15` runner, checkout of the exact commit (`ref: github.sha`);
 * verifies upstream `refs/tags/v1.13.21` still points at the pinned commit;
 * Go 1.25.x via `actions/setup-go`, module cache keyed by tag + script hash;
-* runs the script, compares the SHA-256 with `libbox-apple.sha256`
-  (`unpinned` → warning, mismatch → failure);
+* runs the script and compares the SHA-256 with `libbox-apple.sha256`
+  (`unpinned` → notice; different → warning, **not** failure — see "Reproducibility");
 * publishes `PROVENANCE.txt` in the job summary **and** as the
   `libbox-apple-provenance` check-run on the commit, then uploads
   `Libbox.xcframework.zip` + `.sha256` + `PROVENANCE.txt` as artifact
@@ -64,6 +64,24 @@ Optional: `LIBBOX_EXPECTED_SHA256=<hex>` makes the script fail on mismatch;
 * No signing, notarization, TestFlight or App Store steps.
 
 Triggered by changes to the pins, the script, or the workflow, and manually.
+
+## Reproducibility (measured, not assumed)
+
+Two CI builds on identical toolchains (Go 1.25.14 darwin/arm64, gomobile v0.1.12,
+Xcode 16.4 16F6, macOS 15.7.9 arm64, same commit) produced different archives:
+`a320843ebd3573e38f7711646591bc487acaf1800056cddba4ac7f2f62fde768` (run 35434378838)
+and `52b441d56f972464888f8647eda00debdfa2d1a4eb01372cf564145e7e9f52e2` (run 35435108882).
+Go itself is built with `-trimpath -buildid=`, so the variance comes from the
+gomobile/clang/xcodebuild packaging step. Consequences:
+
+* `libbox-apple.sha256` pins **one reviewed artifact**, not "any build of v1.13.21".
+  It stays `unpinned` until an artifact is actually retained (the account's Actions
+  artifact storage was full during Phase 5 — every `upload-artifact` in the repo was
+  refused, see run logs), because pinning a hash nobody can download is useless.
+* The provenance now lists `per_file_sha256` for every file in the framework so two
+  check-runs can be diffed to locate the varying files.
+* The enforcement point is the consumer: whoever links the framework verifies the
+  downloaded zip against `Libbox.xcframework.zip.sha256` **and** the repository pin.
 
 ## How the framework is consumed
 

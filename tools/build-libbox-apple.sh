@@ -163,7 +163,11 @@ GOMOBILE_BIN_VERSION="$(go version -m "$GOBIN_DIR/gomobile" | awk '$1=="mod"{pri
   echo "output_sha256: $SHA"
   echo "slices:"
   echo "$SLICES" | sed 's/^/  - /'
-  echo "note: zip is deterministic (fixed mtimes, sorted entries) but Go/Xcode output is only reproducible for identical toolchains"
+  echo "per_file_sha256:"
+  ( cd "$OUT" && find Libbox.xcframework -type f | LC_ALL=C sort | while read -r f; do echo "  $(shasum -a 256 "$f" | cut -d' ' -f1)  $f"; done )
+  echo "note: the zip is deterministic for a given framework (fixed mtimes, sorted entries), but gomobile/clang output"
+  echo "note: is NOT bit-reproducible across builds even on identical toolchains (observed in CI); the hash identifies"
+  echo "note: one concrete artifact, not the source. Consumers verify the artifact they downloaded against the pin."
 } > "$OUT/PROVENANCE.txt"
 cat "$OUT/PROVENANCE.txt"
 echo
