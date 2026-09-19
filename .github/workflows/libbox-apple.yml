@@ -126,8 +126,13 @@ jobs:
                           f"repos/{os.environ['GITHUB_REPOSITORY']}/check-runs"], input=json.dumps(body).encode(), check=False)
           PY
 
+      # Artifact storage is an account-level quota; when it is exhausted the upload is refused even
+      # though the build is valid. The provenance check-run above is the authoritative record in that
+      # case, and the step below turns the refusal into a visible warning instead of a false "build failed".
       - uses: actions/upload-artifact@v4
+        id: upload
         if: success()
+        continue-on-error: true
         with:
           name: libbox-xcframework-${{ steps.pin.outputs.tag }}
           path: |
@@ -136,3 +141,9 @@ jobs:
             build/libbox-apple/PROVENANCE.txt
           retention-days: 90
           if-no-files-found: error
+
+      - name: Artifact upload status
+        if: always()
+        run: |
+          if [ "${{ steps.upload.outcome }}" = "success" ]; then echo "artifact uploaded: libbox-xcframework-${{ steps.pin.outputs.tag }}";
+          else echo "::warning::Libbox.xcframework artifact upload FAILED (outcome=${{ steps.upload.outcome }}) — usually the account's Actions storage quota. Framework was built and validated (see libbox-apple-provenance check-run); free storage or rebuild locally with tools/build-libbox-apple.sh"; fi
