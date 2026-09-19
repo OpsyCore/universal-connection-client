@@ -146,6 +146,13 @@ DNS resolves through tunnel → Smart connect picks a server → Test all → im
 subscription refresh → Persian RTL → About shows `1.0.0 · 1 · release · singbox`.
 **Status for v1.0.0: NOT RUN — no device available in the build environment.**
 
+## Release closure documents (v1.0.0)
+`docs/ANDROID_V1_RELEASE_CHECKLIST.md` (status board + upload-key generation incl. Termux + policy hosting),
+`docs/GOOGLE_PLAY_RELEASE.md` (Console sections with factual justifications), `docs/DATA_SAFETY.md`,
+`docs/PRIVACY_POLICY.md` (publication candidate; 3 publisher fields), `docs/SOURCE_RELEASE.md` (GPL corresponding source).
+The CI signing key at the time of writing is `CN=Ucc Test` — **test only**; the store build must be signed by the
+production upload key (checklist §Signing).
+
 ## Known blockers (as of this pass)
 1. No signing key provisioned → CI artifacts are unsigned.
 2. Device smoke test of the minified build not performed.

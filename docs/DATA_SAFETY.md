@@ -1,58 +1,74 @@
-# Google Play Data Safety — working sheet
+# Google Play Data Safety — final checklist (v1.0.0)
 
-> **Not a legal certification.** This maps the app's *actual* behaviour (from
-> source, release candidate v1.0.0) to the questions in the Play Console Data
-> Safety form. The final answers must be entered and confirmed by a human who is
-> accountable for the listing. Column "status" marks what is a technical fact
-> versus what needs a product/legal decision.
+> Derived from the Android implementation at commit `64563ba`. This is the
+> answer sheet for the Play Console form; the person accountable for the listing
+> enters and confirms it. Three questions (section F) depend on Google's
+> interpretation, not on code, and are marked as such — they are not fabricated
+> here.
 
-## A. Overview questions
+## A. Overview answers
 
-| Play question | Technical answer | status |
+| Play question | Answer | Basis |
 |---|---|---|
-| Does your app collect or share any of the required user data types? | The app **processes** server credentials, traffic and other data on-device, but Google's definition of "collected" is *transmitted off the device to the developer or a third party the developer chose*. The app transmits data only to servers **the user configured** (their proxy, their subscription provider) and a connectivity probe. No data reaches the developer. | **Needs confirmation** — Google treats "data sent to user-selected third party" case-by-case; the conservative reading is "No data collected, no data shared", but a reviewer may consider *traffic routed through a user's proxy* as data handled by a third party. Get a policy read. |
-| Is all user data encrypted in transit? | App-originated HTTP is HTTPS-only. Tunnel traffic encryption depends on the protocol the **user** chose (e.g. Shadowsocks/VLESS+TLS encrypt; plain `socks://`/`http://` proxies do not). | Answer "Yes" only if you restrict store distribution to encrypted profiles, otherwise explain. **Product decision.** |
-| Do you provide a way for users to request deletion? | All data is local; uninstall / clear data deletes it; per-item delete exists in-app. No account. | Fact. Play still requires a deletion mechanism statement: "data is stored only on device and deleted with the app". |
-| Independent security review | none performed | Fact — answer "No". |
+| Does your app collect or share any of the required user data types? | **No** (recommended answer — see F1). The app transmits data only to endpoints the user configured (their proxy server, their subscription provider), plus one connectivity probe and the DNS resolver the user selected. Nothing is transmitted to the developer or to a developer-chosen third party. | `docs/PRIVACY_POLICY.md` §5; grep of the source finds no other endpoints |
+| Is all of the user data collected by your app encrypted in transit? | Not applicable if A1 = No. If Google requires an answer: app-originated HTTP is HTTPS-only (`network_security_config.xml`); tunnel traffic encryption depends on the user's protocol choice. | see F2 |
+| Do you provide a way for users to request that their data is deleted? | Data exists only on the device; uninstall / "Clear storage" deletes everything; per-item deletion exists in-app. No developer-held data → nothing to request. | `docs/PRIVACY_POLICY.md` §6 |
+| Independent security review | **No** | fact |
+| App targets children / Families | **No** — not designed for children (publisher confirms) | see F4 |
 
-## B. Data types (Play taxonomy)
+## B. Data types — Play taxonomy
 
-| Data type | Handled? | Collected (sent to dev)? | Shared? | Processed on device only | Notes |
-|---|---|---|---|---|---|
-| Personal info (name, e-mail, IDs) | No | No | No | — | no accounts |
-| Financial | No | No | No | — | |
-| Location | No | No | No | — | no permission |
-| Web browsing history | **No storage.** Traffic passes through the tunnel in memory. | No | No (to developer) | yes | user's proxy sees it — see A |
-| App activity — installed apps inventory | Listed on-screen for per-app routing (`QUERY_ALL_PACKAGES`) | No | No | yes | only ticked package names persisted, locally |
-| App info & performance — crash logs | No crash reporting | No | No | — | |
-| App info & performance — diagnostics | in-memory log buffer; shared only if the user taps Share | No | No | yes | |
-| Device or other IDs | None read | No | No | — | User-Agent has app+core version only |
-| Photos and videos | Camera frames / picked image analysed on-device for QR | No | No | yes | not stored |
-| Files and docs | Config files the user picks for import | No | No | yes | contents parsed, profiles stored encrypted |
-| Messages / contacts / calendar / audio / health | No | No | No | — | |
-| **User-provided credentials (proxy secrets)** | stored encrypted locally; sent only to the user's own server | No | No (to developer) | yes | Play has no dedicated type; usually declared under "Other" or not at all. **Needs confirmation.** |
+Legend: *Collected* = transmitted off device to developer or developer-chosen party (Google's definition). *On-device* = processed/stored only locally.
 
-## C. Purposes (if a reviewer requires declaring the on-device processing)
-App functionality only. No analytics, advertising, fraud prevention,
-personalisation or account management purposes exist.
+| Play category | Data type | Handled by app? | Collected | Shared | Purpose | Required / optional | Ephemeral | Notes |
+|---|---|---|---|---|---|---|---|---|
+| Personal info | Name, email, user IDs, address, phone, race, political, sexual orientation, other | No | No | No | — | — | — | no account system |
+| Financial info | all | No | No | No | — | — | — | |
+| Health & fitness | all | No | No | No | — | — | — | |
+| Location | approximate / precise | No | No | No | — | — | — | no location permission |
+| Messages | all | No | No | No | — | — | — | |
+| Photos and videos | Photos | On-device only: camera frames / picked image decoded for QR, discarded | No | No | App functionality | optional (user action) | yes | never stored |
+| Audio | all | No | No | No | — | — | — | |
+| Files and docs | Files | On-device only: configuration files/text the user imports | No | No | App functionality | optional | no (parsed profiles stored encrypted) | |
+| Calendar / Contacts | all | No | No | No | — | — | — | |
+| App activity | App interactions, in-app search, other user-generated content | No | No | No | — | — | — | no analytics |
+| App activity | **Installed apps** | On-device only: list of apps with INTERNET permission shown for per-app routing | No | No | App functionality | optional | list ephemeral; only ticked package names stored locally | `QUERY_ALL_PACKAGES` |
+| Web browsing | Web browsing history | Traffic transits the tunnel in memory; **not stored, not collected** | No | No (see F1) | App functionality | — | yes | user's own proxy operator can observe traffic |
+| App info & performance | Crash logs | No | No | No | — | — | — | no crash SDK |
+| App info & performance | Diagnostics | On-device in-memory log buffer; leaves device only if the user taps Share | No | No | — | — | yes | |
+| App info & performance | Other performance | No | No | No | — | — | — | |
+| Device or other IDs | Device or other IDs | No (advertising ID permission removed; User-Agent = app + core version only) | No | No | — | — | — | |
+| *(no Play type)* | Proxy server credentials entered by the user | Stored locally AES-256-GCM; transmitted only to the user's own server as protocol handshake | No | No (see F1) | App functionality | required for the app to work | no | Play has no category; declare nothing unless a reviewer asks (F1) |
 
-## D. Security practices to tick
-- Data encrypted at rest: yes (AES-256-GCM, Keystore) for profiles, subscriptions, health.
-- Data encrypted in transit: HTTPS for app-originated requests; tunnel = user's protocol (see A).
-- Users can request deletion: local-only, delete in-app / uninstall.
-- Follows Families policy: not a children's app (**confirm**).
-- Committed to Play Families: no.
+## C. Purposes
+App functionality only. There is no analytics, advertising/marketing, fraud
+prevention, personalisation, account-management or developer-communications
+purpose anywhere in the app.
 
-## E. Third-party SDKs present in the release artifact
-| SDK | Sends data? | Evidence |
+## D. Security practices (form section)
+
+| Item | Tick | Evidence |
 |---|---|---|
-| Google ML Kit Barcode Scanning 17.3.0 (bundled model, `play-services-mlkit-barcode-scanning`, `mlkit:common`, `vision-common`, `play-services-basement`) | Bundled model works offline; the app sends nothing. Google's SDK index lists data-safety hints for ML Kit — **verify the current Play SDK Index entry for `com.google.mlkit:barcode-scanning` before submitting** and copy any collection it declares. | `app/build.gradle.kts`, `THIRD_PARTY_NOTICES.md` |
-| sing-box / libbox | No developer telemetry; it is the proxy engine and talks only to user servers. Note: sing-box's clash/v2ray API and Tailscale endpoints are **not** enabled in the generated config (`core/singbox-config`). | `SingBoxConfigBuilder` |
-| AndroidX, Compose, CameraX, WorkManager, Kotlin | none | |
+| Data is encrypted in transit | Yes for all app-originated requests (HTTPS-only). Tunnel: protocol-dependent (F2). | `network_security_config.xml`, `HttpSubscriptionFetcher` rejects non-https |
+| You can request that data be deleted | Local-only data; deletion by uninstall / clear storage / in-app delete | `PRIVACY_POLICY.md` §6 |
+| Committed to Play Families Policy | No (not a children's app) | |
+| Independent security review | No | |
+| Data encrypted at rest (not a form item, but true) | profiles / subscriptions / health: AES-256-GCM, Android Keystore | `app/src/main/kotlin/io/ucc/app/data/crypto/` |
 
-## F. Items requiring human decision before submission
-1. "Collected/shared" interpretation for traffic routed through user-chosen proxies (A).
-2. Encryption-in-transit statement given unencrypted proxy protocols are importable (A).
-3. ML Kit SDK Index declarations (E).
-4. Target audience / Families (D).
-5. Privacy policy URL — `docs/PRIVACY_POLICY.md` still has placeholders and must be hosted at a public URL.
+## E. Third-party SDKs in the release artifact
+
+| SDK | Collects / shares? | Action |
+|---|---|---|
+| Google ML Kit Barcode Scanning 17.3.0 (`com.google.mlkit:barcode-scanning`, bundled model; brings `mlkit:common`, `vision-common`, `play-services-basement`) | The app sends nothing. The advertising-ID permission that play-services-basement can merge is stripped (`tools:node="remove"`, verified by CI). | **Check the Play SDK Index page for this artifact at submission time** and mirror any collection Google declares for it (F3). |
+| sing-box / libbox v1.13.21 | No developer telemetry. Clash API / V2Ray API are not enabled in the generated config. Talks only to user-configured servers and the selected DNS resolver. | none |
+| AndroidX, Jetpack Compose, CameraX, WorkManager, Kotlin, kotlinx | none | none |
+
+Ads: **none** · Analytics: **none** · Tracking: **none** · Account data: **none**.
+
+## F. Items that need a human decision (cannot be settled from code)
+
+1. **Interpretation of "collected/shared"** for traffic that the user routes through their own proxy and for credentials sent to the user's own server. Recommended: "No data collected/shared" (the developer chooses neither the destination nor receives anything). A reviewer may read it differently; be prepared to explain per §5 of the privacy policy.
+2. **Encryption in transit statement** given that plain `socks://`/`http://` proxies can be imported. Options: answer per app-originated traffic only (HTTPS), or add a note in the listing.
+3. **ML Kit SDK Index** — copy whatever Google currently declares for `barcode-scanning` (may be "no data").
+4. **Target audience / Families** — confirm "Not designed for children".
+5. **Privacy policy URL** — host `docs/PRIVACY_POLICY.md` (after filling the three `[[…]]` fields) and paste the URL.

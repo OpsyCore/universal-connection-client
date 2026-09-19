@@ -427,3 +427,12 @@ implementation), K/N framework export of `core/ios-vpn`, Xcode project wiring.
 | Windows | **DEFERRED** to a future version |
 
 Zero-cost mode: no macOS workflow triggered; Linux/Android CI only.
+
+## Android v1.0.0 release closure (documentation pass, commit after 64563ba)
+
+Code: release-ready at `64563ba` (CI 35463471779: 419/0 tests, signed release APK+AAB built — signed by the
+**TEST** key `CN=Ucc Test`, not a production artefact). Prepared: privacy policy (publication candidate),
+Data Safety answer sheet, Google Play release guide, corresponding-source plan, release checklist.
+Remaining items are all owner/legal/Console actions (see `docs/ANDROID_V1_RELEASE_CHECKLIST.md`).
+**Status: NOT READY — BLOCKERS REMAIN** (production key, hosted policy, GPL source availability, Play declarations,
+retrievable final artefact). iOS → v1.1, Windows → v1.2. Tag `v1.0.0` deliberately not created yet.
