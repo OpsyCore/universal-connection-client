@@ -294,6 +294,7 @@ jobs:
 
       - name: Upload APK
         if: always()
+        continue-on-error: true  # artifact storage quota must not turn a green build red; see 'Artifact upload status'
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
@@ -303,6 +304,7 @@ jobs:
 
       - name: Upload release APK
         if: always()
+        continue-on-error: true  # artifact storage quota must not turn a green build red; see 'Artifact upload status'
         uses: actions/upload-artifact@v4
         with:
           name: app-release-${{ steps.keystore.outputs.signed == 'true' && 'signed' || 'UNSIGNED' }}
@@ -316,6 +318,7 @@ jobs:
 
       - name: Upload release AAB
         if: always()
+        continue-on-error: true  # artifact storage quota must not turn a green build red; see 'Artifact upload status'
         uses: actions/upload-artifact@v4
         with:
           name: app-bundle-${{ steps.keystore.outputs.signed == 'true' && 'signed' || 'UNSIGNED' }}
@@ -326,6 +329,7 @@ jobs:
 
       - name: Upload R8 mapping (needed to de-obfuscate crash traces of this build)
         if: always()
+        continue-on-error: true  # artifact storage quota must not turn a green build red; see 'Artifact upload status'
         uses: actions/upload-artifact@v4
         with:
           name: r8-mapping
@@ -334,6 +338,7 @@ jobs:
 
       - name: Upload reports
         if: always()
+        continue-on-error: true  # artifact storage quota must not turn a green build red; see 'Artifact upload status'
         uses: actions/upload-artifact@v4
         with:
           name: reports
@@ -344,3 +349,9 @@ jobs:
             build/release-inspection.txt
             build/manifest-permissions.txt
           if-no-files-found: ignore
+
+      - name: Artifact upload status
+        if: always()
+        run: |
+          echo "Artifact uploads are best-effort: the account's Actions artifact storage has been full (every upload refused)."
+          echo "Build/test verdicts above are authoritative; SHA256SUMS.txt / PROVENANCE.txt are echoed in the gradle-errors check-run."
