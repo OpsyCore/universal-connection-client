@@ -138,6 +138,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         id: upload
         if: success()
+        continue-on-error: true
         with:
           name: libbox-xcframework-${{ steps.pin.outputs.tag }}
           path: |
@@ -161,8 +162,13 @@ jobs:
             echo "artifact-id: ${ARTIFACT_ID:-<none>}"
             echo "artifact-url: ${ARTIFACT_URL:-<none>}"
             echo "artifact-digest: ${ARTIFACT_DIGEST:-<none>}"
-            echo "API view of this run's artifacts:"
-            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" --jq '.total_count, (.artifacts[] | "  id=\(.id) name=\(.name) size=\(.size_in_bytes) expires=\(.expires_at)")' || echo "  (api query failed)"
+            echo "runner diagnostic log excerpt (upload-artifact errors):"
+            grep -rhiE "error|quota|storage|Failed|denied|ENOSPC|413|blob" "$RUNNER_TEMP"/../_diag/pages 2>/dev/null | tail -30 || true
+            # the runner writes the step log under _diag; find the newest one mentioning upload-artifact
+            LOG=$(grep -lis "upload-artifact" "$(dirname "$RUNNER_TEMP")"/_diag/Worker_*.log 2>/dev/null | tail -1)
+            [ -n "$LOG" ] && { echo "--- $LOG"; grep -iE "artifact|error|quota|storage|blob|Failed" "$LOG" | tail -40; }
+            echo "direct probe: try a tiny upload through the same API"
+            echo "probe" > build/probe.txt
           } | tee build/artifact-status.txt
           python3 - <<'PY'
           import json, os, subprocess
@@ -176,3 +182,32 @@ jobs:
           if [ "${UPLOAD_OUTCOME}" != "success" ] || [ -z "${ARTIFACT_ID}" ]; then
             echo "::warning::Libbox.xcframework artifact was NOT retained (outcome=${UPLOAD_OUTCOME}, id=${ARTIFACT_ID:-none}); see libbox-apple-artifact check-run"
           fi
+
+      - name: Probe upload (1-byte artifact) to separate quota from size issues
+        id: probe
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-${{ github.run_id }}
+          path: build/probe.txt
+          retention-days: 1
+
+      - name: Final verdict
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "framework upload: ${{ steps.upload.outcome }} id=${{ steps.upload.outputs.artifact-id }}"
+            echo "probe upload:     ${{ steps.probe.outcome }} id=${{ steps.probe.outputs.artifact-id }}"
+          } | tee build/verdict.txt
+          python3 - <<'PY'
+          import json, os, subprocess
+          text = open("build/artifact-status.txt", errors="replace").read()[:50000] + "\n" + open("build/verdict.txt").read()
+          body = {"name": "libbox-apple-artifact", "head_sha": os.environ["GITHUB_SHA"], "status": "completed", "conclusion": "neutral",
+                  "output": {"title": "Libbox.xcframework artifact", "summary": "upload diagnostics", "text": "```\n" + text + "\n```"}}
+          subprocess.run(["gh", "api", "-X", "POST", "-H", "Accept: application/vnd.github+json", "--input", "-",
+                          f"repos/{os.environ['GITHUB_REPOSITORY']}/check-runs"], input=json.dumps(body).encode(), check=False)
+          PY
+          [ "${{ steps.upload.outcome }}" = "success" ] && [ -n "${{ steps.upload.outputs.artifact-id }}" ] || { echo "::error::Libbox.xcframework artifact not retained"; exit 1; }
