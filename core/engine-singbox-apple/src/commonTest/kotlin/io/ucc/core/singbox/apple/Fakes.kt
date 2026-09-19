@@ -37,7 +37,6 @@ internal class FakeLibbox(available: Boolean = true) : LibboxServiceFactory {
     var failCheck: Throwable? = null
     var failStart: Throwable? = null
     var failClose: Throwable? = null
-    var startGate: CompletableDeferred<Unit>? = null
     var listener: LibboxListener? = null
     var tun: TunProvider? = null
     var services = 0
