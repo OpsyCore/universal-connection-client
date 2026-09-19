@@ -13,9 +13,10 @@ import kotlin.test.assertTrue
  * `JvmCryptoPrimitivesTest` (javax.crypto) on the JVM.
  */
 internal object FakePrimitives : CryptoPrimitives {
-    override fun aesCbcEncrypt(key: ByteArray, iv: ByteArray, plain: ByteArray) = byteArrayOf(plain.size.toByte()) + plain.mapIndexed { i, b -> (b.toInt() xor key[i % 32].toInt() xor iv[i % 16].toInt()).toByte() }.toByteArray()
+    private const val PAD: Byte = 0x5A // stands in for the PKCS#7 padding check
+    override fun aesCbcEncrypt(key: ByteArray, iv: ByteArray, plain: ByteArray) = byteArrayOf(PAD) + plain.mapIndexed { i, b -> (b.toInt() xor key[i % 32].toInt() xor iv[i % 16].toInt()).toByte() }.toByteArray()
     override fun aesCbcDecrypt(key: ByteArray, iv: ByteArray, cipher: ByteArray): ByteArray {
-        if (cipher.isEmpty() || (cipher[0].toInt() and 0xff) != cipher.size - 1) throw IllegalArgumentException("padding")
+        if (cipher.isEmpty() || cipher[0] != PAD) throw IllegalArgumentException("padding")
         return cipher.drop(1).mapIndexed { i, b -> (b.toInt() xor key[i % 32].toInt() xor iv[i % 16].toInt()).toByte() }.toByteArray()
     }
     override fun hmacSha256(key: ByteArray, data: ByteArray): ByteArray {
