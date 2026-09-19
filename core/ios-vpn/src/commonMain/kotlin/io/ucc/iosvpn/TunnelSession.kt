@@ -111,6 +111,8 @@ public interface TunnelEngine {
     /** Must not return until packets can flow, or throw. */
     public suspend fun start(request: TunnelSession.StartRequest)
     public suspend fun stop()
+    /** Provider process termination: release everything. Defaults to [stop]; must be idempotent. */
+    public suspend fun terminate(): Unit = stop()
     /** (uplink, downlink) totals, or null if not available. */
     public fun statistics(): Pair<Long, Long>?
 

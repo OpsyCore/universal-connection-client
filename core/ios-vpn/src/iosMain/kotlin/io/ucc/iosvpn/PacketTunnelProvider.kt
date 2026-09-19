@@ -37,19 +37,22 @@ import kotlin.coroutines.resumeWithException
  * `@objc` load hook or the extension's principal-class initializer); unset → [TunnelEngine.None].
  */
 public object TunnelEngineFactory {
-    private var factory: () -> TunnelEngine = { TunnelEngine.None }
-    public fun install(create: () -> TunnelEngine) { factory = create }
-    public fun create(): TunnelEngine = factory()
+    private var factory: (TunnelEngineContext) -> TunnelEngine = { TunnelEngine.None }
+    public fun install(create: (TunnelEngineContext) -> TunnelEngine) { factory = create }
+    public fun create(context: TunnelEngineContext): TunnelEngine = factory(context)
 }
+
+/** What an engine gets from the provider: the utun bridge (a [TunnelHost]) owned by this provider instance. */
+public class TunnelEngineContext(public val tunnelHost: ExtensionTunnelHost)
 
 @ObjCName("UccPacketTunnelProvider", exact = true)
 public class UccPacketTunnelProvider : NEPacketTunnelProvider() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val clock = object : Clock { override fun nowMs(): Long = io.ucc.core.platform.currentTimeMillis() }
 
-    /** Override to plug the Libbox engine in Phase 7. */
-
-    private val session: TunnelSession by lazy { TunnelSession(TunnelEngineFactory.create(), clock) { NSLog("[ucc.tunnel] %s", it) } }
+    private val tunnelHost: ExtensionTunnelHost by lazy { ExtensionTunnelHost(this) }
+    private val engine: TunnelEngine by lazy { TunnelEngineFactory.create(TunnelEngineContext(tunnelHost)) }
+    private val session: TunnelSession by lazy { TunnelSession(engine, clock) { NSLog("[ucc.tunnel] %s", it) } }
 
     override fun startTunnelWithOptions(options: Map<Any?, *>?, completionHandler: (NSError?) -> Unit) {
         val proto = protocolConfiguration as? NETunnelProviderProtocol
@@ -66,7 +69,10 @@ public class UccPacketTunnelProvider : NEPacketTunnelProvider() {
 
     override fun stopTunnelWithReason(reason: NEProviderStopReason, completionHandler: () -> Unit) {
         scope.launch {
+            tunnelHost.notifyRevoked()
             session.stop(reason.toStopReason())
+            // The extension process ends after stopTunnel: release the core for good.
+            runCatching { engine.terminate() }
             completionHandler()
             scope.cancel()
         }

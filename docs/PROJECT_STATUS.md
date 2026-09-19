@@ -416,3 +416,14 @@ but artifact retention blocked by the account Actions storage/billing limit —
 pin; (2) macOS host with Xcode for framework export, Xcode project, device/simulator tests.
 **Next phase (7):** Apple `CoreFactory`/`CoreAdapter` over Libbox (`TunnelEngine`
 implementation), K/N framework export of `core/ios-vpn`, Xcode project wiring.
+
+## KMP Phase 7 — Apple Libbox integration preparation (see docs/IOS_LIBBOX.md)
+
+| Item | Status |
+|---|---|
+| Phase 6 (Network Extension foundation) | **VERIFIED** (JVM tests + iOS klib compile in CI; Apple runtime not available) |
+| Phase 7 (Apple engine module `core/engine-singbox-apple`) | **PREPARED / IN PROGRESS** — adapter, engine, boundary, metadata, tests done; Libbox call bodies intentionally absent |
+| Libbox runtime on Apple | **BLOCKED** — no retained `Libbox.xcframework` (Actions artifact storage/billing), no macOS host; `libbox-apple.sha256` = `unpinned` |
+| Windows | **DEFERRED** to a future version |
+
+Zero-cost mode: no macOS workflow triggered; Linux/Android CI only.
