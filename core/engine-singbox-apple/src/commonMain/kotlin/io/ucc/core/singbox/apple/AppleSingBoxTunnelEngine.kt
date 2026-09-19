@@ -98,7 +98,7 @@ public class AppleSingBoxTunnelEngine(
     }
 
     /** Provider process is going away: stop if needed and release the core for good. Idempotent. */
-    public suspend fun terminate() {
+    override suspend fun terminate() {
         val stopFailure = runCatching { stop() }.exceptionOrNull()
         runCatching { (adapter as? AppleSingBoxCoreAdapter)?.shutdown() }
         mutex.withLock { _state.value = State.TERMINATED }
