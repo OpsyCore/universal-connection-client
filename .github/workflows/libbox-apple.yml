@@ -23,6 +23,7 @@ on:
 
 permissions:
   contents: read
+  checks: write
 
 concurrency:
   group: libbox-apple-${{ github.ref }}
@@ -82,6 +83,7 @@ jobs:
           restore-keys: libbox-apple-go-
 
       - name: Build
+        id: build
         env:
           SING_BOX_TAG: ${{ steps.pin.outputs.tag }}
           SING_BOX_COMMIT: ${{ steps.pin.outputs.commit }}
@@ -102,14 +104,27 @@ jobs:
             echo "pin OK"
           fi
 
-      - name: Summary
+      - name: Summary + check-run (provenance stays readable even if artifact storage is full)
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
         run: |
           {
-            echo "## Libbox.xcframework"
-            if [ -f build/libbox-apple/PROVENANCE.txt ]; then echo '```'; cat build/libbox-apple/PROVENANCE.txt; echo '```'; else echo "build failed before provenance was written"; fi
-            echo; echo "iOS runtime verification: NOT PERFORMED (framework built + structurally validated only)"
-          } >> "$GITHUB_STEP_SUMMARY"
+            echo "build: ${BUILD_OUTCOME}"
+            echo "iOS runtime verification: NOT PERFORMED (framework built + structurally validated only)"
+            if [ -f build/libbox-apple/PROVENANCE.txt ]; then cat build/libbox-apple/PROVENANCE.txt; else echo "build failed before provenance was written"; fi
+            [ -f build/libbox-apple/Libbox.xcframework.zip ] && ls -l build/libbox-apple/Libbox.xcframework.zip
+          } > build/libbox-apple-summary.txt || true
+          { echo "## Libbox.xcframework"; echo '```'; cat build/libbox-apple-summary.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          python3 - <<'PY'
+          import json, os, subprocess
+          text = open("build/libbox-apple-summary.txt", errors="replace").read()[:60000]
+          body = {"name": "libbox-apple-provenance", "head_sha": os.environ["GITHUB_SHA"], "status": "completed", "conclusion": "neutral",
+                  "output": {"title": "Libbox.xcframework provenance", "summary": "Output of tools/build-libbox-apple.sh", "text": "```\n" + text + "\n```"}}
+          subprocess.run(["gh", "api", "-X", "POST", "-H", "Accept: application/vnd.github+json", "--input", "-",
+                          f"repos/{os.environ['GITHUB_REPOSITORY']}/check-runs"], input=json.dumps(body).encode(), check=False)
+          PY
 
       - uses: actions/upload-artifact@v4
         if: success()

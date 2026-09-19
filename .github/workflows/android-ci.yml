@@ -299,6 +299,7 @@ jobs:
           name: app-debug
           path: app/build/outputs/apk/singbox/debug/*.apk
           if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload release APK
         if: always()

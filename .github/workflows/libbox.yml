@@ -75,10 +75,13 @@ jobs:
           ls -la core/engine-singbox/libs
           cat core/engine-singbox/libs/libbox.aar.sha256
 
+      # Consumers restore the AAR from the Actions cache (see android-ci.yml); this artifact is only
+      # for human inspection, so keep it short-lived to stay within the account's artifact storage.
       - uses: actions/upload-artifact@v4
+        if: steps.cache.outputs.cache-hit != 'true'
         with:
           name: libbox-aar
           path: |
             core/engine-singbox/libs/libbox.aar
             core/engine-singbox/libs/libbox.aar.sha256
-          retention-days: 30
+          retention-days: 7
