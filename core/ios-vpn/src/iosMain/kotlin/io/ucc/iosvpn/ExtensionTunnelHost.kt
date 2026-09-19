@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import platform.NetworkExtension.NEPacketTunnelProvider
 import platform.posix.getsockopt
-import platform.posix.strncmp
 import platform.posix.socklen_tVar
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
@@ -19,7 +18,7 @@ import kotlinx.cinterop.ptr
 import kotlinx.cinterop.value
 import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.ByteVar
-import kotlinx.cinterop.convert
+import kotlinx.cinterop.toKString
 
 /**
  * Inside the extension the tunnel already exists — the system created the utun when
@@ -60,7 +59,7 @@ public class ExtensionTunnelHost(private val provider: NEPacketTunnelProvider) :
             for (fd in 0 until MAX_FD) {
                 len.value = 32u
                 if (getsockopt(fd, SYSPROTO_CONTROL, UTUN_OPT_IFNAME, name, len.ptr) == 0 &&
-                    strncmp(name, "utun", 4.convert()) == 0
+                    name.toKString().startsWith("utun")
                 ) return fd
             }
             null
