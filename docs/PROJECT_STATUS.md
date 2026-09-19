@@ -395,3 +395,24 @@ The artifact was NOT retained: the API lists 0 artifacts for the run (account
 artifact storage quota). Android CI run 35438391052 on `c7d42a7`: 365 tests / 0
 failed, debug + release builds, lint, boundary, secrets, notices green; Android
 libbox.aar pin unchanged.
+
+## KMP Phase 6 — iOS Network Extension foundation (see docs/IOS_NETWORK_EXTENSION.md)
+
+Status: IMPLEMENTED (foundation; no Libbox, no UI). Module `core/ios-vpn`:
+typed `TunnelConfiguration` → `NEPacketTunnelNetworkSettings`, versioned typed IPC
+(`sendProviderMessage`), `TunnelSession` provider lifecycle, `UccPacketTunnelProvider`,
+`NetworkExtensionVpnController`, `AppGroupStorage` (reuses Phase 4 stores),
+`ExtensionTunnelHost`, `VpnError`. Declarative `ios/` entitlements + extension plist +
+Swift principal-class shim. Only `TunnelEngine.None` exists: the provider fails
+deterministically until Libbox is linked — nothing is faked.
+Verification: JVM tests (commonTest) + iOS klib compile in Linux CI; Apple runtime
+behaviour NOT verified (no device/simulator). Run id recorded below once green.
+
+**Phase 5 Libbox status:** macOS build green (5 successful builds, v1.13.21 @ 628cb31f),
+but artifact retention blocked by the account Actions storage/billing limit —
+`libbox-apple.sha256` remains `unpinned`; no further macOS runs are triggered.
+
+**Remaining blockers:** (1) Actions artifact storage/billing → retained Libbox artifact +
+pin; (2) macOS host with Xcode for framework export, Xcode project, device/simulator tests.
+**Next phase (7):** Apple `CoreFactory`/`CoreAdapter` over Libbox (`TunnelEngine`
+implementation), K/N framework export of `core/ios-vpn`, Xcode project wiring.

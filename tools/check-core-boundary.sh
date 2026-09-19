@@ -24,7 +24,7 @@ if grep -rnE --include='*.kt' "^import (android|androidx|java|javax|kotlin\.jvm)
 echo ">> KMP: fully-qualified java./javax. references in commonMain"
 if grep -rnE --include='*.kt' "\b(java|javax)\.[a-z]+\.[A-Z]" core/*/src/commonMain 2>/dev/null | grep -vE ":\s*(\*|//|/\*)"; then fail=1; else echo "   none"; fi
 echo ">> KMP: platform actuals only in core/platform, core/config, core/smart; iosMain additionally in core/ios-infra (declared jvmMain/iosMain boundaries)"
-if ls -d core/*/src/jvmMain core/*/src/iosMain 2>/dev/null | grep -vE "^core/(platform|config|smart)/src/(jvmMain|iosMain)$|^core/ios-infra/src/iosMain$"; then echo "   unexpected platform source set (document it here if intentional)"; fail=1; else echo "   OK"; fi
+if ls -d core/*/src/jvmMain core/*/src/iosMain 2>/dev/null | grep -vE "^core/(platform|config|smart)/src/(jvmMain|iosMain)$|^core/(ios-infra|ios-vpn)/src/iosMain$"; then echo "   unexpected platform source set (document it here if intentional)"; fail=1; else echo "   OK"; fi
 echo ">> KMP: Apple APIs (platform.*, kotlinx.cinterop.*) only in iosMain/iosTest"
 if grep -rnE --include='*.kt' "^import (platform|kotlinx\.cinterop)\." core/*/src/commonMain core/*/src/commonTest core/*/src/jvmMain core/*/src/jvmTest 2>/dev/null; then fail=1; else echo "   none"; fi
 echo ">> KMP: JVM APIs (java.*, javax.*, kotlin.jvm.*) never in iosMain/iosTest"
@@ -49,8 +49,13 @@ echo ">> KMP: core/ios-infra commonMain is pure Kotlin (no Apple, JVM, Android, 
 if grep -rnE --include='*.kt' "^import (platform|kotlinx\\.cinterop|android|androidx|java|javax|kotlin\\.jvm|io\\.ucc\\.core\\.singbox|io\\.ucc\\.core\\.vpn|io\\.ucc\\.app)\\." core/ios-infra/src/commonMain core/ios-infra/src/commonTest 2>/dev/null; then fail=1; else echo "   commonMain/commonTest OK"; fi
 if grep -rnE --include='*.kt' "^import (android|androidx|io\\.ucc\\.core\\.singbox|io\\.ucc\\.core\\.vpn|io\\.ucc\\.app)\\.|platform\\.NetworkExtension|Libbox" core/ios-infra/src 2>/dev/null; then fail=1; else echo "   no VPN/Libbox/NetworkExtension/app leakage"; fi
 if grep -nE 'compose|lifecycle|androidx|engine-singbox|singbox-config|core:vpn|:app"' core/ios-infra/build.gradle.kts | grep -v "^[0-9]*:\s*\*" | grep -v "^[0-9]*:\s*//"; then echo "   forbidden dependency in core/ios-infra/build.gradle.kts"; fail=1; else echo "   build script OK"; fi
-echo ">> Apple libbox: no NetworkExtension / Libbox cinterop / Swift sources outside a future core/engine-singbox-apple module (Phase 6)"
-if grep -rnE --include='*.kt' --include='*.def' "platform\\.NetworkExtension|NEPacketTunnelProvider|import cocoapods\\.Libbox|import Libbox\\." app core tools 2>/dev/null | grep -v "^core/engine-singbox-apple/"; then fail=1; else echo "   none"; fi
+echo ">> Apple: NetworkExtension only in core/ios-vpn iosMain; Libbox linkage only in a future core/engine-singbox-apple"
+if grep -rnE --include='*.kt' --include='*.def' "^import platform\\.NetworkExtension|: NEPacketTunnelProvider\\(" app core tools 2>/dev/null | grep -vE "^core/(engine-singbox-apple|ios-vpn)/src/iosMain/"; then fail=1; else echo "   NetworkExtension confined to core/ios-vpn iosMain"; fi
+if grep -rnE --include='*.kt' --include='*.def' "import cocoapods\\.Libbox|import Libbox\\.|Libbox\\.xcframework" app core 2>/dev/null | grep -v "^core/engine-singbox-apple/"; then fail=1; else echo "   no Libbox linkage"; fi
+echo ">> KMP: core/ios-vpn commonMain is pure Kotlin; no UI/app/engine imports anywhere in the module"
+if grep -rnE --include='*.kt' "^import (platform|kotlinx\\.cinterop|android|androidx|java|javax|kotlin\\.jvm|io\\.ucc\\.core\\.singbox|io\\.ucc\\.core\\.vpn|io\\.ucc\\.app)\\." core/ios-vpn/src/commonMain core/ios-vpn/src/commonTest 2>/dev/null; then fail=1; else echo "   commonMain/commonTest OK"; fi
+if grep -rnE --include='*.kt' "^import (android|androidx|io\\.ucc\\.core\\.singbox|io\\.ucc\\.core\\.vpn|io\\.ucc\\.app)\\." core/ios-vpn/src 2>/dev/null; then fail=1; else echo "   no Android/app/engine leakage"; fi
+if grep -nE 'compose|lifecycle|androidx|engine-singbox|core:vpn|:app"' core/ios-vpn/build.gradle.kts | grep -v "^[0-9]*:\s*\*" | grep -v "^[0-9]*:\s*//"; then echo "   forbidden dependency in core/ios-vpn/build.gradle.kts"; fail=1; else echo "   build script OK"; fi
 echo ">> Apple libbox pins: singbox.version, singbox.commit, libbox-apple.sha256 present and well-formed"
 [ -s core/engine-singbox/singbox.version ] && grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$' core/engine-singbox/singbox.version || { echo "   singbox.version malformed"; fail=1; }
 grep -qE '^[0-9a-f]{40}$' core/engine-singbox/singbox.commit || { echo "   singbox.commit must be a 40-hex commit"; fail=1; }

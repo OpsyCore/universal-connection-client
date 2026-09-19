@@ -111,9 +111,9 @@ public class KeychainKeys(private val service: String = DEFAULT_SERVICE) {
     }
 }
 
-internal fun ByteArray.toNSData(): NSData = if (isEmpty()) NSData() else usePinned { NSData.create(bytes = it.addressOf(0), length = size.convert()) }
+public fun ByteArray.toNSData(): NSData = if (isEmpty()) NSData() else usePinned { NSData.create(bytes = it.addressOf(0), length = size.convert()) }
 
-internal fun NSData.toByteArray(): ByteArray {
+public fun NSData.toByteArray(): ByteArray {
     val n = length.toInt()
     if (n == 0) return ByteArray(0)
     return ByteArray(n).also { out -> out.usePinned { memcpy(it.addressOf(0), bytes, length) } }
