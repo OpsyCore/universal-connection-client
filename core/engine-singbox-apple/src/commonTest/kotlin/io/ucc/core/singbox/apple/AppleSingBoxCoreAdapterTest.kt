@@ -7,6 +7,8 @@ import io.ucc.core.engine.CoreStatistics
 import io.ucc.core.engine.CoreEvent
 import io.ucc.core.engine.TunProvider
 import io.ucc.core.engine.TunRequest
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -91,11 +93,14 @@ class AppleSingBoxCoreAdapterTest {
         lb.listener!!.onStatus(LibboxStatus(1, 2, 3, 4, 5, 6, 7, 8))
         assertEquals(CoreStatistics(1, 2, 3, 4, 5, 6, 7, 8), a.lastStatistics)
         assertEquals(CoreStatistics(1, 2, 3, 4, 5, 6, 7, 8), a.statistics.first())
+        // events/logs have no replay (same as Android): subscribe before the core pushes
+        val event = async(start = CoroutineStart.UNDISPATCHED) { a.events.first() }
+        val log = async(start = CoroutineStart.UNDISPATCHED) { a.logs.first() }
         lb.listener!!.onServiceStopped()
         assertFalse(a.isRunning)
-        assertIs<CoreEvent.Fatal>(a.events.first())
+        assertIs<CoreEvent.Fatal>(event.await())
         lb.listener!!.onLog(1, "auth token=$SECRET rejected")
-        val line = a.logs.first()
+        val line = log.await()
         assertFalse(line.message.contains(SECRET)); assertEquals(42L, line.epochMs)
     }
 
