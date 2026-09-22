@@ -22,7 +22,7 @@ says so explicitly. There is no live re-configuration.
 | Direct DNS | `directDns` | `dns.servers[direct]`; empty → `local` (system resolver). |
 | Bypass local network | `bypassPrivate` | `route.rules += { ip_is_private: true, outbound: direct }` |
 | Strict routing | `strictRoute` | `inbounds[tun].strict_route` |
-| IPv6 | `ipv6` | tun `inet6_address` / `dns strategy` |
+| IPv6 | `ipv6` | tun `address` gains `fdfe:dcba:9876::1/126`; `dns.strategy` = `prefer_ipv4` when on, `ipv4_only` when off |
 | MTU | `mtu` (1280–9000) | `inbounds[tun].mtu` |
 | Per-app mode + packages | `includePackages` / `excludePackages` | `inbounds[tun].include_package` / `exclude_package` — emitted **only** if `capabilities.perAppRouting` |
 | Core log level | `logLevel` | `log.level` |

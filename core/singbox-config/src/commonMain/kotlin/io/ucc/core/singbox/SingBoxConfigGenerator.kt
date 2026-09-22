@@ -114,7 +114,8 @@ public class SingBoxConfigGenerator(
             })
         }
         put("final", DNS_REMOTE_TAG)
-        put("strategy", "prefer_ipv4")
+        // IPv6 off (Settings) → resolve A records only, so no AAAA answer can be chosen while the TUN has no inet6 address.
+        put("strategy", if (options.ipv6) "prefer_ipv4" else "ipv4_only")
         put("independent_cache", true)
     }
 

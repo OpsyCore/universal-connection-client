@@ -137,6 +137,10 @@ class SingBoxConfigGeneratorTest {
         assertEquals(listOf("172.19.0.1/30"), tun["address"]!!.jsonArray.map { it.jsonPrimitive.content })
         assertEquals(listOf("com.a"), tun["include_package"]!!.jsonArray.map { it.jsonPrimitive.content })
         assertTrue(tun["auto_route"]!!.jsonPrimitive.boolean)
+        assertEquals("ipv4_only", doc["dns"]!!.jsonObject["strategy"]!!.jsonPrimitive.content, "IPv6 off → DNS strategy ipv4_only")
+        val v6 = gen.generateDocument(p, CoreStartOptions(ipv6 = true))
+        assertEquals(listOf("172.19.0.1/30", "fdfe:dcba:9876::1/126"), v6["inbounds"]!!.jsonArray[0].jsonObject["address"]!!.jsonArray.map { it.jsonPrimitive.content })
+        assertEquals("prefer_ipv4", v6["dns"]!!.jsonObject["strategy"]!!.jsonPrimitive.content, "IPv6 on → unchanged default")
 
         val dns = doc["dns"]!!.jsonObject
         val servers = dns["servers"]!!.jsonArray.map { it.jsonObject }
