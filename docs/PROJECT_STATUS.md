@@ -436,3 +436,9 @@ Data Safety answer sheet, Google Play release guide, corresponding-source plan, 
 Remaining items are all owner/legal/Console actions (see `docs/ANDROID_V1_RELEASE_CHECKLIST.md`).
 **Status: NOT READY — BLOCKERS REMAIN** (production key, hosted policy, GPL source availability, Play declarations,
 retrievable final artefact). iOS → v1.1, Windows → v1.2. Tag `v1.0.0` deliberately not created yet.
+
+## v1.0.1 backlog (approved by owner; NOT in v1.0.0)
+Both behind Settings switches, default OFF, JVM-tested, sing-box 1.13.21 syntax only:
+1. **TLS fragment** — per-outbound `tls.fragment: true`, `tls.record_fragment: true`, `tls.fragment_fallback_delay` (e.g. `"500ms"`); not for REALITY/Vision by default; documented caveats.
+2. **Block QUIC** — `route.rules += { "protocol": "quic", "action": "reject" }` (no separate `udp/443` rule).
+Not planned: Xray-style `fragment.length/interval` (rejected by Libbox), global `ipv4_only` (breaks IPv6-only networks), hardcoded DNS/server values.
