@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | applicationId | `io.ucc.app` (debug: `io.ucc.app.debug`, versionName suffix `-debug`) |
-| versionName / versionCode | `1.0.0` / `1` — bump both in `app/build.gradle.kts` for every store release |
+| versionName / versionCode | `1.0.1` / `2` (v1.0.0 = `1.0.0` / `1`) — bump both in `app/build.gradle.kts` for every store release |
 | Flavour | `singbox` (only flavour; selects the engine module) |
 | Core | sing-box / libbox `v1.13.21` (`core/engine-singbox/singbox.version`, SHA-256 pinned in `libbox.sha256`) |
 | min / target / compile SDK | 24 / 36 / 36 |
@@ -143,7 +143,7 @@ Instrumentation tests: none configured (no emulator job).
 See `docs/DEVICE_TEST_PLAN.md` for the full matrix. Minimum before publishing:
 install over previous build → existing profiles visible → connect/disconnect →
 DNS resolves through tunnel → Smart connect picks a server → Test all → import QR (camera + gallery) →
-subscription refresh → Persian RTL → About shows `1.0.0 · 1 · release · singbox`.
+subscription refresh → Persian RTL → About shows `<versionName> · <versionCode> · release · singbox` (v1.0.1 = `1.0.1 · 2`).
 **Status for v1.0.0: PASSED on a real device (owner report, 2026-09-23; incl. section E DNS with IPv6 on/off). Not reproducible from the build environment.**
 
 ## v1.0.0 published

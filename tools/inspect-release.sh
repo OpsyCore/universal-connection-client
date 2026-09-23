@@ -17,8 +17,11 @@ PKG=$(echo "$BADGING" | sed -n "s/^package: name='\([^']*\)'.*/\1/p")
 VNAME=$(echo "$BADGING" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p")
 VCODE=$(echo "$BADGING" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p")
 [ "$PKG" = "io.ucc.app" ] || err "package is $PKG, expected io.ucc.app"
-[ "$VNAME" = "1.0.0" ] || err "versionName is $VNAME, expected 1.0.0"
-[ "$VCODE" = "1" ] || err "versionCode is $VCODE, expected 1"
+EXP_VNAME=$(sed -n 's/^\s*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -1)
+EXP_VCODE=$(sed -n 's/^\s*versionCode = \([0-9]*\).*/\1/p' app/build.gradle.kts | head -1)
+[ -n "$EXP_VNAME" ] && [ -n "$EXP_VCODE" ] || err "could not read versionName/versionCode from app/build.gradle.kts"
+[ "$VNAME" = "$EXP_VNAME" ] || err "versionName is $VNAME, expected $EXP_VNAME"
+[ "$VCODE" = "$EXP_VCODE" ] || err "versionCode is $VCODE, expected $EXP_VCODE"
 
 echo "--- permissions"
 echo "$BADGING" | grep "^uses-permission" | sed "s/uses-permission: name='\([^']*\)'.*/\1/" | sort | tee /tmp/perms.txt
@@ -130,7 +133,8 @@ if [ -n "$AAB" ] && [ -f "$AAB" ]; then
     AABVC=$(grep -oE 'android:versionCode="[^"]+"' /tmp/aab-manifest.xml | head -1 | cut -d'"' -f2)
     echo "   package=$AABPKG versionName=$AABVN versionCode=$AABVC"
     [ "$AABPKG" = "io.ucc.app" ] || err "AAB package is $AABPKG"
-    [ "$AABVN" = "1.0.0" ] || err "AAB versionName is $AABVN"
+    [ "$AABVN" = "$EXP_VNAME" ] || err "AAB versionName is $AABVN, expected $EXP_VNAME"
+    [ "$AABVC" = "$EXP_VCODE" ] || err "AAB versionCode is $AABVC, expected $EXP_VCODE"
     grep -q 'android:debuggable="true"' /tmp/aab-manifest.xml && err "AAB is debuggable" || echo "   debuggable: false"
     echo "   AAB permissions (bundletool dump manifest):"
     grep -oE '<uses-permission android:name="[^"]+"' /tmp/aab-manifest.xml | cut -d'"' -f2 | sort | tee /tmp/aabperms.txt | sed 's/^/     /'
