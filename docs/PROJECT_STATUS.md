@@ -437,8 +437,27 @@ Remaining items are all owner/legal/Console actions (see `docs/ANDROID_V1_RELEAS
 **Status: NOT READY — BLOCKERS REMAIN** (production key, hosted policy, GPL source availability, Play declarations,
 retrievable final artefact). iOS → v1.1, Windows → v1.2. Tag `v1.0.0` deliberately not created yet.
 
-## v1.0.1 backlog (approved by owner; NOT in v1.0.0)
-Both behind Settings switches, default OFF, JVM-tested, sing-box 1.13.21 syntax only:
-1. **TLS fragment** — per-outbound `tls.fragment: true`, `tls.record_fragment: true`, `tls.fragment_fallback_delay` (e.g. `"500ms"`); not for REALITY/Vision by default; documented caveats.
-2. **Block QUIC** — `route.rules += { "protocol": "quic", "action": "reject" }` (no separate `udp/443` rule).
+## v1.0.0 — RELEASED (Android)
+- Tag `v1.0.0` → commit `875b954fc3d6c31063734471a0cbaef4747f544a` (application code identical to `6ca2d85`; `94e56fc`…`c35fba6` are empty CI triggers, `875b954` adds the draft-release CI step only).
+- Release: https://github.com/OpsyCore/universal-connection-client/releases/tag/v1.0.0 — published 2026-09-23 13:25 UTC.
+- CI run 35846945899: 419 tests / 0 failures; production signer cert SHA-256 `5f37d4dce9ad18ee561e71dad7169ef6f6a7bb440228ac84b7b9677bb03b2685`.
+- AAB SHA-256 `87f42b97996bab81563e3123fed75e2add3bbcb25a18aba599e190f594625a7b`; APK SHA-256 `ab2070a14b16b3ea0a79be87d6c74e9493d07861f69f270a3bec9023f5014e02`.
+- Device test plan incl. section E (DNS, IPv6 on/off): PASSED on a real device — reported by the project owner on 2026-09-23 (not verifiable from the build environment).
+- Artifact delivery: Actions artifact storage is quota-blocked for the account, so signed builds are published as a *draft* GitHub release by CI (`Publish signed build as GitHub draft release`); the published `v1.0.0` release is never overwritten by that step.
+- Still outside the repository: Play Console declarations, Data Safety form, hosted privacy policy URL, Play App Signing enrolment, GPL source publication decision (docs/GOOGLE_PLAY_RELEASE.md).
+
+## v1.0.1 backlog (approved by owner 2026-09-23; work starts only on explicit instruction)
+Scope: Settings UI upgrade. Rules unchanged: no fake toggles, every switch must be wired and JVM-tested, all strings in `fa`+`en` resources, sing-box 1.13.21 syntax only, networking core changes minimal and behind default-OFF switches, documented in docs/SETTINGS.md.
+
+| # | Feature | Default | Implementation notes | Risk / open questions |
+|---|---|---|---|---|
+| 1 | **TLS fragment** switch | OFF | per-outbound `tls.fragment: true`, `tls.record_fragment: true`, `tls.fragment_fallback_delay` (e.g. `"500ms"`); skip for REALITY/Vision by default | Not Xray `fragment.length/interval` (rejected by Libbox). May slow handshakes on clean networks. |
+| 2 | **Block QUIC** switch | OFF | `route.rules += { "protocol": "quic", "action": "reject" }` before user rules; no separate `udp/443` rule | Forces YouTube/Google to TCP (HTTP/2); breaks apps that are QUIC-only. Needs sniff already enabled (it is). |
+| 3 | **Notification speed meter** | OFF | Poll `CoreAdapter` traffic stats (libbox `CommandClient` status / `ReadStatistics`) every 1–2 s while connected; update FGS notification text `↓ x KB/s ↑ y KB/s`; stop polling when screen off / disconnected | Battery: use `setOnlyAlertOnce`, throttle; must not create a second notification channel per update. Must not be shown when not really connected. |
+| 4 | **Auto-connect on boot** | OFF | `RECEIVE_BOOT_COMPLETED` is already declared (androidx.work). Add a `BootReceiver` (exported=false, `android.intent.action.BOOT_COMPLETED` + `LOCKED_BOOT_COMPLETED`), start `UcVpnService` only if switch ON **and** `VpnService.prepare()` returns null (consent already granted) **and** a last profile exists; otherwise post a notification asking the user to connect manually | Android 12+ FGS-from-background restrictions: boot broadcast is an allowed exemption for `startForegroundService`, but must call `startForeground()` within 5 s. Never auto-connect without prior VPN consent. |
+| 5 | **FakeDNS** | OFF | sing-box 1.13: `dns.servers += { "type": "fakeip", "tag": "dns-fakeip", "inet4_range": "198.18.0.0/15", "inet6_range": "fc00::/18" }` + rule `{ "query_type": ["A","AAAA"], "server": "dns-fakeip" }` and `"independent_cache": true`; route `sniff` already on so real domains reach outbounds | Only for *proxied* queries — direct/bypass traffic must keep real DNS. Some apps cache fake IPs; document. Interaction with the IPv6-off `ipv4_only` mapping must be tested (fakeip inet6 range only when IPv6 on). |
+| 6 | **Allow LAN / local proxy** | OFF | Add `inbounds += { "type": "mixed", "tag": "mixed-in", "listen": "0.0.0.0" (ON) / "127.0.0.1" (OFF), "listen_port": <user port, default 2080> }`; show device Wi-Fi IP + port in Settings; optional username/password (stored in secure storage) | Exposes an open proxy on the LAN when ON — must show a clear warning, must be OFF by default, should auto-disable on network change to a non-Wi-Fi network (decide). Must not be advertised as "secure". |
+
 Not planned: Xray-style `fragment.length/interval` (rejected by Libbox), global `ipv4_only` (breaks IPv6-only networks), hardcoded DNS/server values.
+
+Suggested order (smallest blast radius first): 1 → 2 → 6 → 5 → 3 → 4. Items 3 and 4 touch the VpnService/notification lifecycle (locked area) and need the owner's explicit go-ahead per item.

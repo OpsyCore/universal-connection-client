@@ -144,7 +144,10 @@ See `docs/DEVICE_TEST_PLAN.md` for the full matrix. Minimum before publishing:
 install over previous build → existing profiles visible → connect/disconnect →
 DNS resolves through tunnel → Smart connect picks a server → Test all → import QR (camera + gallery) →
 subscription refresh → Persian RTL → About shows `1.0.0 · 1 · release · singbox`.
-**Status for v1.0.0: NOT RUN — no device available in the build environment.**
+**Status for v1.0.0: PASSED on a real device (owner report, 2026-09-23; incl. section E DNS with IPv6 on/off). Not reproducible from the build environment.**
+
+## v1.0.0 published
+Tag `v1.0.0` = `875b954fc3d6c31063734471a0cbaef4747f544a`; release https://github.com/OpsyCore/universal-connection-client/releases/tag/v1.0.0 (assets + SHA-256 + signer cert in the release notes). Signed builds are delivered via a CI-created *draft* release because Actions artifact storage is quota-blocked for the account; the CI step never modifies a published release.
 
 ## Release closure documents (v1.0.0)
 `docs/ANDROID_V1_RELEASE_CHECKLIST.md` (status board + upload-key generation incl. Termux + policy hosting),
