@@ -83,11 +83,14 @@ else
 fi
 
 echo "--- manifest flags"
-MANIFEST=$("$AAPT" dump xmltree --file AndroidManifest.xml "$APK")
-echo "$MANIFEST" | grep -q 'debuggable.*=true' && err "release APK is debuggable" || echo "   debuggable: false"
-echo "$MANIFEST" | grep -q 'allowBackup.*=false' && echo "   allowBackup: false" || err "allowBackup is not false"
-echo "$MANIFEST" | grep -q 'foregroundServiceType.*0x40000000' && echo "   VpnService foregroundServiceType=specialUse" || err "specialUse fgs type missing"
-echo "$MANIFEST" | grep -q 'PROPERTY_SPECIAL_USE_FGS_SUBTYPE' && echo "   specialUse subtype property present" || err "specialUse subtype property missing"
+# Dump to a file and grep the file: `echo "$MANIFEST" | grep -q` under pipefail can fail
+# spuriously with SIGPIPE (grep -q exits on first match before echo finishes writing).
+"$AAPT" dump xmltree --file AndroidManifest.xml "$APK" > /tmp/manifest.txt
+grep -q 'debuggable.*=true' /tmp/manifest.txt && err "release APK is debuggable" || echo "   debuggable: false"
+grep -q 'allowBackup.*=false' /tmp/manifest.txt && echo "   allowBackup: false" || err "allowBackup is not false"
+grep -q 'foregroundServiceType.*0x40000000' /tmp/manifest.txt && echo "   VpnService foregroundServiceType=specialUse" || err "specialUse fgs type missing"
+grep -q 'PROPERTY_SPECIAL_USE_FGS_SUBTYPE' /tmp/manifest.txt && echo "   specialUse subtype property present" || err "specialUse subtype property missing"
+grep -q 'io.ucc.core.vpn.BootReceiver' /tmp/manifest.txt && echo "   BootReceiver present (exported=false, BOOT_COMPLETED only)" || echo "   BootReceiver: absent"
 
 echo "--- contents"
 unzip -l "$APK" > /tmp/apklist.txt
