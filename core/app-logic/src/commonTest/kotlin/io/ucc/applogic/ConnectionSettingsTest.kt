@@ -57,7 +57,7 @@ class ConnectionSettingsTest {
         val v100 = """{"remoteDns":"https://1.1.1.1/dns-query","bypassPrivate":true,"ipv6":false,"strictRoute":true,"mtu":9000,"perAppMode":"OFF","perAppPackages":[],"logLevel":"INFO","rules":[]}"""
         val s = json.decodeFromString(ConnectionSettings.serializer(), v100)
         assertFalse(s.tlsFragment); assertFalse(s.blockQuic); assertFalse(s.ipv6)
-        assertFalse(s.fakeDns); assertFalse(s.notificationSpeed)
+        assertFalse(s.fakeDns); assertFalse(s.notificationSpeed); assertFalse(s.autoConnectOnBoot)
     }
 
     @Test fun `rule items are classified and mapped into typed routing rules`() {

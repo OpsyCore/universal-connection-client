@@ -169,6 +169,7 @@ fun SettingsScreen(state: SettingsUiState, vm: SettingsViewModel, onBack: () -> 
                 runCatching { context.startActivity(Intent(Settings.ACTION_VPN_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             }
             SwitchRow(stringResource(R.string.settings_notification_speed), stringResource(R.string.settings_notification_speed_help), s.notificationSpeed, vm::setNotificationSpeed)
+            SwitchRow(stringResource(R.string.settings_auto_connect_boot), stringResource(R.string.settings_auto_connect_boot_help), s.autoConnectOnBoot, vm::setAutoConnectOnBoot)
 
             // ---------------------------------------------------------------- Network tweaks (v1.0.1; all default OFF)
             Section(stringResource(R.string.settings_section_network_tweaks))

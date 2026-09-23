@@ -27,6 +27,8 @@ public object VpnServiceRegistry {
     @Volatile public var statisticsForNotification: StateFlow<io.ucc.core.engine.CoreStatistics?>? = null
     /** Settings switch "speed in notification"; false/null = never render rates. */
     @Volatile public var notificationSpeedEnabled: StateFlow<Boolean>? = null
+    /** Inputs for [BootReceiver]; null = boot auto-connect can never trigger. */
+    @Volatile public var bootInputs: BootInputs? = null
 
     /**
      * What Android reports about always-on / lockdown ("Block connections

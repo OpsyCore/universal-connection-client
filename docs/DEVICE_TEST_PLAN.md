@@ -154,6 +154,9 @@ For each protocol: Add → Paste link → **Preview** shows protocol/host/port/t
 | H2 | `run-as … xxd files/profiles.enc | head` | starts with `UCC1`, no readable host names/passwords | |
 | H3 | Force-stop app → reopen | servers, favorites, selection, settings intact | |
 | H4 | Reboot device → open app | same as H3 (Keystore key survives; no user-auth prompt) | ✔ |
+| H5 | v1.0.1: Settings → "Connect on boot" ON, connect once (consent granted), reboot, unlock | within ~30 s the VPN key icon + notification appear without opening the app; Diagnostics shows Connected | |
+| H6 | v1.0.1: "Connect on boot" OFF (default), reboot | nothing connects; no notification | |
+| H7 | v1.0.1: switch ON, then revoke VPN via Android VPN settings (or another VPN app takes over), reboot | nothing connects, no crash; logcat `BootReceiver: auto-connect on boot skipped: no VPN consent` | |
 | H5 | Change device lock from none → PIN → none, reopen | data still decrypts (key is not auth-bound) | ✔ |
 | H6 | Migration: on a clean install, `run-as` write a plaintext `files/profiles.json` (JSON array of profiles; take format from a Phase-1 build or ask) → launch | profiles appear; `.json` deleted; `.enc` created | |
 | H7 | Corrupt: `run-as … sh -c 'head -c 200 /dev/urandom > files/profiles.enc'` → launch | Home notice about unreadable store with file name `profiles.enc.corrupt-<ts>`; list empty; import works; notice dismissible | |

@@ -15,12 +15,11 @@
       enumeration needs broad package visibility; a <queries> filter cannot
       express "every app that can use the network". Play-policy implications:
       docs/PLAY_STORE_CHECKLIST.md §QUERY_ALL_PACKAGES.
-      The app declares no RECEIVE_BOOT_COMPLETED and has no boot receiver (always-on
-      VPN is handled by the system via SUPPORTS_ALWAYS_ON below). The merged manifest
-      still contains it: androidx.work contributes it for its RescheduleReceiver, which
-      re-arms the periodic subscription refresh after a reboot (WorkManager jobs are
-      scheduled with setPersisted(false)). Retained deliberately; see docs/RELEASE.md
-      §Permissions for the approval record and CI enforcement.
+      RECEIVE_BOOT_COMPLETED is contributed to the merged manifest by androidx.work
+      (RescheduleReceiver re-arms the periodic subscription refresh after a reboot).
+      Since v1.0.1 the app also uses it for the optional, default-OFF "connect on boot"
+      switch (.BootReceiver below; requires prior VPN consent). No app module declares
+      the permission itself; see docs/RELEASE.md §Permissions for the record.
     -->
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
@@ -46,5 +45,22 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="vpn" />
         </service>
+
+        <!--
+          v1.0.1 "connect on boot" (default OFF). Not exported; only the two boot actions.
+          Does nothing unless the switch is on AND VPN consent is already granted AND a
+          profile exists (io.ucc.core.vpn.BootConnectPolicy). directBootAware lets
+          LOCKED_BOOT_COMPLETED reach us, but our stores are credential-encrypted so the
+          policy skips until the user unlocks; the normal BOOT_COMPLETED then connects.
+        -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="false"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

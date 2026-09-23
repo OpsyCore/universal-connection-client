@@ -89,6 +89,7 @@ class SettingsViewModel(
     fun setBlockQuic(v: Boolean) = update { it.copy(blockQuic = v) }
     fun setFakeDns(v: Boolean) = update { it.copy(fakeDns = v) }
     fun setNotificationSpeed(v: Boolean) = update { it.copy(notificationSpeed = v) }
+    fun setAutoConnectOnBoot(v: Boolean) = update { it.copy(autoConnectOnBoot = v) }
     fun setMtu(v: String) { v.toIntOrNull()?.let { m -> update { it.copy(mtu = m) } } }
     fun setLogLevel(v: ConnectionSettings.LogLevel) = update { it.copy(logLevel = v) }
     fun setPerAppMode(v: ConnectionSettings.PerAppMode) = update { it.copy(perAppMode = v) }

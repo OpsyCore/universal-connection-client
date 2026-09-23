@@ -118,6 +118,10 @@ class AppGraph(context: Context) {
         VpnServiceRegistry.connectionManager = connectionManager
         VpnServiceRegistry.stateForNotification = connectionManager.state
         VpnServiceRegistry.statisticsForNotification = connectionManager.statistics
+        VpnServiceRegistry.bootInputs = object : io.ucc.core.vpn.BootInputs {
+            override fun autoConnectEnabled() = settingsStore.settings.value.autoConnectOnBoot
+            override fun selectedProfileId() = preferences.selectedProfileId
+        }
         VpnServiceRegistry.notificationSpeedEnabled = settingsStore.settings
             .map { it.notificationSpeed }
             .stateIn(appScope, SharingStarted.Eagerly, settingsStore.settings.value.notificationSpeed)

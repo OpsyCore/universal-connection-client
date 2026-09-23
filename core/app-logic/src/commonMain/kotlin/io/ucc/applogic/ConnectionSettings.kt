@@ -36,6 +36,8 @@ data class ConnectionSettings(
     val fakeDns: Boolean = false,
     /** Show live ↓/↑ rates in the foreground-service notification while Connected. UI-only; not a core option. Off by default. */
     val notificationSpeed: Boolean = false,
+    /** Reconnect the selected/last profile after a device reboot. UI-only; requires prior VPN consent at boot time. Off by default. */
+    val autoConnectOnBoot: Boolean = false,
 ) {
     enum class PerAppMode { OFF, INCLUDE, EXCLUDE }
 
