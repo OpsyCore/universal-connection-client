@@ -85,6 +85,8 @@ class SettingsViewModel(
     fun setBypassPrivate(v: Boolean) = update { it.copy(bypassPrivate = v) }
     fun setIpv6(v: Boolean) = update { it.copy(ipv6 = v) }
     fun setStrictRoute(v: Boolean) = update { it.copy(strictRoute = v) }
+    fun setTlsFragment(v: Boolean) = update { it.copy(tlsFragment = v) }
+    fun setBlockQuic(v: Boolean) = update { it.copy(blockQuic = v) }
     fun setMtu(v: String) { v.toIntOrNull()?.let { m -> update { it.copy(mtu = m) } } }
     fun setLogLevel(v: ConnectionSettings.LogLevel) = update { it.copy(logLevel = v) }
     fun setPerAppMode(v: ConnectionSettings.PerAppMode) = update { it.copy(perAppMode = v) }

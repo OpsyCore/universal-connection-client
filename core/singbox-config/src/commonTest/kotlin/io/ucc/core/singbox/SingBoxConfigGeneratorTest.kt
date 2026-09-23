@@ -179,6 +179,53 @@ class SingBoxConfigGeneratorTest {
     }
 
     @Test
+    fun `tls fragment is off by default and adds sing-box fragment fields to tcp tls outbounds only`() {
+        val trojan = base(Protocol.TROJAN, Authentication.Trojan("pw"), TlsSettings(enabled = true, serverName = "s"))
+        val off = gen.generateDocument(trojan, CoreStartOptions())["outbounds"]!!.jsonArray[0].jsonObject["tls"]!!.jsonObject
+        assertNull(off["fragment"]); assertNull(off["record_fragment"]); assertNull(off["fragment_fallback_delay"])
+
+        val on = gen.generateDocument(trojan, CoreStartOptions(tlsFragment = true))["outbounds"]!!.jsonArray[0].jsonObject["tls"]!!.jsonObject
+        assertTrue(on["fragment"]!!.jsonPrimitive.boolean)
+        assertTrue(on["record_fragment"]!!.jsonPrimitive.boolean)
+        assertEquals("500ms", on["fragment_fallback_delay"]!!.jsonPrimitive.content)
+        assertEquals("s", on["server_name"]!!.jsonPrimitive.content, "existing tls fields preserved")
+        assertNull(on["length"]); assertNull(on["interval"]) // never Xray-style fields
+
+        // vless + utls (no reality) → fragmented; vless + REALITY → untouched
+        val vlessTls = base(Protocol.VLESS, Authentication.Vless("11111111-2222-3333-4444-555555555555"), TlsSettings(enabled = true, serverName = "s", fingerprint = "chrome"))
+        assertTrue(gen.buildOutbound(vlessTls, CoreStartOptions(tlsFragment = true))["tls"]!!.jsonObject["fragment"]!!.jsonPrimitive.boolean)
+        val reality = base(Protocol.VLESS, Authentication.Vless("11111111-2222-3333-4444-555555555555", flow = "xtls-rprx-vision"),
+            TlsSettings(enabled = true, serverName = "www.microsoft.com", fingerprint = "chrome", reality = TlsSettings.Reality("pubkey", "ab12")))
+        assertNull(gen.buildOutbound(reality, CoreStartOptions(tlsFragment = true))["tls"]!!.jsonObject["fragment"], "REALITY ClientHello is never fragmented")
+
+        // QUIC protocol → untouched; plaintext (no tls) → untouched
+        val hy2 = base(Protocol.HYSTERIA2, Authentication.Hysteria2("pw"), TlsSettings(enabled = true, serverName = "s"))
+        assertNull(gen.buildOutbound(hy2, CoreStartOptions(tlsFragment = true))["tls"]!!.jsonObject["fragment"])
+        val plainVmess = base(Protocol.VMESS, Authentication.Vmess("11111111-2222-3333-4444-555555555555"))
+        assertNull(gen.buildOutbound(plainVmess, CoreStartOptions(tlsFragment = true))["tls"])
+        val ss = base(Protocol.SHADOWSOCKS, Authentication.Shadowsocks("aes-128-gcm", "pw"))
+        assertNull(gen.buildOutbound(ss, CoreStartOptions(tlsFragment = true))["tls"])
+    }
+
+    @Test
+    fun `block quic is off by default and inserts a reject rule before bypass and user rules`() {
+        val p = base(Protocol.TROJAN, Authentication.Trojan("pw"))
+        val off = gen.generateDocument(p, CoreStartOptions())["route"]!!.jsonObject["rules"]!!.jsonArray.map { it.jsonObject }
+        assertTrue(off.none { it["protocol"]?.jsonPrimitive?.contentOrNull == "quic" })
+
+        val on = gen.generateDocument(p, CoreStartOptions(blockQuic = true, rules = listOf(RoutingRule(RouteAction.DIRECT, domainSuffixes = listOf(".ir")))))["route"]!!.jsonObject["rules"]!!.jsonArray.map { it.jsonObject }
+        // sniff, hijack-dns, quic reject, ip_is_private, user rule
+        assertEquals(5, on.size)
+        assertEquals("sniff", on[0]["action"]!!.jsonPrimitive.content)
+        assertEquals("quic", on[2]["protocol"]!!.jsonPrimitive.content)
+        assertEquals("reject", on[2]["action"]!!.jsonPrimitive.content)
+        assertNull(on[2]["outbound"]); assertNull(on[2]["port"]); assertNull(on[2]["network"]) // no udp/443 rule, no deprecated block outbound
+        assertTrue(on[3]["ip_is_private"]!!.jsonPrimitive.boolean)
+        assertEquals(".ir", on[4]["domain_suffix"]!!.jsonArray[0].jsonPrimitive.content)
+        assertTrue(gen.generateDocument(p, CoreStartOptions(blockQuic = true))["outbounds"]!!.jsonArray.none { it.jsonObject["type"]!!.jsonPrimitive.content == "block" })
+    }
+
+    @Test
     fun `user routing rules are emitted in order and domains and cidrs split and block maps to reject`() {
         val p = base(Protocol.TROJAN, Authentication.Trojan("pw"))
         val opts = CoreStartOptions(

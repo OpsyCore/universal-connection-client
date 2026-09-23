@@ -15,6 +15,8 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
@@ -46,6 +48,9 @@ public class SingBoxConfigGenerator(
         public const val DEFAULT_REMOTE_DNS: String = "https://1.1.1.1/dns-query"
         public const val DEFAULT_DIRECT_DNS: String = "local"
         private const val OUTBOUND_OVERRIDE_PREFIX = "singbox.outbound."
+        /** sing-box default is also 500ms; stated explicitly so the generated config is self-describing. */
+        public const val TLS_FRAGMENT_FALLBACK_DELAY: String = "500ms"
+        private val FRAGMENTABLE_PROTOCOLS = setOf(Protocol.VLESS, Protocol.VMESS, Protocol.TROJAN, Protocol.HTTP)
     }
 
     public fun generate(profile: ConnectionProfile, options: CoreStartOptions): String {
@@ -56,7 +61,7 @@ public class SingBoxConfigGenerator(
     }
 
     public fun generateDocument(profile: ConnectionProfile, options: CoreStartOptions): JsonObject {
-        val outboundOrEndpoint = buildOutbound(profile)
+        val outboundOrEndpoint = buildOutbound(profile, options)
         val isEndpoint = profile.protocol == Protocol.WIREGUARD
         return buildJsonObject {
             putJsonObject("log") {
@@ -151,6 +156,8 @@ public class SingBoxConfigGenerator(
         putJsonArray("rules") {
             add(buildJsonObject { put("action", "sniff") })
             add(buildJsonObject { put("protocol", "dns"); put("action", "hijack-dns") })
+            // Block QUIC: sniffed QUIC (HTTP/3, UDP/443) is rejected so apps retry over TCP. No separate udp/443 rule.
+            if (options.blockQuic) add(buildJsonObject { put("protocol", "quic"); put("action", "reject") })
             if (options.bypassPrivate) add(buildJsonObject { put("ip_is_private", true); put("outbound", DIRECT_TAG) })
             options.rules.filter { !it.isEmpty }.forEach { rule ->
                 // domain matchers may share one rule (OR); ip_cidr must be separate or it would be AND-ed with domains.
@@ -183,7 +190,9 @@ public class SingBoxConfigGenerator(
         }
     }
 
-    public fun buildOutbound(profile: ConnectionProfile): JsonObject {
+    public fun buildOutbound(profile: ConnectionProfile): JsonObject = buildOutbound(profile, CoreStartOptions())
+
+    public fun buildOutbound(profile: ConnectionProfile, options: CoreStartOptions): JsonObject {
         val base = when (profile.protocol) {
             Protocol.VLESS -> vless(profile)
             Protocol.VMESS -> vmess(profile)
@@ -199,8 +208,28 @@ public class SingBoxConfigGenerator(
         val overrides = profile.coreSpecificOptions
             .filterKeys { it.startsWith(OUTBOUND_OVERRIDE_PREFIX) }
             .map { (k, v) -> k.removePrefix(OUTBOUND_OVERRIDE_PREFIX) to parseLoose(v) }
-        if (overrides.isEmpty()) return base
-        return JsonObject(base.toMutableMap().apply { overrides.forEach { (k, v) -> put(k, v) } })
+        val withFragment = if (options.tlsFragment) applyTlsFragment(base, profile) else base
+        if (overrides.isEmpty()) return withFragment
+        return JsonObject(withFragment.toMutableMap().apply { overrides.forEach { (k, v) -> put(k, v) } })
+    }
+
+    /**
+     * sing-box ≥1.12 TLS fragmentation (`fragment`, `record_fragment`, `fragment_fallback_delay`).
+     * Only meaningful for a TCP TLS handshake, so it is applied to vless/vmess/trojan/http outbounds
+     * that actually carry a `tls` object; QUIC protocols (hysteria/hysteria2/tuic), plaintext
+     * outbounds, WireGuard and REALITY are left untouched (REALITY's ClientHello must stay intact).
+     */
+    private fun applyTlsFragment(outbound: JsonObject, profile: ConnectionProfile): JsonObject {
+        if (profile.protocol !in FRAGMENTABLE_PROTOCOLS) return outbound
+        val tls = outbound["tls"] as? JsonObject ?: return outbound
+        if (tls["enabled"]?.jsonPrimitive?.booleanOrNull != true) return outbound
+        if ((tls["reality"] as? JsonObject)?.get("enabled")?.jsonPrimitive?.booleanOrNull == true) return outbound
+        val fragmented = JsonObject(tls.toMutableMap().apply {
+            put("fragment", JsonPrimitive(true))
+            put("record_fragment", JsonPrimitive(true))
+            put("fragment_fallback_delay", JsonPrimitive(TLS_FRAGMENT_FALLBACK_DELAY))
+        })
+        return JsonObject(outbound.toMutableMap().apply { put("tls", fragmented) })
     }
 
     private fun common(profile: ConnectionProfile, type: String, block: MutableMap<String, JsonElement>.() -> Unit): JsonObject {

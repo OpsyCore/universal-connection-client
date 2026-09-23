@@ -28,6 +28,10 @@ data class ConnectionSettings(
     val logLevel: LogLevel = LogLevel.INFO,
     /** Ordered user routing rules; first match wins in the core. */
     val rules: List<Rule> = emptyList(),
+    /** TLS ClientHello fragmentation for the proxy connection (sing-box `tls.fragment`). Off by default. */
+    val tlsFragment: Boolean = false,
+    /** Reject QUIC inside the tunnel so apps fall back to TCP (`{protocol: quic, action: reject}`). Off by default. */
+    val blockQuic: Boolean = false,
 ) {
     enum class PerAppMode { OFF, INCLUDE, EXCLUDE }
 
@@ -124,6 +128,8 @@ data class ConnectionSettings(
             directDns = directDns?.takeIf { isValidDnsSpec(it) },
             bypassPrivate = bypassPrivate,
             rules = rules.filter { it.enabled }.map { it.toRoutingRule() }.filter { !it.isEmpty },
+            tlsFragment = tlsFragment,
+            blockQuic = blockQuic,
         )
     }
 

@@ -99,7 +99,7 @@ class DiagnosticsViewModel(
             appendLine("network: ${s.network?.let { "${it.interfaceName}#${it.interfaceIndex} expensive=${it.expensive}" } ?: "none"}")
             appendLine("lockdown: ${s.lockdown ?: "unknown"}")
             appendLine("stats: ${s.statistics}")
-            appendLine("settings: remoteDns=${s.settings.remoteDns} directDns=${s.settings.directDns ?: "local"} ipv6=${s.settings.ipv6} strict=${s.settings.strictRoute} bypassPrivate=${s.settings.bypassPrivate} mtu=${s.settings.mtu} perApp=${s.settings.perAppMode}(${s.settings.perAppPackages.size}) rules=${s.settings.rules.count { it.enabled }}/${s.settings.rules.size} logLevel=${s.settings.logLevel}")
+            appendLine("settings: remoteDns=${s.settings.remoteDns} directDns=${s.settings.directDns ?: "local"} ipv6=${s.settings.ipv6} strict=${s.settings.strictRoute} tlsFragment=${s.settings.tlsFragment} blockQuic=${s.settings.blockQuic} bypassPrivate=${s.settings.bypassPrivate} mtu=${s.settings.mtu} perApp=${s.settings.perAppMode}(${s.settings.perAppPackages.size}) rules=${s.settings.rules.count { it.enabled }}/${s.settings.rules.size} logLevel=${s.settings.logLevel}")
             appendLine("events: reconnect=${s.reconnectEvents} network=${s.networkEvents} error=${s.errorEvents} logs=${s.logCount}")
             appendLine("lastError: ${s.lastError ?: "none"}")
         }

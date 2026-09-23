@@ -90,6 +90,13 @@ public data class CoreStartOptions(
     val bypassPrivate: Boolean = true,
     /** User routing rules, evaluated in order before the final (proxy) route. */
     val rules: List<RoutingRule> = emptyList(),
+    /**
+     * Split the proxy's TLS ClientHello (sing-box `tls.fragment` + `tls.record_fragment`).
+     * Applies to TCP-based TLS outbounds only (not QUIC protocols, not REALITY). Default off.
+     */
+    val tlsFragment: Boolean = false,
+    /** Reject QUIC (UDP/443 HTTP/3) inside the tunnel so apps fall back to TCP; sing-box `{protocol: quic, action: reject}`. Default off. */
+    val blockQuic: Boolean = false,
     /** Extra JSON fragments the routing/DNS layers contribute (rule-sets, Phase 6). Override the typed fields when set. */
     val routingConfig: String? = null,
     val dnsConfig: String? = null,

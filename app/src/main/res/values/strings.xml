@@ -170,6 +170,12 @@
     <string name="settings_strict_route">Strict routing</string>
     <string name="settings_strict_route_help">While the tunnel is up, block traffic that would bypass it. This is not a kill switch: when the VPN is off, use Android’s “Block connections without VPN” in system settings.</string>
     <string name="settings_ipv6">IPv6 inside the tunnel</string>
+    <string name="settings_section_network_tweaks">Network tweaks</string>
+    <string name="settings_tls_fragment">TLS fragment</string>
+    <string name="settings_tls_fragment_help">Splits the TLS handshake to the proxy server into several pieces (sing-box fragment + record_fragment). Helps only against simple SNI filtering, slows down connecting, and is not applied to REALITY or QUIC-based servers.</string>
+    <string name="settings_block_quic">Block QUIC (HTTP/3)</string>
+    <string name="settings_block_quic_help">Rejects QUIC inside the tunnel so apps such as YouTube fall back to TCP, which is often faster through a proxy. Apps that only speak QUIC will stop working while this is on.</string>
+    <string name="settings_network_tweaks_note">Both switches change the sing-box config on the next connect only. Leave them off unless you have a specific problem.</string>
     <string name="settings_ipv6_help">Disable if sites fail to load on IPv6-only paths.</string>
     <string name="settings_mtu">MTU</string>
     <string name="settings_mtu_help">%1$d – %2$d. Lower it (e.g. 1400) if large pages stall.</string>

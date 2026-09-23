@@ -169,6 +169,12 @@ fun SettingsScreen(state: SettingsUiState, vm: SettingsViewModel, onBack: () -> 
                 runCatching { context.startActivity(Intent(Settings.ACTION_VPN_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             }
 
+            // ---------------------------------------------------------------- Network tweaks (v1.0.1; all default OFF)
+            Section(stringResource(R.string.settings_section_network_tweaks))
+            SwitchRow(stringResource(R.string.settings_tls_fragment), stringResource(R.string.settings_tls_fragment_help), s.tlsFragment, vm::setTlsFragment)
+            SwitchRow(stringResource(R.string.settings_block_quic), stringResource(R.string.settings_block_quic_help), s.blockQuic, vm::setBlockQuic)
+            Text(stringResource(R.string.settings_network_tweaks_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
             // ---------------------------------------------------------------- Diagnostics
             Section(stringResource(R.string.settings_section_diagnostics))
             Text(stringResource(R.string.settings_log_level), style = MaterialTheme.typography.bodyMedium)

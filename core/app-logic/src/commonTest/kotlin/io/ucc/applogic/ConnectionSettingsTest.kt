@@ -30,6 +30,9 @@ class ConnectionSettingsTest {
         assertEquals(listOf("a.app", "b.app"), o.excludePackages); assertTrue(o.includePackages.isEmpty())
         val noPerApp = s.toStartOptions(testCapabilities.copy(perAppRouting = false))
         assertTrue(noPerApp.excludePackages.isEmpty())
+        assertFalse(o.tlsFragment); assertFalse(o.blockQuic)
+        val net = ConnectionSettings(tlsFragment = true, blockQuic = true).toStartOptions(testCapabilities)
+        assertTrue(net.tlsFragment); assertTrue(net.blockQuic)
         val include = s.copy(perAppMode = PerAppMode.INCLUDE).toStartOptions(testCapabilities)
         assertEquals(listOf("a.app", "b.app"), include.includePackages); assertTrue(include.excludePackages.isEmpty())
     }
@@ -44,6 +47,13 @@ class ConnectionSettingsTest {
         val s = ConnectionSettings(perAppMode = PerAppMode.INCLUDE, perAppPackages = setOf("x"))
         val text = json.encodeToString(ConnectionSettings.serializer(), s).replace("}", ",\"futureKey\":1}")
         assertEquals(s, json.decodeFromString(ConnectionSettings.serializer(), text))
+    }
+
+    @Test fun `settings persisted by v1_0_0 without the v1_0_1 keys decode with the new switches off`() {
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+        val v100 = """{"remoteDns":"https://1.1.1.1/dns-query","bypassPrivate":true,"ipv6":false,"strictRoute":true,"mtu":9000,"perAppMode":"OFF","perAppPackages":[],"logLevel":"INFO","rules":[]}"""
+        val s = json.decodeFromString(ConnectionSettings.serializer(), v100)
+        assertFalse(s.tlsFragment); assertFalse(s.blockQuic); assertFalse(s.ipv6)
     }
 
     @Test fun `rule items are classified and mapped into typed routing rules`() {

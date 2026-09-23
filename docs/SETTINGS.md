@@ -24,6 +24,8 @@ says so explicitly. There is no live re-configuration.
 | Strict routing | `strictRoute` | `inbounds[tun].strict_route` |
 | IPv6 | `ipv6` | tun `address` gains `fdfe:dcba:9876::1/126`; `dns.strategy` = `prefer_ipv4` when on, `ipv4_only` when off |
 | MTU | `mtu` (1280–9000) | `inbounds[tun].mtu` |
+| TLS fragment (v1.0.1, default off) | `tlsFragment` | proxy outbound `tls.fragment: true`, `tls.record_fragment: true`, `tls.fragment_fallback_delay: "500ms"` — only for vless/vmess/trojan/http outbounds that have `tls.enabled`; **not** applied to REALITY, hysteria/hysteria2/tuic (QUIC), shadowsocks, socks, wireguard. sing-box ≥1.12 syntax; Xray `fragment.length/interval` is never emitted. |
+| Block QUIC (v1.0.1, default off) | `blockQuic` | `route.rules += { protocol: quic, action: reject }` right after `hijack-dns`, before the LAN-bypass and user rules (relies on the `sniff` action already in place). No separate `udp/443` rule, no deprecated `block` outbound. |
 | Per-app mode + packages | `includePackages` / `excludePackages` | `inbounds[tun].include_package` / `exclude_package` — emitted **only** if `capabilities.perAppRouting` |
 | Core log level | `logLevel` | `log.level` |
 
