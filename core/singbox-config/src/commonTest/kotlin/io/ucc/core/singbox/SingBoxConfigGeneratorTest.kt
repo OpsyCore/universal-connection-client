@@ -226,6 +226,61 @@ class SingBoxConfigGeneratorTest {
     }
 
     @Test
+    fun `lan proxy is off by default and adds an unauthenticated mixed inbound on all interfaces`() {
+        val p = base(Protocol.TROJAN, Authentication.Trojan("pw"))
+        val off = gen.generateDocument(p, CoreStartOptions())["inbounds"]!!.jsonArray.map { it.jsonObject }
+        assertEquals(listOf("tun"), off.map { it["type"]!!.jsonPrimitive.content })
+
+        val on = gen.generateDocument(p, CoreStartOptions(lanProxy = true, lanProxyPort = 10808))["inbounds"]!!.jsonArray.map { it.jsonObject }
+        assertEquals(listOf("tun", "mixed"), on.map { it["type"]!!.jsonPrimitive.content })
+        val mixed = on[1]
+        assertEquals("lan-in", mixed["tag"]!!.jsonPrimitive.content)
+        assertEquals("0.0.0.0", mixed["listen"]!!.jsonPrimitive.content)
+        assertEquals(10808, mixed["listen_port"]!!.jsonPrimitive.int)
+        assertNull(mixed["users"]); assertNull(mixed["sniff"]); assertNull(mixed["domain_strategy"]) // no deprecated inbound fields
+
+        val clamped = gen.generateDocument(p, CoreStartOptions(lanProxy = true, lanProxyPort = 80))["inbounds"]!!.jsonArray[1].jsonObject
+        assertEquals(1024, clamped["listen_port"]!!.jsonPrimitive.int, "privileged ports are clamped into range")
+    }
+
+    @Test
+    fun `fake dns is off by default and uses the typed fakeip server with ipv6 range only when ipv6 is on`() {
+        val p = base(Protocol.TROJAN, Authentication.Trojan("pw"))
+        val off = gen.generateDocument(p, CoreStartOptions())["dns"]!!.jsonObject
+        assertTrue(off["servers"]!!.jsonArray.none { it.jsonObject["type"]!!.jsonPrimitive.content == "fakeip" })
+        assertNull(off["fakeip"], "legacy dns.fakeip block is never emitted")
+        assertEquals(1, off["rules"]!!.jsonArray.size)
+
+        val v6 = gen.generateDocument(p, CoreStartOptions(fakeDns = true, ipv6 = true))["dns"]!!.jsonObject
+        val fake6 = v6["servers"]!!.jsonArray.map { it.jsonObject }.single { it["type"]!!.jsonPrimitive.content == "fakeip" }
+        assertEquals("dns-fakeip", fake6["tag"]!!.jsonPrimitive.content)
+        assertEquals("198.18.0.0/15", fake6["inet4_range"]!!.jsonPrimitive.content)
+        assertEquals("fc00::/18", fake6["inet6_range"]!!.jsonPrimitive.content)
+        assertNull(v6["fakeip"])
+        val rules6 = v6["rules"]!!.jsonArray.map { it.jsonObject }
+        // proxy-host → direct, LAN suffixes → direct, then A+AAAA → fakeip
+        assertEquals(3, rules6.size)
+        assertEquals("dns-direct", rules6[0]["server"]!!.jsonPrimitive.content)
+        assertTrue(rules6[1]["domain_suffix"]!!.jsonArray.map { it.jsonPrimitive.content }.containsAll(listOf(".local", ".lan", ".home.arpa")))
+        assertEquals("dns-direct", rules6[1]["server"]!!.jsonPrimitive.content)
+        assertEquals(listOf("A", "AAAA"), rules6[2]["query_type"]!!.jsonArray.map { it.jsonPrimitive.content })
+        assertEquals("dns-fakeip", rules6[2]["server"]!!.jsonPrimitive.content)
+        assertEquals("dns-remote", v6["final"]!!.jsonPrimitive.content, "non-A/AAAA queries still go to the real remote resolver")
+        assertTrue(v6["independent_cache"]!!.jsonPrimitive.boolean)
+
+        // IPv6 off → strategy ipv4_only, no inet6_range, and only A queries are faked (no AAAA answers can ever be produced)
+        val v4 = gen.generateDocument(p, CoreStartOptions(fakeDns = true, ipv6 = false))["dns"]!!.jsonObject
+        assertEquals("ipv4_only", v4["strategy"]!!.jsonPrimitive.content)
+        val fake4 = v4["servers"]!!.jsonArray.map { it.jsonObject }.single { it["type"]!!.jsonPrimitive.content == "fakeip" }
+        assertNull(fake4["inet6_range"])
+        assertEquals(listOf("A"), v4["rules"]!!.jsonArray.last().jsonObject["query_type"]!!.jsonArray.map { it.jsonPrimitive.content })
+
+        // bypassPrivate off → no LAN-suffix exclusion rule
+        val noBypass = gen.generateDocument(p, CoreStartOptions(fakeDns = true, bypassPrivate = false))["dns"]!!.jsonObject["rules"]!!.jsonArray
+        assertEquals(2, noBypass.size)
+    }
+
+    @Test
     fun `user routing rules are emitted in order and domains and cidrs split and block maps to reject`() {
         val p = base(Protocol.TROJAN, Authentication.Trojan("pw"))
         val opts = CoreStartOptions(

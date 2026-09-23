@@ -45,6 +45,13 @@ public class SingBoxConfigGenerator(
         public const val TUN_TAG: String = "tun-in"
         public const val DNS_REMOTE_TAG: String = "dns-remote"
         public const val DNS_DIRECT_TAG: String = "dns-direct"
+        public const val DNS_FAKEIP_TAG: String = "dns-fakeip"
+        public const val LAN_PROXY_TAG: String = "lan-in"
+        /** Same reserved ranges sing-box documents for FakeIP (RFC 2544 benchmark block / ULA slice). */
+        public const val FAKEIP_INET4_RANGE: String = "198.18.0.0/15"
+        public const val FAKEIP_INET6_RANGE: String = "fc00::/18"
+        /** mDNS / common LAN / special-use suffixes (RFC 6762, RFC 8375, RFC 6761) kept on the real resolver under FakeIP. */
+        public val FAKEIP_EXCLUDED_SUFFIXES: List<String> = listOf(".local", ".lan", ".home", ".home.arpa", ".internal", ".localhost", ".localdomain")
         public const val DEFAULT_REMOTE_DNS: String = "https://1.1.1.1/dns-query"
         public const val DEFAULT_DIRECT_DNS: String = "local"
         private const val OUTBOUND_OVERRIDE_PREFIX = "singbox.outbound."
@@ -69,7 +76,10 @@ public class SingBoxConfigGenerator(
                 put("timestamp", true)
             }
             put("dns", options.dnsConfig?.let(::parseObject) ?: defaultDns(profile, options))
-            putJsonArray("inbounds") { add(tunInbound(options)) }
+            putJsonArray("inbounds") {
+                add(tunInbound(options))
+                if (options.lanProxy) add(lanProxyInbound(options))
+            }
             putJsonArray("outbounds") {
                 if (!isEndpoint) add(outboundOrEndpoint)
                 add(buildJsonObject { put("type", "direct"); put("tag", DIRECT_TAG) })
@@ -103,6 +113,18 @@ public class SingBoxConfigGenerator(
         }
     }
 
+    /**
+     * "Allow LAN": a SOCKS5+HTTP (`mixed`) listener on every interface so other devices on the same
+     * network can use this phone as a proxy. Deliberately unauthenticated and off by default; the UI
+     * carries the warning. Traffic entering here follows the same route rules as TUN traffic.
+     */
+    private fun lanProxyInbound(options: CoreStartOptions): JsonObject = buildJsonObject {
+        put("type", "mixed")
+        put("tag", LAN_PROXY_TAG)
+        put("listen", "0.0.0.0")
+        put("listen_port", options.lanProxyPort.coerceIn(CoreStartOptions.LAN_PROXY_PORT_RANGE))
+    }
+
     private fun defaultDns(profile: ConnectionProfile, options: CoreStartOptions): JsonObject = buildJsonObject {
         // Precedence: per-profile override → global setting → default (profile overrides are explicit user intent).
         val remote = profile.dns.remoteDns ?: options.remoteDns ?: DEFAULT_REMOTE_DNS
@@ -110,6 +132,14 @@ public class SingBoxConfigGenerator(
         putJsonArray("servers") {
             add(dnsServer(DNS_REMOTE_TAG, remote, detour = PROXY_TAG))
             add(dnsServer(DNS_DIRECT_TAG, direct, detour = null))
+            if (options.fakeDns) add(buildJsonObject {
+                put("type", "fakeip")
+                put("tag", DNS_FAKEIP_TAG)
+                put("inet4_range", FAKEIP_INET4_RANGE)
+                // IPv6 off → no inet6 range at all, so FakeIP can never hand out an AAAA answer
+                // (the tun has no inet6 address and the global strategy is ipv4_only).
+                if (options.ipv6) put("inet6_range", FAKEIP_INET6_RANGE)
+            })
         }
         putJsonArray("rules") {
             // Resolve the proxy server's own hostname directly so DNS is not a chicken-and-egg problem.
@@ -117,6 +147,18 @@ public class SingBoxConfigGenerator(
                 putJsonArray("domain") { add(JsonPrimitive(profile.address)) }
                 put("server", DNS_DIRECT_TAG)
             })
+            if (options.fakeDns) {
+                // Local-network names must never receive a fake address: they would be routed to the proxy
+                // (fake IPs are not private) and become unreachable. Matched pre-resolution by suffix.
+                if (options.bypassPrivate) add(buildJsonObject {
+                    putJsonArray("domain_suffix") { FAKEIP_EXCLUDED_SUFFIXES.forEach { add(JsonPrimitive(it)) } }
+                    put("server", DNS_DIRECT_TAG)
+                })
+                add(buildJsonObject {
+                    putJsonArray("query_type") { add(JsonPrimitive("A")); if (options.ipv6) add(JsonPrimitive("AAAA")) }
+                    put("server", DNS_FAKEIP_TAG)
+                })
+            }
         }
         put("final", DNS_REMOTE_TAG)
         // IPv6 off (Settings) → resolve A records only, so no AAAA answer can be chosen while the TUN has no inet6 address.

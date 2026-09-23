@@ -33,6 +33,13 @@ class ConnectionSettingsTest {
         assertFalse(o.tlsFragment); assertFalse(o.blockQuic)
         val net = ConnectionSettings(tlsFragment = true, blockQuic = true).toStartOptions(testCapabilities)
         assertTrue(net.tlsFragment); assertTrue(net.blockQuic)
+        assertFalse(o.lanProxy); assertFalse(o.fakeDns); assertEquals(2080, o.lanProxyPort)
+        val lan = ConnectionSettings(lanProxy = true, lanProxyPort = 10808, fakeDns = true).toStartOptions(testCapabilities)
+        assertTrue(lan.lanProxy); assertEquals(10808, lan.lanProxyPort); assertTrue(lan.fakeDns)
+        assertFalse(ConnectionSettings(fakeDns = true).toStartOptions(testCapabilities.copy(fakeIp = false)).fakeDns, "fakeDns dropped when the core lacks FakeIP")
+        assertFalse(ConnectionSettings(lanProxy = true, lanProxyPort = 80).toStartOptions(testCapabilities).lanProxy, "invalid port never opens a listener")
+        assertEquals(listOf(ConnectionSettings.Problem.LanProxyPortOutOfRange), ConnectionSettings(lanProxy = true, lanProxyPort = 80).validate())
+        assertTrue(ConnectionSettings(lanProxy = false, lanProxyPort = 80).validate().isEmpty(), "port only validated while LAN sharing is on")
         val include = s.copy(perAppMode = PerAppMode.INCLUDE).toStartOptions(testCapabilities)
         assertEquals(listOf("a.app", "b.app"), include.includePackages); assertTrue(include.excludePackages.isEmpty())
     }
@@ -54,6 +61,7 @@ class ConnectionSettingsTest {
         val v100 = """{"remoteDns":"https://1.1.1.1/dns-query","bypassPrivate":true,"ipv6":false,"strictRoute":true,"mtu":9000,"perAppMode":"OFF","perAppPackages":[],"logLevel":"INFO","rules":[]}"""
         val s = json.decodeFromString(ConnectionSettings.serializer(), v100)
         assertFalse(s.tlsFragment); assertFalse(s.blockQuic); assertFalse(s.ipv6)
+        assertFalse(s.lanProxy); assertFalse(s.fakeDns); assertEquals(2080, s.lanProxyPort)
     }
 
     @Test fun `rule items are classified and mapped into typed routing rules`() {

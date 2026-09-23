@@ -32,6 +32,11 @@ data class ConnectionSettings(
     val tlsFragment: Boolean = false,
     /** Reject QUIC inside the tunnel so apps fall back to TCP (`{protocol: quic, action: reject}`). Off by default. */
     val blockQuic: Boolean = false,
+    /** Share the tunnel as an unauthenticated SOCKS5/HTTP proxy on the local network (`mixed` inbound on 0.0.0.0). Off by default. */
+    val lanProxy: Boolean = false,
+    val lanProxyPort: Int = CoreStartOptions.DEFAULT_LAN_PROXY_PORT,
+    /** FakeIP for tunnelled A/AAAA queries (sing-box `fakeip` server). Off by default. */
+    val fakeDns: Boolean = false,
 ) {
     enum class PerAppMode { OFF, INCLUDE, EXCLUDE }
 
@@ -96,6 +101,7 @@ data class ConnectionSettings(
         /** Remote DNS equals direct DNS: bypass rules and tunnel share one resolver, defeating the split. */
         data object RemoteEqualsDirect : Problem()
         data class RuleItemInvalid(val ruleId: String, val item: String) : Problem()
+        data object LanProxyPortOutOfRange : Problem()
         data class RuleEmpty(val ruleId: String) : Problem()
     }
 
@@ -105,6 +111,7 @@ data class ConnectionSettings(
         if (directDns != null && !isValidDnsSpec(directDns)) add(Problem.DirectDnsInvalid)
         if (directDns != null && directDns.trim() == remoteDns.trim()) add(Problem.RemoteEqualsDirect)
         if (mtu !in MTU_RANGE) add(Problem.MtuOutOfRange)
+        if (lanProxy && lanProxyPort !in CoreStartOptions.LAN_PROXY_PORT_RANGE) add(Problem.LanProxyPortOutOfRange)
         for (r in rules) {
             if (r.items.isEmpty()) add(Problem.RuleEmpty(r.id))
             r.items.filter { Rule.classify(it) == Rule.Item.Invalid }.forEach { add(Problem.RuleItemInvalid(r.id, it)) }
@@ -130,6 +137,9 @@ data class ConnectionSettings(
             rules = rules.filter { it.enabled }.map { it.toRoutingRule() }.filter { !it.isEmpty },
             tlsFragment = tlsFragment,
             blockQuic = blockQuic,
+            lanProxy = lanProxy && lanProxyPort in CoreStartOptions.LAN_PROXY_PORT_RANGE,
+            lanProxyPort = lanProxyPort,
+            fakeDns = fakeDns && capabilities.fakeIp,
         )
     }
 

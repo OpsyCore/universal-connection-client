@@ -87,6 +87,9 @@ class SettingsViewModel(
     fun setStrictRoute(v: Boolean) = update { it.copy(strictRoute = v) }
     fun setTlsFragment(v: Boolean) = update { it.copy(tlsFragment = v) }
     fun setBlockQuic(v: Boolean) = update { it.copy(blockQuic = v) }
+    fun setLanProxy(v: Boolean) = update { it.copy(lanProxy = v) }
+    fun setLanProxyPort(v: String) { v.toIntOrNull()?.let { port -> update { it.copy(lanProxyPort = port) } } }
+    fun setFakeDns(v: Boolean) = update { it.copy(fakeDns = v) }
     fun setMtu(v: String) { v.toIntOrNull()?.let { m -> update { it.copy(mtu = m) } } }
     fun setLogLevel(v: ConnectionSettings.LogLevel) = update { it.copy(logLevel = v) }
     fun setPerAppMode(v: ConnectionSettings.PerAppMode) = update { it.copy(perAppMode = v) }
