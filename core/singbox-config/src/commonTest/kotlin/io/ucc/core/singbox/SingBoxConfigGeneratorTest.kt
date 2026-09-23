@@ -226,24 +226,6 @@ class SingBoxConfigGeneratorTest {
     }
 
     @Test
-    fun `lan proxy is off by default and adds an unauthenticated mixed inbound on all interfaces`() {
-        val p = base(Protocol.TROJAN, Authentication.Trojan("pw"))
-        val off = gen.generateDocument(p, CoreStartOptions())["inbounds"]!!.jsonArray.map { it.jsonObject }
-        assertEquals(listOf("tun"), off.map { it["type"]!!.jsonPrimitive.content })
-
-        val on = gen.generateDocument(p, CoreStartOptions(lanProxy = true, lanProxyPort = 10808))["inbounds"]!!.jsonArray.map { it.jsonObject }
-        assertEquals(listOf("tun", "mixed"), on.map { it["type"]!!.jsonPrimitive.content })
-        val mixed = on[1]
-        assertEquals("lan-in", mixed["tag"]!!.jsonPrimitive.content)
-        assertEquals("0.0.0.0", mixed["listen"]!!.jsonPrimitive.content)
-        assertEquals(10808, mixed["listen_port"]!!.jsonPrimitive.int)
-        assertNull(mixed["users"]); assertNull(mixed["sniff"]); assertNull(mixed["domain_strategy"]) // no deprecated inbound fields
-
-        val clamped = gen.generateDocument(p, CoreStartOptions(lanProxy = true, lanProxyPort = 80))["inbounds"]!!.jsonArray[1].jsonObject
-        assertEquals(1024, clamped["listen_port"]!!.jsonPrimitive.int, "privileged ports are clamped into range")
-    }
-
-    @Test
     fun `fake dns is off by default and uses the typed fakeip server with ipv6 range only when ipv6 is on`() {
         val p = base(Protocol.TROJAN, Authentication.Trojan("pw"))
         val off = gen.generateDocument(p, CoreStartOptions())["dns"]!!.jsonObject

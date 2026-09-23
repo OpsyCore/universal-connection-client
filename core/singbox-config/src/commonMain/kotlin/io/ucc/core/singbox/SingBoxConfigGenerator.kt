@@ -46,7 +46,6 @@ public class SingBoxConfigGenerator(
         public const val DNS_REMOTE_TAG: String = "dns-remote"
         public const val DNS_DIRECT_TAG: String = "dns-direct"
         public const val DNS_FAKEIP_TAG: String = "dns-fakeip"
-        public const val LAN_PROXY_TAG: String = "lan-in"
         /** Same reserved ranges sing-box documents for FakeIP (RFC 2544 benchmark block / ULA slice). */
         public const val FAKEIP_INET4_RANGE: String = "198.18.0.0/15"
         public const val FAKEIP_INET6_RANGE: String = "fc00::/18"
@@ -76,10 +75,7 @@ public class SingBoxConfigGenerator(
                 put("timestamp", true)
             }
             put("dns", options.dnsConfig?.let(::parseObject) ?: defaultDns(profile, options))
-            putJsonArray("inbounds") {
-                add(tunInbound(options))
-                if (options.lanProxy) add(lanProxyInbound(options))
-            }
+            putJsonArray("inbounds") { add(tunInbound(options)) }
             putJsonArray("outbounds") {
                 if (!isEndpoint) add(outboundOrEndpoint)
                 add(buildJsonObject { put("type", "direct"); put("tag", DIRECT_TAG) })
@@ -111,18 +107,6 @@ public class SingBoxConfigGenerator(
         if (options.excludePackages.isNotEmpty()) {
             putJsonArray("exclude_package") { options.excludePackages.forEach { add(JsonPrimitive(it)) } }
         }
-    }
-
-    /**
-     * "Allow LAN": a SOCKS5+HTTP (`mixed`) listener on every interface so other devices on the same
-     * network can use this phone as a proxy. Deliberately unauthenticated and off by default; the UI
-     * carries the warning. Traffic entering here follows the same route rules as TUN traffic.
-     */
-    private fun lanProxyInbound(options: CoreStartOptions): JsonObject = buildJsonObject {
-        put("type", "mixed")
-        put("tag", LAN_PROXY_TAG)
-        put("listen", "0.0.0.0")
-        put("listen_port", options.lanProxyPort.coerceIn(CoreStartOptions.LAN_PROXY_PORT_RANGE))
     }
 
     private fun defaultDns(profile: ConnectionProfile, options: CoreStartOptions): JsonObject = buildJsonObject {

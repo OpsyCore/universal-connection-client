@@ -98,12 +98,6 @@ public data class CoreStartOptions(
     /** Reject QUIC (UDP/443 HTTP/3) inside the tunnel so apps fall back to TCP; sing-box `{protocol: quic, action: reject}`. Default off. */
     val blockQuic: Boolean = false,
     /**
-     * Expose a SOCKS5/HTTP proxy for other devices on the local network (sing-box `mixed` inbound on
-     * `0.0.0.0:[lanProxyPort]`). Unauthenticated: an open proxy for everyone on the LAN. Default off.
-     */
-    val lanProxy: Boolean = false,
-    val lanProxyPort: Int = DEFAULT_LAN_PROXY_PORT,
-    /**
      * FakeIP: A/AAAA answers for tunnelled queries come from a reserved range so routing sees domains
      * and no upstream lookup happens before the connection (sing-box `fakeip` DNS server). Default off.
      */
@@ -111,12 +105,7 @@ public data class CoreStartOptions(
     /** Extra JSON fragments the routing/DNS layers contribute (rule-sets, Phase 6). Override the typed fields when set. */
     val routingConfig: String? = null,
     val dnsConfig: String? = null,
-) {
-    public companion object {
-        public const val DEFAULT_LAN_PROXY_PORT: Int = 2080
-        public val LAN_PROXY_PORT_RANGE: IntRange = 1024..65535
-    }
-}
+)
 
 /**
  * One core-agnostic routing rule: all non-empty matchers are OR-ed by the core

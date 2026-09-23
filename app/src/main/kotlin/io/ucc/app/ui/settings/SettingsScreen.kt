@@ -52,7 +52,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.ucc.app.R
 import io.ucc.applogic.ConnectionSettings
-import io.ucc.core.engine.CoreStartOptions
 import io.ucc.applogic.ConnectionSettings.PerAppMode
 import io.ucc.applogic.ConnectionSettings.Problem
 import io.ucc.app.data.ThemeMode
@@ -178,30 +177,6 @@ fun SettingsScreen(state: SettingsUiState, vm: SettingsViewModel, onBack: () -> 
                 SwitchRow(stringResource(R.string.settings_fake_dns), stringResource(R.string.settings_fake_dns_help), s.fakeDns, vm::setFakeDns)
             }
             Text(stringResource(R.string.settings_network_tweaks_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-            // ---------------------------------------------------------------- Allow LAN (v1.0.1; default OFF, open proxy warning)
-            Section(stringResource(R.string.settings_section_lan))
-            SwitchRow(stringResource(R.string.settings_lan_proxy), stringResource(R.string.settings_lan_proxy_help), s.lanProxy, vm::setLanProxy)
-            if (s.lanProxy) {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(stringResource(R.string.settings_lan_proxy_warning_title), style = MaterialTheme.typography.titleSmall)
-                        Text(stringResource(R.string.settings_lan_proxy_warning_body), style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-                OutlinedTextField(
-                    value = s.lanProxyPort.toString(), onValueChange = vm::setLanProxyPort, modifier = Modifier.fillMaxWidth(), singleLine = true,
-                    label = { Text(stringResource(R.string.settings_lan_proxy_port)) },
-                    isError = Problem.LanProxyPortOutOfRange in state.problems,
-                    supportingText = {
-                        Text(
-                            if (Problem.LanProxyPortOutOfRange in state.problems) stringResource(R.string.settings_lan_proxy_port_invalid)
-                            else stringResource(R.string.settings_lan_proxy_port_help, CoreStartOptions.LAN_PROXY_PORT_RANGE.first, CoreStartOptions.LAN_PROXY_PORT_RANGE.last),
-                        )
-                    },
-                )
-                Text(stringResource(R.string.settings_lan_proxy_howto, s.lanProxyPort), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
 
             // ---------------------------------------------------------------- Diagnostics
             Section(stringResource(R.string.settings_section_diagnostics))

@@ -177,15 +177,6 @@
     <string name="settings_block_quic_help">Rejects QUIC inside the tunnel so apps such as YouTube fall back to TCP, which is often faster through a proxy. Apps that only speak QUIC will stop working while this is on.</string>
     <string name="settings_fake_dns">FakeDNS</string>
     <string name="settings_fake_dns_help">Answers DNS queries inside the tunnel with placeholder addresses (198.18.0.0/15) so connections start without waiting for a real lookup and routing rules see domain names. Local names (.local, .lan, .home.arpa …) keep using real DNS. Some apps cache these placeholder addresses; reconnecting the app fixes that.</string>
-    <string name="settings_section_lan">Local network sharing</string>
-    <string name="settings_lan_proxy">Allow LAN (share as proxy)</string>
-    <string name="settings_lan_proxy_help">Other devices on the same Wi‑Fi can use this phone as a SOCKS5/HTTP proxy while connected.</string>
-    <string name="settings_lan_proxy_warning_title">Open proxy — no password</string>
-    <string name="settings_lan_proxy_warning_body">Anyone on the same network (public Wi‑Fi, hotspot guests) can route their traffic through your connection and your proxy server without authentication. Turn it off when you are not using it.</string>
-    <string name="settings_lan_proxy_port">Port</string>
-    <string name="settings_lan_proxy_port_help">%1$d – %2$d</string>
-    <string name="settings_lan_proxy_howto">On the other device set proxy type SOCKS5 or HTTP, host = this phone’s Wi‑Fi IP address (see Android Wi‑Fi details), port = %1$d.</string>
-    <string name="settings_lan_proxy_port_invalid">Port out of range.</string>
     <string name="settings_network_tweaks_note">Both switches change the sing-box config on the next connect only. Leave them off unless you have a specific problem.</string>
     <string name="settings_ipv6_help">Disable if sites fail to load on IPv6-only paths.</string>
     <string name="settings_mtu">MTU</string>

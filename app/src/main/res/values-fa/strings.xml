@@ -175,15 +175,6 @@
     <string name="settings_block_quic_help">QUIC را داخل تونل رد می‌کند تا برنامه‌هایی مثل یوتیوب به TCP برگردند که معمولاً از طریق پراکسی سریع‌تر است. برنامه‌هایی که فقط با QUIC کار می‌کنند تا وقتی این گزینه روشن است کار نخواهند کرد.</string>
     <string name="settings_fake_dns">FakeDNS</string>
     <string name="settings_fake_dns_help">به درخواست‌های DNS داخل تونل با آدرس‌های جایگزین (198.18.0.0/15) پاسخ می‌دهد تا اتصال بدون انتظار برای resolve واقعی شروع شود و قوانین مسیریابی نام دامنه را ببینند. نام‌های محلی (.local، .lan، .home.arpa و …) همچنان با DNS واقعی حل می‌شوند. بعضی برنامه‌ها این آدرس‌ها را کش می‌کنند؛ بستن و باز کردن برنامه مشکل را حل می‌کند.</string>
-    <string name="settings_section_lan">اشتراک‌گذاری در شبکهٔ محلی</string>
-    <string name="settings_lan_proxy">اجازهٔ LAN (اشتراک به‌عنوان پراکسی)</string>
-    <string name="settings_lan_proxy_help">دستگاه‌های دیگر روی همین Wi‑Fi می‌توانند تا وقتی متصل هستید از این گوشی به‌عنوان پراکسی SOCKS5/HTTP استفاده کنند.</string>
-    <string name="settings_lan_proxy_warning_title">پراکسی باز — بدون رمز</string>
-    <string name="settings_lan_proxy_warning_body">هر کسی در همین شبکه (Wi‑Fi عمومی، مهمان‌های هات‌اسپات) می‌تواند بدون احراز هویت ترافیکش را از اتصال و سرور پراکسی شما عبور دهد. وقتی استفاده نمی‌کنید خاموشش کنید.</string>
-    <string name="settings_lan_proxy_port">پورت</string>
-    <string name="settings_lan_proxy_port_help">%1$d تا %2$d</string>
-    <string name="settings_lan_proxy_howto">در دستگاه دیگر نوع پراکسی را SOCKS5 یا HTTP بگذارید، host = آدرس IP این گوشی در Wi‑Fi (در جزئیات Wi‑Fi اندروید)، port = %1$d.</string>
-    <string name="settings_lan_proxy_port_invalid">پورت خارج از محدوده است.</string>
     <string name="settings_network_tweaks_note">هر دو گزینه فقط در اتصال بعدی روی پیکربندی sing-box اثر می‌گذارند. اگر مشکل مشخصی ندارید خاموش بگذارید.</string>
     <string name="settings_ipv6_help">اگر سایت‌ها روی مسیرهای فقط-IPv6 باز نمی‌شوند، خاموش کنید.</string>
     <string name="settings_mtu">MTU</string>
