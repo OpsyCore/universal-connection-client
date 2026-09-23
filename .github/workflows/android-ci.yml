@@ -87,6 +87,9 @@ jobs:
     needs: libbox
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: write   # only for 'Publish signed build as GitHub draft release' (Actions artifact storage is quota-blocked)
+      checks: write
     steps:
       - uses: actions/checkout@v4
 
@@ -355,3 +358,50 @@ jobs:
         run: |
           echo "Artifact uploads are best-effort: the account's Actions artifact storage has been full (every upload refused)."
           echo "Build/test verdicts above are authoritative; SHA256SUMS.txt / PROVENANCE.txt are echoed in the gradle-errors check-run."
+
+      # Actions artifact storage is quota-blocked for this account, so a production-signed build is
+      # additionally published as a *draft* GitHub release (release assets are not counted against the
+      # Actions storage quota). A draft creates no tag and is visible only to repository members; the
+      # candidate that passes the device test plan is then published as v1.0.0 (same bytes, same hashes).
+      - name: Publish signed build as GitHub draft release
+        if: success() && steps.keystore.outputs.signed == 'true' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          SHORT="${SHA:0:7}"
+          TAG="v1.0.0"                     # draft: no git tag is created until the release is published
+          TITLE="v1.0.0 release candidate — ${SHORT} (CI run ${RUN_NUMBER})"
+          D="build/release-artifacts"; R="build/release-candidate"; mkdir -p "$R"
+          cp "$D"/universal-connection-client-1.0.0-release-signed.apk "$R/universal-connection-client-1.0.0-${SHORT}-release-signed.apk"
+          cp "$D"/universal-connection-client-1.0.0-release-signed.aab "$R/universal-connection-client-1.0.0-${SHORT}-release-signed.aab"
+          cp "$D"/PROVENANCE.txt "$R/PROVENANCE-${SHORT}.txt"
+          cp "$D"/apksigner-verify.txt "$R/apksigner-verify-${SHORT}.txt"
+          if [ -f "$D"/release-inspection.txt ]; then cp "$D"/release-inspection.txt "$R/release-inspection-${SHORT}.txt"; fi
+          ( cd app/build/outputs/mapping/singboxRelease && zip -q -r "$GITHUB_WORKSPACE/$R/r8-mapping-${SHORT}.zip" . )
+          ( cd "$R" && sha256sum * > "SHA256SUMS-${SHORT}.txt" && cat "SHA256SUMS-${SHORT}.txt" )
+          {
+            echo "**DRAFT — release candidate, not a release.** Commit \`${SHA}\`, CI run [${RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID})."
+            echo
+            echo "Pending before publishing as v1.0.0: docs/DEVICE_TEST_PLAN.md section E (DNS, IPv6 on/off) on a real device, Play Console declarations, GPL source/notice decision."
+            echo
+            echo '```'; cat "$R/SHA256SUMS-${SHORT}.txt"; echo '```'
+            echo
+            echo "Signer certificate (apksigner):"; echo '```'
+            grep -E "Signer.*certificate (DN|SHA-256 digest)" "$D"/apksigner-verify.txt || true
+            echo '```'
+          } > "$R/notes.md"
+          # Never touch a published release; replace only a previous *draft* candidate of the same name.
+          if EXISTING=$(gh release view "$TAG" --json isDraft,url --jq '"\(.isDraft) \(.url)"' 2>/dev/null); then
+            if [ "${EXISTING%% *}" = "true" ]; then echo "replacing previous draft ${EXISTING#* }"; gh release delete "$TAG" --yes
+            else echo "::notice::$TAG is already published (${EXISTING#* }); not creating a new draft."; exit 0; fi
+          fi
+          gh release create "$TAG" --draft --target "$SHA" --title "$TITLE" --notes-file "$R/notes.md" \
+            "$R"/universal-connection-client-1.0.0-${SHORT}-release-signed.apk \
+            "$R"/universal-connection-client-1.0.0-${SHORT}-release-signed.aab \
+            "$R"/r8-mapping-${SHORT}.zip "$R"/SHA256SUMS-${SHORT}.txt "$R"/PROVENANCE-${SHORT}.txt \
+            "$R"/apksigner-verify-${SHORT}.txt $( [ -f "$R/release-inspection-${SHORT}.txt" ] && echo "$R/release-inspection-${SHORT}.txt" )
+          gh release view "$TAG" --json url,isDraft,assets --jq '"draft=\(.isDraft) url=\(.url)", (.assets[] | "  \(.name) \(.size)B")' || true
