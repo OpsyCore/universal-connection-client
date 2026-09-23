@@ -23,7 +23,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.net.InetAddress
 
@@ -219,9 +221,17 @@ public class UcVpnService : VpnService(), TunProvider {
 
     private fun observeStateForNotification() {
         val flow = VpnServiceRegistry.stateForNotification ?: return
+        val enabledFlow = VpnServiceRegistry.notificationSpeedEnabled ?: MutableStateFlow(false)
+        val statsFlow = VpnServiceRegistry.statisticsForNotification ?: MutableStateFlow(null)
         notificationJob?.cancel()
         notificationJob = scope.launch {
-            flow.collectLatest { state ->
+            // Speed meter (v1.0.1, default off): the statistics flow ticks once per second from the core and
+            // is null whenever the core is not running, so updates stop by themselves on disconnect. When the
+            // switch is off, or the state is anything but Connected, the rate line is dropped and the
+            // notification is only re-posted on state changes (as before).
+            combine(flow, enabledFlow, statsFlow) { state, enabled, stats ->
+                Triple(state, enabled, if (SpeedMeter.shouldRender(enabled, state, stats)) stats else null)
+            }.collectLatest { (state, _, stats) ->
                 val name = state.profileIdOrNull?.let { id -> VpnServiceRegistry.profileNameLookup?.invoke(id) }
                 val title = when (state) {
                     is ConnectionState.Starting, is ConnectionState.Connecting -> getString(R.string.vpn_notification_title_starting)
@@ -230,8 +240,9 @@ public class UcVpnService : VpnService(), TunProvider {
                     is ConnectionState.Stopping -> getString(R.string.vpn_notification_title_stopping)
                     else -> return@collectLatest
                 }
+                val text = if (stats != null) listOfNotNull(name, SpeedMeter.line(stats)).joinToString(" \u00b7 ") else name
                 val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                nm.notify(NOTIFICATION_ID, buildNotification(title, name))
+                nm.notify(NOTIFICATION_ID, buildNotification(title, text))
             }
         }
     }

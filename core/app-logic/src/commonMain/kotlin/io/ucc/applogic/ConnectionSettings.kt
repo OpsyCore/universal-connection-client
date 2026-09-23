@@ -34,6 +34,8 @@ data class ConnectionSettings(
     val blockQuic: Boolean = false,
     /** FakeIP for tunnelled A/AAAA queries (sing-box `fakeip` server). Off by default. */
     val fakeDns: Boolean = false,
+    /** Show live ↓/↑ rates in the foreground-service notification while Connected. UI-only; not a core option. Off by default. */
+    val notificationSpeed: Boolean = false,
 ) {
     enum class PerAppMode { OFF, INCLUDE, EXCLUDE }
 

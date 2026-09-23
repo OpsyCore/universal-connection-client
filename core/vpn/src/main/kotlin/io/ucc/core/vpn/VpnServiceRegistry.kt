@@ -23,6 +23,10 @@ public object VpnServiceRegistry {
     @Volatile public var profileNameLookup: (suspend (String) -> String?)? = null
     @Volatile public var lastProfileStore: LastProfileStore? = null
     @Volatile public var launchIntentFactory: ((android.content.Context) -> android.content.Intent)? = null
+    /** Latest core statistics (null while not running); used only for the optional notification speed meter. */
+    @Volatile public var statisticsForNotification: StateFlow<io.ucc.core.engine.CoreStatistics?>? = null
+    /** Settings switch "speed in notification"; false/null = never render rates. */
+    @Volatile public var notificationSpeedEnabled: StateFlow<Boolean>? = null
 
     /**
      * What Android reports about always-on / lockdown ("Block connections

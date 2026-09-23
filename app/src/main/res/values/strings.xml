@@ -170,6 +170,8 @@
     <string name="settings_strict_route">Strict routing</string>
     <string name="settings_strict_route_help">While the tunnel is up, block traffic that would bypass it. This is not a kill switch: when the VPN is off, use Android’s “Block connections without VPN” in system settings.</string>
     <string name="settings_ipv6">IPv6 inside the tunnel</string>
+    <string name="settings_notification_speed">Speed in notification</string>
+    <string name="settings_notification_speed_help">Shows live download/upload rates in the connection notification while connected (updates once per second, silently). Hidden automatically when the tunnel is not connected.</string>
     <string name="settings_section_network_tweaks">Network tweaks</string>
     <string name="settings_tls_fragment">TLS fragment</string>
     <string name="settings_tls_fragment_help">Splits the TLS handshake to the proxy server into several pieces (sing-box fragment + record_fragment). Helps only against simple SNI filtering, slows down connecting, and is not applied to REALITY or QUIC-based servers.</string>

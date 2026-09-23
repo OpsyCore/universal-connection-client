@@ -33,6 +33,9 @@ import io.ucc.core.vpn.VpnServiceRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 
 /**
@@ -114,6 +117,10 @@ class AppGraph(context: Context) {
     init {
         VpnServiceRegistry.connectionManager = connectionManager
         VpnServiceRegistry.stateForNotification = connectionManager.state
+        VpnServiceRegistry.statisticsForNotification = connectionManager.statistics
+        VpnServiceRegistry.notificationSpeedEnabled = settingsStore.settings
+            .map { it.notificationSpeed }
+            .stateIn(appScope, SharingStarted.Eagerly, settingsStore.settings.value.notificationSpeed)
         VpnServiceRegistry.lastProfileStore = preferences
         VpnServiceRegistry.profileNameLookup = { id -> profileStore.byId(id)?.name }
         VpnServiceRegistry.launchIntentFactory = { ctx ->

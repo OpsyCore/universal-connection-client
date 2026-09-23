@@ -168,6 +168,8 @@
     <string name="settings_strict_route">مسیریابی سخت‌گیرانه</string>
     <string name="settings_strict_route_help">تا وقتی تونل بالاست، ترافیکی که آن را دور بزند مسدود می‌شود. این کلید قطع (kill switch) نیست: وقتی VPN خاموش است از گزینهٔ «مسدود کردن اتصال بدون VPN» اندروید استفاده کنید.</string>
     <string name="settings_ipv6">IPv6 داخل تونل</string>
+    <string name="settings_notification_speed">سرعت در نوار اعلان</string>
+    <string name="settings_notification_speed_help">سرعت لحظه‌ای دانلود/آپلود را هنگام اتصال در اعلان اتصال نشان می‌دهد (هر ثانیه، بدون صدا). وقتی تونل متصل نیست به‌طور خودکار پنهان می‌شود.</string>
     <string name="settings_section_network_tweaks">تنظیمات پیشرفتهٔ شبکه</string>
     <string name="settings_tls_fragment">تکه‌تکه کردن TLS</string>
     <string name="settings_tls_fragment_help">دست‌دهی TLS به سرور پراکسی را به چند تکه تقسیم می‌کند (fragment و record_fragment در sing-box). فقط در برابر فیلترینگ سادهٔ SNI کمک می‌کند، اتصال را کندتر می‌کند و روی سرورهای REALITY یا مبتنی بر QUIC اعمال نمی‌شود.</string>
