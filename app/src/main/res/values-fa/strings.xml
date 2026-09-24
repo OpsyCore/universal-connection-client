@@ -419,4 +419,14 @@
     <string name="vip_body">آخرین اخبار، آپدیت‌ها و سرورهای جدید</string>
     <string name="vip_action">عضویت در کانال</string>
     <string name="vip_cannot_open">هیچ برنامه‌ای نمی‌تواند این پیوند را باز کند.</string>
+    <!-- v1.0.3: home drawer + tunnel ping -->
+    <string name="home_menu">منو</string>
+    <string name="drawer_smart">انتخاب هوشمند</string>
+    <string name="drawer_diagnostics">عیب‌یابی</string>
+    <string name="drawer_about">درباره و مجوزها</string>
+    <string name="home_ping_ms">%1$d ms</string>
+    <string name="home_ping_failed">پینگ ناموفق</string>
+    <string name="home_ping_measuring">در حال سنجش…</string>
+    <string name="home_ping_tap">پینگ</string>
+    <string name="home_ping_refresh">سنجش دوبارهٔ پینگ</string>
 </resources>

@@ -34,7 +34,10 @@ class MainActivity : AppCompatActivity() {
 
     private val viewModel: HomeViewModel by viewModels {
         val g = UccApplication.graph(this)
-        HomeViewModel.Factory(g.connectionManager, g.profileStore, g.preferences, g.smart, g.core.descriptor.displayName, g.core.descriptor.version)
+        HomeViewModel.Factory(
+            g.connectionManager, g.profileStore, g.preferences, g.smart, g.core.descriptor.displayName, g.core.descriptor.version,
+            tunnelPing = { g.core.urlTest(g.settingsStore.settings.value.effectiveDelayTestUrl, TUNNEL_PING_TIMEOUT_MS) },
+        )
     }
 
     private val addConfigViewModel: AddConfigViewModel by viewModels {
@@ -66,6 +69,8 @@ class MainActivity : AppCompatActivity() {
             g.core.capabilities, "${g.core.descriptor.displayName} ${g.core.descriptor.version}", { p -> io.ucc.core.config.CapabilityCheck(g.core.capabilities).isSupported(p) },
         )
     }
+
+    private companion object { const val TUNNEL_PING_TIMEOUT_MS = 5_000L }
 
     private object Routes { const val HOME = "home"; const val ADD = "add"; const val SCAN = "scan"; const val SERVERS = "servers"; const val SETTINGS = "settings"; const val LOGS = "logs"; const val DIAGNOSTICS = "diagnostics"; const val LICENSES = "licenses"; const val SMART = "smart" }
 
@@ -108,6 +113,9 @@ class MainActivity : AppCompatActivity() {
                             onDismissStoreProblem = viewModel::dismissStoreProblem,
                             onOpenSettings = { nav.navigate(Routes.SETTINGS) },
                             onOpenLogs = { nav.navigate(Routes.LOGS) },
+                            onOpenDiagnostics = { nav.navigate(Routes.DIAGNOSTICS) },
+                            onOpenLicenses = { nav.navigate(Routes.LICENSES) },
+                            onMeasurePing = viewModel::measurePing,
                         )
                     }
                     composable(Routes.SETTINGS) {

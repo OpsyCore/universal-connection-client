@@ -421,4 +421,14 @@
     <string name="vip_body">Latest news, updates and new servers</string>
     <string name="vip_action">Join channel</string>
     <string name="vip_cannot_open">No app can open this link.</string>
+    <!-- v1.0.3: home drawer + tunnel ping -->
+    <string name="home_menu">Menu</string>
+    <string name="drawer_smart">Smart selection</string>
+    <string name="drawer_diagnostics">Diagnostics</string>
+    <string name="drawer_about">About &amp; licenses</string>
+    <string name="home_ping_ms">%1$d ms</string>
+    <string name="home_ping_failed">Ping failed</string>
+    <string name="home_ping_measuring">Measuring…</string>
+    <string name="home_ping_tap">Ping</string>
+    <string name="home_ping_refresh">Measure ping again</string>
 </resources>

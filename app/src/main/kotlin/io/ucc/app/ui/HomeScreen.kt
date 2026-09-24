@@ -50,6 +50,20 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.NetworkPing
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -112,12 +126,29 @@ fun HomeScreen(
     onDismissStoreProblem: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenLogs: () -> Unit = {},
+    onOpenDiagnostics: () -> Unit = {},
+    onOpenLicenses: () -> Unit = {},
+    onMeasurePing: () -> Unit = {},
 ) {
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    val closeThen: (() -> Unit) -> () -> Unit = { action -> { scope.launch { drawerState.close() }; action() } }
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            HomeDrawer(
+                state = state,
+                onOpenServers = closeThen(onOpenServers), onOpenSmart = closeThen(onOpenSmart), onAddConfig = closeThen(onAddConfig),
+                onOpenSettings = closeThen(onOpenSettings), onOpenLogs = closeThen(onOpenLogs),
+                onOpenDiagnostics = closeThen(onOpenDiagnostics), onOpenLicenses = closeThen(onOpenLicenses),
+            )
+        },
+    ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         // Header handles the status-bar inset itself; bottom bar handles the nav-bar inset.
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = { HomeHeader(state, onOpenSettings) },
+        topBar = { HomeHeader(state, onOpenMenu = { scope.launch { drawerState.open() } }) },
         bottomBar = { HomeBottomBar(onOpenServers = onOpenServers, onOpenLogs = onOpenLogs, onOpenSettings = onOpenSettings) },
         floatingActionButton = {
             FloatingActionButton(
@@ -144,7 +175,7 @@ fun HomeScreen(
                     }
                 }
             }
-            item(key = "hero") { HeroCard(state, onConnect, onDisconnect, onOpenLogs, onAddConfig, onDismissSmartPhase) }
+            item(key = "hero") { HeroCard(state, onConnect, onDisconnect, onOpenLogs, onAddConfig, onDismissSmartPhase, onMeasurePing) }
             item(key = "metrics") { MetricsRow(state) }
             if (io.ucc.app.BuildConfig.VIP_URL.isNotBlank()) item(key = "vip") { io.ucc.app.ui.components.VipCard() }
             item(key = "servers-header") {
@@ -167,6 +198,84 @@ fun HomeScreen(
             if (io.ucc.app.ads.Ads.ENABLED) item(key = "ad-banner") { io.ucc.app.ads.Ads.Banner(Modifier.fillMaxWidth()) }
         }
     }
+    }
+}
+
+// ------------------------------------------------------------------ ping chip
+
+/**
+ * Real end-to-end latency of the active tunnel (one HTTP fetch through the core). Tap = measure again.
+ * Shows a spinner while measuring and "—" when the probe failed; never shows a stale number as fresh
+ * (the value is dropped when the tunnel goes down).
+ */
+@Composable
+private fun PingChip(ping: TunnelPing, onMeasure: () -> Unit) {
+    val measuring = ping is TunnelPing.Measuring
+    val label = when (ping) {
+        is TunnelPing.Result -> stringResource(R.string.home_ping_ms, ping.rttMs)
+        TunnelPing.Failed -> stringResource(R.string.home_ping_failed)
+        TunnelPing.Measuring -> stringResource(R.string.home_ping_measuring)
+        TunnelPing.Idle -> stringResource(R.string.home_ping_tap)
+    }
+    val tint = when {
+        ping is TunnelPing.Result && ping.rttMs < 300 -> StateColors.connected
+        ping is TunnelPing.Result && ping.rttMs < 800 -> MaterialTheme.colorScheme.tertiary
+        ping is TunnelPing.Result || ping is TunnelPing.Failed -> StateColors.error
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(
+        onClick = onMeasure, enabled = !measuring, shape = CircleShape,
+        color = tint.copy(alpha = 0.12f), contentColor = tint,
+        modifier = Modifier.height(28.dp).testTag("home_ping"),
+    ) {
+        Row(Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (measuring) CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 1.5.dp, color = tint)
+            else Icon(Icons.Filled.NetworkPing, contentDescription = stringResource(R.string.home_ping_refresh), modifier = Modifier.size(14.dp))
+            Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+        }
+    }
+}
+
+// ------------------------------------------------------------------ drawer
+
+/**
+ * Navigation drawer (v1.0.3). Only destinations that exist in the app are listed — no placeholder rows.
+ * (Per-app routing, routing rules, DNS etc. live inside Settings; backup/restore and update checks are not features of this app.)
+ */
+@Composable
+private fun HomeDrawer(
+    state: HomeUiState,
+    onOpenServers: () -> Unit, onOpenSmart: () -> Unit, onAddConfig: () -> Unit,
+    onOpenSettings: () -> Unit, onOpenLogs: () -> Unit, onOpenDiagnostics: () -> Unit, onOpenLicenses: () -> Unit,
+) {
+    val context = LocalContext.current
+    ModalDrawerSheet(modifier = Modifier.width(300.dp)) {
+        Column(Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 12.dp)) {
+            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text("${state.coreName} ${state.coreVersion}".trim(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+        Spacer(Modifier.height(8.dp))
+        @Composable fun item(icon: androidx.compose.ui.graphics.vector.ImageVector, label: Int, onClick: () -> Unit) {
+            NavigationDrawerItem(
+                icon = { Icon(icon, contentDescription = null) }, label = { Text(stringResource(label)) }, selected = false, onClick = onClick,
+                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+            )
+        }
+        item(Icons.Filled.Storage, R.string.home_servers, onOpenServers)
+        item(Icons.Filled.Add, R.string.home_add_config, onAddConfig)
+        item(Icons.Filled.AutoAwesome, R.string.drawer_smart, onOpenSmart)
+        item(Icons.Filled.Settings, R.string.home_settings, onOpenSettings)
+        Spacer(Modifier.height(8.dp)); HorizontalDivider(Modifier.padding(horizontal = 16.dp)); Spacer(Modifier.height(8.dp))
+        item(Icons.Outlined.Description, R.string.logs_title, onOpenLogs)
+        item(Icons.Filled.BugReport, R.string.drawer_diagnostics, onOpenDiagnostics)
+        item(Icons.Filled.Info, R.string.drawer_about, onOpenLicenses)
+        if (io.ucc.app.BuildConfig.VIP_URL.isNotBlank()) {
+            item(Icons.Filled.Campaign, R.string.vip_title) {
+                try { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(io.ucc.app.BuildConfig.VIP_URL))) } catch (_: android.content.ActivityNotFoundException) { }
+            }
+        }
+    }
 }
 
 private const val MAX_HOME_SERVERS = 6
@@ -174,7 +283,7 @@ private const val MAX_HOME_SERVERS = 6
 // ------------------------------------------------------------------ header
 
 @Composable
-private fun HomeHeader(state: HomeUiState, onOpenSettings: () -> Unit) {
+private fun HomeHeader(state: HomeUiState, onOpenMenu: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -190,8 +299,8 @@ private fun HomeHeader(state: HomeUiState, onOpenSettings: () -> Unit) {
             Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text("${state.coreName} ${state.coreVersion}".trim(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
-        IconButton(onClick = onOpenSettings, modifier = Modifier.size(48.dp).testTag("home_settings")) {
-            Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.home_settings))
+        IconButton(onClick = onOpenMenu, modifier = Modifier.size(48.dp).testTag("home_menu")) {
+            Icon(Icons.Filled.Menu, contentDescription = stringResource(R.string.home_menu))
         }
     }
 }
@@ -199,7 +308,7 @@ private fun HomeHeader(state: HomeUiState, onOpenSettings: () -> Unit) {
 // ------------------------------------------------------------------ hero
 
 @Composable
-private fun HeroCard(state: HomeUiState, onConnect: () -> Unit, onDisconnect: () -> Unit, onOpenLogs: () -> Unit, onAddConfig: () -> Unit, onDismissSmartPhase: () -> Unit) {
+private fun HeroCard(state: HomeUiState, onConnect: () -> Unit, onDisconnect: () -> Unit, onOpenLogs: () -> Unit, onAddConfig: () -> Unit, onDismissSmartPhase: () -> Unit, onMeasurePing: () -> Unit = {}) {
     val context = LocalContext.current
     val conn = state.connection
     val accent = when (conn) {
@@ -248,7 +357,10 @@ private fun HeroCard(state: HomeUiState, onConnect: () -> Unit, onDisconnect: ()
                         is ConnectionState.Connected -> {
                             var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
                             LaunchedEffect(target.sinceEpochMs) { while (true) { now = System.currentTimeMillis(); delay(1_000) } }
-                            Text(stringResource(R.string.home_connected_for, formatDuration(now - target.sinceEpochMs)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(stringResource(R.string.home_connected_for, formatDuration(now - target.sinceEpochMs)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                PingChip(state.tunnelPing, onMeasurePing)
+                            }
                         }
                         ConnectionState.Disconnected -> Text(
                             if (state.selectedProfile == null) stringResource(R.string.home_hint_select) else stringResource(R.string.home_hint_tap_connect),
