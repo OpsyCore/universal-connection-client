@@ -121,8 +121,10 @@ class SubscriptionRefresherTest {
         val o = assertIs<SubscriptionRefresher.Outcome.Updated>(curated.refresh("free"))
         assertEquals(1, o.result.added)
         assertEquals(setOf("V"), store.current().filter { it.metadata.groupId == "free" }.map { it.name }.toSet())
-        addSubscription(id = "mine", body = "$a\n$vless")
+        // Different servers (the merger de-duplicates identical servers across groups, which is unrelated to curation).
+        val vless2 = "vless://b831381d-6324-4d53-ad4f-8cda48b30811@1.2.3.10:443?security=tls#V2"
+        addSubscription(id = "mine", body = "$b\n$vless2")
         curated.refresh("mine")
-        assertEquals(setOf("A", "V"), store.current().filter { it.metadata.groupId == "mine" }.map { it.name }.toSet(), "user subscriptions are not filtered")
+        assertEquals(setOf("B", "V2"), store.current().filter { it.metadata.groupId == "mine" }.map { it.name }.toSet(), "user subscriptions are not filtered")
     }
 }
