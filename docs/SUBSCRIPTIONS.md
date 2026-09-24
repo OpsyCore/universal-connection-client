@@ -38,7 +38,9 @@ Manual refresh: Servers screen → group header → ↻. Auto-update per subscri
 
 ## Default free subscription (v1.0.3)
 
-`DefaultSubscription` (app-logic, unit-tested) + `AppGraph`: on first launch — `Preferences.freeSubscriptionSeeded == false` and no subscription with the same id — the app inserts the publisher-chosen public list (`DefaultSubscription.URL`, name from `free_subscription_name` fa/en) and immediately runs `SubscriptionRefresher.refresh` so the Servers list is populated. The id is `Subscription.idFor(URL)`, identical to a manual add, so it cannot be duplicated. It is an ordinary subscription afterwards; deleting it sets nothing back (the seeded flag persists). Disclosure: `docs/PRIVACY_POLICY.md` §5. Not auto-connected; not favoured by Smart selection.
+`DefaultSubscription` (app-logic, unit-tested) + `AppGraph`: when `Preferences.freeSubscriptionSeededVersion < SEED_VERSION` (2) and no record with the same id exists, the app inserts the publisher-chosen list (`DefaultSubscription.URL` = yebekhe/TV2Ray `vless` feed, name `free_subscription_name` fa/en) and immediately runs `SubscriptionRefresher.refresh`. Upgrade: the v1 list (mahdibland aggregator) and its servers are deleted via `ServerRepository.deleteSubscription` (active profile never deleted). The id is `Subscription.idFor(URL)`, identical to a manual add. It is an ordinary subscription afterwards; deleting it sticks for that seed version.
+
+**Curation (this subscription only — user subscriptions are never filtered):** `SubscriptionRefresher(curate=…)` applies `DefaultSubscription.curate` to the parsed list before merging: VLESS/VMess only (Trojan, Shadowsocks, SOCKS, HTTP, Hysteria, TUIC, WireGuard dropped), unsupported transports dropped, one entry per address:port, ranked REALITY → TLS+WS/gRPC/H2 → TLS → modern transport → plain, capped at `MAX_SERVERS` = 25. "Working" is not knowable at import time; the real delay test / Smart selection decide afterwards. Disclosure: `docs/PRIVACY_POLICY.md` §5.
 
 ## Servers screen
 

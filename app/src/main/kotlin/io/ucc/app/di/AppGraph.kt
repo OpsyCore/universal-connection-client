@@ -134,6 +134,8 @@ class AppGraph(context: Context) {
         profiles = profileStore,
         subscriptions = subscriptionStore,
         manager = connectionManager,
+        // Only the pre-installed free list is curated (VLESS/VMess, capped); user subscriptions pass through untouched.
+        curate = { sub, parsed -> if (io.ucc.applogic.DefaultSubscription.isDefault(sub.id)) io.ucc.applogic.DefaultSubscription.curate(parsed) else parsed },
     )
 
     init {
@@ -159,11 +161,18 @@ class AppGraph(context: Context) {
         // Default free subscription (v1.0.3): seeded once on first launch, then fetched immediately so the
         // Servers list is not empty. Ordinary subscription afterwards (rename / disable auto-update / delete).
         appScope.launch {
-            if (io.ucc.applogic.DefaultSubscription.shouldSeed(preferences.freeSubscriptionSeeded, subscriptionStore.all.value.map { it.id })) {
-                subscriptionStore.upsert(io.ucc.applogic.DefaultSubscription.record(app.getString(io.ucc.app.R.string.free_subscription_name), System.currentTimeMillis()))
-                preferences.freeSubscriptionSeeded = true
-                val outcome = subscriptionRefresher.refresh(io.ucc.applogic.DefaultSubscription.ID)
-                android.util.Log.i("SubRefresh", "default free subscription seeded: ${outcome::class.simpleName}")
+            val ds = io.ucc.applogic.DefaultSubscription
+            val existing = subscriptionStore.all.value.map { it.id }
+            // Upgrade path: the previous (bulk) default list and its servers are removed; the active profile is never deleted.
+            for (legacyId in ds.legacyToRemove(existing)) {
+                val r = serverRepository.deleteSubscription(legacyId)
+                android.util.Log.i("SubRefresh", "legacy default subscription removed: deleted=${r.deleted} blockedActive=${r.blockedActive}")
+            }
+            if (ds.shouldSeed(preferences.freeSubscriptionSeededVersion, existing)) {
+                subscriptionStore.upsert(ds.record(app.getString(io.ucc.app.R.string.free_subscription_name), System.currentTimeMillis()))
+                preferences.freeSubscriptionSeededVersion = ds.SEED_VERSION
+                val outcome = subscriptionRefresher.refresh(ds.ID)
+                android.util.Log.i("SubRefresh", "default free subscription seeded (v${ds.SEED_VERSION}): ${outcome::class.simpleName}")
             }
         }
         // Subscription auto-update (v1.0.2): periodic job follows the settings interval; optional refresh on foreground.
