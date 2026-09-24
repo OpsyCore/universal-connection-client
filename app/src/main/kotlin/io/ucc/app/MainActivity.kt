@@ -72,6 +72,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        io.ucc.app.ads.Ads.init(this) // no-op in release builds
         setContent {
             val themeMode by UccApplication.graph(this).preferences.themeFlow.collectAsStateWithLifecycle()
             val dark = when (themeMode) {

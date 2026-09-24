@@ -414,4 +414,9 @@
     <string name="settings_sub_update_interval_help">به‌روزرسانی پس‌زمینهٔ اشتراک‌هایی که به‌روزرسانی خودکارشان روشن است (نیازمند شبکه؛ اگر ارائه‌دهنده بازهٔ طولانی‌تری پیشنهاد دهد رعایت می‌شود).</string>
     <string name="settings_sub_update_on_open">به‌روزرسانی هنگام باز شدن برنامه</string>
     <string name="settings_sub_update_on_open_help">هر بار که برنامه به پیش‌زمینه می‌آید، اشتراک‌های موعدرسیده هم به‌روزرسانی می‌شوند (حداکثر هر ۱۵ دقیقه).</string>
+    <!-- v1.0.3: VIP / affiliate card (shown only when a VIP URL is configured at build time) -->
+    <string name="vip_title">اشتراک VIP اختصاصی</string>
+    <string name="vip_body">سرورهای خصوصی باکیفیت با پشتیبانی اولویت‌دار، ارائه‌شده توسط ناشر برنامه.</string>
+    <string name="vip_action">دریافت VIP</string>
+    <string name="vip_cannot_open">هیچ برنامه‌ای نمی‌تواند این پیوند را باز کند.</string>
 </resources>

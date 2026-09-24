@@ -146,6 +146,7 @@ fun HomeScreen(
             }
             item(key = "hero") { HeroCard(state, onConnect, onDisconnect, onOpenLogs, onAddConfig, onDismissSmartPhase) }
             item(key = "metrics") { MetricsRow(state) }
+            if (io.ucc.app.BuildConfig.VIP_URL.isNotBlank()) item(key = "vip") { io.ucc.app.ui.components.VipCard() }
             item(key = "servers-header") {
                 Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.home_servers).uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
@@ -162,6 +163,8 @@ fun HomeScreen(
                     ServerRow(p, selected = !state.smartMode && p.id == state.selectedProfile?.id, active = p.id == state.connection.profileIdOrNull && state.connection.isActive, recommended = p.id == state.recommendedProfile?.id, onClick = { onSelectProfile(p.id) })
                 }
             }
+            // Debug builds only: Google test banner for placement preview. Release: Ads.ENABLED = false, nothing rendered.
+            if (io.ucc.app.ads.Ads.ENABLED) item(key = "ad-banner") { io.ucc.app.ads.Ads.Banner(Modifier.fillMaxWidth()) }
         }
     }
 }

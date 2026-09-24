@@ -116,7 +116,7 @@ Full license texts:
 Notes:
 - Room and security-crypto are declared in the version catalog but are **not**
   applied to any module; they are not distributed.
-- No analytics, advertising or crash-reporting SDKs are included.
+- No analytics, advertising or crash-reporting SDKs are included in **release** artifacts. `com.google.android.gms:play-services-ads` 23.6.0 (Android SDK License, proprietary) is a `debugImplementation` used only in debug builds with Google's public test IDs for placement preview (`app/src/debug`); it is not compiled into the APK/AAB that is distributed.
 - Networking for subscriptions uses `java.net.HttpURLConnection` (Android
   platform). OkHttp is declared in the catalog but not applied to any module.
 

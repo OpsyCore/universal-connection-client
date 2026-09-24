@@ -31,6 +31,15 @@ val releaseSigning: Map<String, String>? = run {
     null
 }
 
+/** VIP card URL: env UCC_VIP_URL → gradle property `vipUrl` → "" (hidden). Validated so a typo cannot ship a dead button. */
+fun vipUrl(): String {
+    val raw = (System.getenv("UCC_VIP_URL") ?: (project.findProperty("vipUrl") as String?) ?: "").trim()
+    if (raw.isEmpty()) return ""
+    require(raw.startsWith("https://") || raw.startsWith("http://") || raw.startsWith("tg://")) { "vipUrl must be http(s):// or tg://" }
+    require(!raw.contains("your_vip_bot") && !raw.contains('"') && !raw.contains('\\')) { "vipUrl looks like a placeholder or contains illegal characters" }
+    return raw
+}
+
 android {
     namespace = "io.ucc.app"
     compileSdk = libs.versions.compileSdk.get().toInt()
@@ -40,8 +49,8 @@ android {
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         // Release versioning: semantic versionName, monotonically increasing versionCode (bump both per release).
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.0.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         resourceConfigurations += listOf("en", "fa")
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
@@ -56,6 +65,9 @@ android {
             dimension = "core"
             buildConfigField("String", "CORE_ID", "\"singbox\"")
             buildConfigField("String", "SOURCE_URL", "\"https://github.com/OpsyCore/universal-connection-client\"")
+            // VIP / affiliate card on Home (v1.0.3). Empty (default) = card hidden. Set UCC_VIP_URL (env, CI variable)
+            // or vipUrl in gradle.properties / local.properties; must be http(s):// or tg://. No placeholder URL is ever shown.
+            buildConfigField("String", "VIP_URL", "\"${vipUrl()}\"")
         }
     }
 
@@ -147,6 +159,9 @@ dependencies {
     implementation(libs.androidx.camera.view)
     implementation(libs.mlkit.barcode.scanning)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    // Google Mobile Ads: DEBUG ONLY (app/src/debug — test app/unit IDs for placement preview). The release APK/AAB
+    // contains no advertising SDK; see app/src/release/.../Ads.kt (no-op) and docs/PRIVACY_POLICY.md.
+    debugImplementation(libs.play.services.ads)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     testImplementation(libs.junit4)

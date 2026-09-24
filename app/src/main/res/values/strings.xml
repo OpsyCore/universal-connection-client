@@ -416,4 +416,9 @@
     <string name="settings_sub_update_interval_help">Background refresh of subscriptions that have auto-update enabled (needs a network; a longer interval suggested by the provider is respected).</string>
     <string name="settings_sub_update_on_open">Refresh when the app opens</string>
     <string name="settings_sub_update_on_open_help">Also refresh due subscriptions each time the app comes to the foreground (at most every 15 minutes).</string>
+    <!-- v1.0.3: VIP / affiliate card (shown only when a VIP URL is configured at build time) -->
+    <string name="vip_title">Dedicated VIP subscription</string>
+    <string name="vip_body">High-quality private servers with priority support, sold by the app publisher.</string>
+    <string name="vip_action">Get VIP</string>
+    <string name="vip_cannot_open">No app can open this link.</string>
 </resources>
