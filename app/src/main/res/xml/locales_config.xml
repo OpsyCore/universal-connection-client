@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Languages offered by the OS per-app language picker (API 33+) and by Settings → Language.
-     To add a language: add values-<tag>/strings.xml, add a <locale> here and an AppLanguage entry. -->
-<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
-    <locale android:name="en" />
-    <locale android:name="fa" />
-</locale-config>
