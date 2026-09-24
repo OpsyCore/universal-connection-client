@@ -156,6 +156,16 @@ class AppGraph(context: Context) {
         appScope.launch { healthStore.load(); profileStore.load(); subscriptionStore.load() }
         smart // start observing the manager
 
+        // Default free subscription (v1.0.3): seeded once on first launch, then fetched immediately so the
+        // Servers list is not empty. Ordinary subscription afterwards (rename / disable auto-update / delete).
+        appScope.launch {
+            if (io.ucc.applogic.DefaultSubscription.shouldSeed(preferences.freeSubscriptionSeeded, subscriptionStore.all.value.map { it.id })) {
+                subscriptionStore.upsert(io.ucc.applogic.DefaultSubscription.record(app.getString(io.ucc.app.R.string.free_subscription_name), System.currentTimeMillis()))
+                preferences.freeSubscriptionSeeded = true
+                val outcome = subscriptionRefresher.refresh(io.ucc.applogic.DefaultSubscription.ID)
+                android.util.Log.i("SubRefresh", "default free subscription seeded: ${outcome::class.simpleName}")
+            }
+        }
         // Subscription auto-update (v1.0.2): periodic job follows the settings interval; optional refresh on foreground.
         appScope.launch {
             settingsStore.settings.map { it.subscriptionUpdateIntervalHours }.distinctUntilChanged().collect { SubscriptionRefreshWorker.schedule(app, it) }

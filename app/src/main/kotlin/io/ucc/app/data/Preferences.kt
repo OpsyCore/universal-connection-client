@@ -55,6 +55,11 @@ class Preferences(context: Context) : LastProfileStore, SelectionStore, ThemeSto
         get() = _hideFailed.value
         set(value) { _hideFailed.value = value; prefs.edit().putBoolean(KEY_HIDE_FAILED, value).apply() }
 
+    /** v1.0.3: the public free-server subscription is seeded once; deleting it later must stick. */
+    var freeSubscriptionSeeded: Boolean
+        get() = prefs.getBoolean(KEY_FREE_SUB_SEEDED, false)
+        set(value) { prefs.edit().putBoolean(KEY_FREE_SUB_SEEDED, value).apply() }
+
     override fun write(profileId: String?) {
         prefs.edit().putString(KEY_LAST_ACTIVE, profileId).commit()
     }
@@ -67,6 +72,7 @@ class Preferences(context: Context) : LastProfileStore, SelectionStore, ThemeSto
         const val KEY_THEME = "theme_mode"
         const val KEY_SMART = "smart_selection"
         const val KEY_SORT_LATENCY = "servers_sort_latency"
+        const val KEY_FREE_SUB_SEEDED = "free_subscription_seeded"
         const val KEY_HIDE_FAILED = "servers_hide_failed"
     }
 }

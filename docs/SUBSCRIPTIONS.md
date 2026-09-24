@@ -36,6 +36,10 @@ Safety rails:
 
 Manual refresh: Servers screen → group header → ↻. Auto-update per subscription can be toggled from the group menu.
 
+## Default free subscription (v1.0.3)
+
+`DefaultSubscription` (app-logic, unit-tested) + `AppGraph`: on first launch — `Preferences.freeSubscriptionSeeded == false` and no subscription with the same id — the app inserts the publisher-chosen public list (`DefaultSubscription.URL`, name from `free_subscription_name` fa/en) and immediately runs `SubscriptionRefresher.refresh` so the Servers list is populated. The id is `Subscription.idFor(URL)`, identical to a manual add, so it cannot be duplicated. It is an ordinary subscription afterwards; deleting it sets nothing back (the seeded flag persists). Disclosure: `docs/PRIVACY_POLICY.md` §5. Not auto-connected; not favoured by Smart selection.
+
 ## Servers screen
 
 - Grouped list: *Manually added* first, then one group per subscription (record subtitle: last update, usage/expiry, last error, auto-update off). Profiles whose subscription record vanished are shown under *Manually added* rather than hidden.
