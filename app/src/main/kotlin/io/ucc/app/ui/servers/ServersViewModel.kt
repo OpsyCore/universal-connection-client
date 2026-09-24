@@ -174,15 +174,7 @@ class ServersViewModel(
         val health: Map<String, ServerHealth>, val list: ListInputs,
     )
 
-    private companion object {
-        val DEFAULT_ORDER: Comparator<ServerRow> = compareByDescending<ServerRow> { it.profile.metadata.favorite }.thenBy { it.profile.name.lowercase() }
-        /** Measured servers first (session test beats stored EMA), then untested, then failed; name breaks ties. Deterministic. */
-        val LATENCY_ORDER: Comparator<ServerRow> = compareBy<ServerRow> { it.sortRank }.thenBy { it.sortLatency }.thenBy { it.profile.name.lowercase() }
-    }
 
-    /** Sort bucket: 0 = has a latency, 1 = untested / unknown, 2 = failed. */
-    private val ServerRow.sortRank: Int get() = when { sortLatency != Long.MAX_VALUE -> 0; isFailed -> 2; else -> 1 }
-    private val ServerRow.sortLatency: Long get() = lastTest?.takeIf { it.success }?.latencyMs ?: (if (lastTest == null && status != HealthStatus.OFFLINE) health.rollingLatencyMs else null) ?: Long.MAX_VALUE
 
     private fun ConnectionProfile.matches(needle: String): Boolean =
         name.lowercase().contains(needle) || address.lowercase().contains(needle) ||
@@ -329,3 +321,11 @@ class ServersViewModel(
         ) as T
     }
 }
+
+private val DEFAULT_ORDER: Comparator<ServerRow> = compareByDescending<ServerRow> { it.profile.metadata.favorite }.thenBy { it.profile.name.lowercase() }
+/** Measured servers first (session test beats stored EMA), then untested, then failed; name breaks ties. Deterministic. */
+private val LATENCY_ORDER: Comparator<ServerRow> = compareBy<ServerRow> { it.sortRank }.thenBy { it.sortLatency }.thenBy { it.profile.name.lowercase() }
+
+/** Sort bucket: 0 = has a latency, 1 = untested / unknown, 2 = failed. */
+private val ServerRow.sortRank: Int get() = when { sortLatency != Long.MAX_VALUE -> 0; isFailed -> 2; else -> 1 }
+private val ServerRow.sortLatency: Long get() = lastTest?.takeIf { it.success }?.latencyMs ?: (if (lastTest == null && status != HealthStatus.OFFLINE) health.rollingLatencyMs else null) ?: Long.MAX_VALUE
