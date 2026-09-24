@@ -162,6 +162,7 @@ dependencies {
     // Google Mobile Ads: DEBUG ONLY (app/src/debug — test app/unit IDs for placement preview). The release APK/AAB
     // contains no advertising SDK; see app/src/release/.../Ads.kt (no-op) and docs/PRIVACY_POLICY.md.
     debugImplementation(libs.play.services.ads)
+    debugImplementation(libs.guava) // resolves the listenablefuture:9999.0-empty conflict between play-services and CameraX
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     testImplementation(libs.junit4)
