@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DEBUG ONLY. Google's public *test* AdMob application ID so debug builds can preview banner placement.
+     Release builds have no ads SDK and no such meta-data (this file is not merged into release). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713" />
+    </application>
+</manifest>
