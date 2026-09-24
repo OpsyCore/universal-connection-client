@@ -35,6 +35,20 @@ says so explicitly. There is no live re-configuration.
 Unsupported options are not rendered: the per-app section is hidden when the
 active core does not report `perAppRouting`.
 
+## Smart routing (v1.0.2; rule-set backed; both default OFF)
+
+| Switch | Effect in the generated config | Data |
+|---|---|---|
+| Direct Iran traffic (`directIran`) | `route.rule_set` local entries `geosite-ir`, `geoip-ir`; route rule `rule_set → direct` placed **after** `ip_is_private` and **before** user rules (user rules are not overridden by this, but Iran-matches skip the proxy before `final`); DNS rule `geosite-ir → dns-direct` before FakeIP | `assets/rulesets/geosite-ir.srs`, `geoip-ir.srs` |
+| Block ads (`blockAds`) | `route.rule_set` `geosite-category-ads-all`; route rule `→ reject` (first, before bypass-private); DNS rule `→ reject` | `assets/rulesets/geosite-category-ads-all.srs` |
+
+Files are copied on start/reload from APK assets to `filesDir/singbox/rulesets/`
+(`RuleSetAssets.install`, SHA-256 compared, atomic rename); nothing is downloaded
+at runtime. Snapshot: Chocolate4U/Iran-sing-box-rules `rule-set@8a5dbd5`
+(2026-09-22, GPL-3.0; see `THIRD_PARTY_NOTICES.md`). Only shown when
+`CoreCapabilities.ruleSets` is true; `toStartOptions` drops both otherwise.
+Applied on the next connect (hot reload path when connected).
+
 ## Validation
 
 `ConnectionSettings.validate()` returns field-level errors; the ViewModel refuses

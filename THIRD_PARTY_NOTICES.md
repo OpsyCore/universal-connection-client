@@ -26,6 +26,7 @@ Sources consulted: `gradle/libs.versions.toml`, Maven POM metadata
 | Component | Version | License | Source |
 |---|---|---|---|
 | **sing-box** (compiled to `libbox.aar` by `tools/build-libbox.sh`; libbox is the gomobile binding that ships inside sing-box's `experimental/libbox` package) | **v1.13.21** (`SingBoxCapabilities.PINNED_TAG`) | **GPL-3.0-or-later** + additional term below | https://github.com/SagerNet/sing-box |
+| **Iran-sing-box-rules** — bundled routing data for the v1.0.2 "Direct Iran traffic" / "Block ads" switches: `core/engine-singbox/src/main/assets/rulesets/{geosite-ir,geoip-ir,geosite-category-ads-all}.srs` (sing-box binary rule-set format, unmodified) | branch `rule-set`, commit `8a5dbd5` (snapshot 2026-09-22; no runtime download, updated only with app releases) | **GPL-3.0** | https://github.com/Chocolate4U/Iran-sing-box-rules |
 
 Upstream copyright and notice, reproduced verbatim from `LICENSE` at tag v1.13.21:
 

@@ -51,7 +51,47 @@ Evidence sources: (1) explicit tests, (2) the tunnel reaching `Connected`
 mapped through `SmartFailoverPolicy.toTestFailure` (reuses the existing
 `ConnectionError` classification). Manual connections feed the same store.
 
-## Connection test (`TcpConnectionTester`)
+## Connection test — real delay (`HttpDelayConnectionTester`, v1.0.2, default ON)
+
+Settings → Servers → *Real delay test (HTTP)*. Measures a full HTTP round-trip
+**through the server** — the same code path user traffic takes — so a wrong
+password, a blocked protocol or a dead upstream all show as failures and the
+number is an end-to-end latency, not a handshake time.
+
+How: `CoreDelayProbe` (engine-api) is implemented by `SingBoxDelayProbe`
+(engine-singbox). `HealthCheckRunner.testAll` opens **one** probe session for the
+whole batch: `SingBoxConfigGenerator.generateProbe` builds a config with one
+outbound per profile (tag = profile id; WireGuard skipped — endpoints are not
+addressable via the Clash API), no TUN, no `cache_file`, `route.final = direct`,
+`auto_detect_interface`, and `experimental.clash_api` bound to `127.0.0.1:<random
+free port>` with a 32-hex random per-session secret. A second `libbox
+CommandServer` hosts it (never `start()`ed — no unix socket), then
+`GET /proxies/<id>/delay?url=&timeout=` with `Authorization: Bearer <secret>`
+is issued per profile (200 → `{"delay":n}`; 504 → `TIMEOUT`; 503 → server
+failure; 404/401 → internal error). The session is closed in `finally` under
+`NonCancellable`. Runs while the tunnel is active too: outbound sockets are
+protected via the platform interface (`protectOptional`), loopback is exempted
+from the cleartext ban only for `127.0.0.1` (`network_security_config.xml`).
+
+Errors are classified from `ConnectionError` (DNS/TLS/auth/refused/timeout) with
+the usual `attributableToServer` rules. Profiles the probe cannot host fall back
+to the TCP tester. Default URL `http://www.gstatic.com/generate_204` (5 s); the
+URL is editable (must be `http(s)://`; invalid → default, never blocks connect).
+Off → previous behaviour (TCP handshake only).
+
+### Servers screen tools (v1.0.2)
+
+- **Sort by ping** — `LATENCY_ORDER`: measured (session result beats stored EMA)
+  → untested/unsupported → failed; name breaks ties. Persisted (`ServerListPrefs`).
+- **Hide failed** — hides rows whose latest evidence is a server-attributable
+  failed test this session, or a persisted `OFFLINE` status; the active and the
+  selected server are never hidden; chip shows the hidden count.
+- **Delete failed (n)** — appears when `failedIds` is non-empty; confirmation
+  dialog; goes through `ServerRepository.delete`, so the active profile is still
+  blocked and subscription re-import rules apply. Nothing is deleted
+  automatically without the dialog.
+
+## Connection test — TCP handshake (`TcpConnectionTester`, fallback / "Real delay test" OFF)
 
 What is measured: DNS resolution + TCP handshake to `address:port`, timed, 4 s timeout.
 Classified from JDK exceptions: `TIMEOUT`, `DNS_FAILURE`, `CONNECTION_REFUSED`,
