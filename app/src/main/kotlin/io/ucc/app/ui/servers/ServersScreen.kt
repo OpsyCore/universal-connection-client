@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.AssistChip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -156,6 +159,17 @@ fun ServersScreen(
                         selected = state.favoritesOnly, onClick = vm::toggleFavoritesOnly,
                         label = { Icon(Icons.Filled.Favorite, contentDescription = stringResource(R.string.servers_filter_favorites)) },
                     )
+                }
+                // v1.0.2: latency sort / hide failed / delete failed
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    FilterChip(selected = state.sortByLatency, onClick = { vm.setSortByLatency(!state.sortByLatency) }, label = { Text(stringResource(R.string.servers_sort_latency)) })
+                    FilterChip(
+                        selected = state.hideFailed, onClick = { vm.setHideFailed(!state.hideFailed) },
+                        label = { Text(if (state.hideFailed && state.hiddenCount > 0) stringResource(R.string.servers_hide_failed_count, state.hiddenCount) else stringResource(R.string.servers_hide_failed)) },
+                    )
+                    if (state.failedIds.isNotEmpty()) {
+                        AssistChip(onClick = vm::requestDeleteFailed, label = { Text(stringResource(R.string.servers_delete_failed, state.failedIds.size)) }, leadingIcon = { Icon(Icons.Filled.Delete, null, Modifier.size(16.dp)) })
+                    }
                 }
             }
             when {
@@ -321,6 +335,7 @@ private fun DeleteDialog(pending: PendingDelete, onCancel: () -> Unit, onConfirm
     val context = LocalContext.current
     val body = when (pending) {
         is PendingDelete.Profiles -> context.resources.getQuantityString(R.plurals.servers_delete_body, pending.ids.size, pending.ids.size)
+        is PendingDelete.Failed -> context.getString(R.string.servers_delete_failed_body, pending.ids.size)
         is PendingDelete.SubscriptionGroup -> context.getString(R.string.servers_delete_sub_body, pending.subscription.name, pending.memberCount)
     }
     AlertDialog(

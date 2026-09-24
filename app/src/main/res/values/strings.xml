@@ -391,4 +391,29 @@
     <string name="servers_action_test_cancel">Cancel test</string>
     <string name="servers_test_all_cancel">Cancel tests</string>
     <string name="action_back">Back</string>
+    <!-- v1.0.2: servers list tools -->
+    <string name="servers_sort_latency">Sort by ping</string>
+    <string name="servers_hide_failed">Hide failed</string>
+    <string name="servers_hide_failed_count">Hide failed (%1$d hidden)</string>
+    <string name="servers_delete_failed">Delete failed (%1$d)</string>
+    <string name="servers_delete_failed_body">Delete %1$d server(s) whose latest test failed or that are marked offline? The active and the selected server are never deleted. Servers from a subscription come back on its next refresh if the server is still listed.</string>
+    <!-- v1.0.2: smart routing + servers settings -->
+    <string name="settings_section_smart_routing">Smart routing</string>
+    <string name="settings_direct_iran">Direct Iran traffic</string>
+    <string name="settings_direct_iran_help">Iranian sites (geosite-ir) and Iranian IP ranges (geoip-ir) bypass the proxy and resolve through the direct DNS. Uses rule-sets bundled with the app (snapshot date in Licenses).</string>
+    <string name="settings_block_ads">Block ads</string>
+    <string name="settings_block_ads_help">Rejects connections and DNS lookups for known ad and tracker domains (geosite-category-ads-all). Not a full ad blocker; in-app ads served from first-party domains still load.</string>
+    <string name="settings_smart_routing_note">Both apply on the next connect. Rule-sets are local files; nothing is downloaded. Your own routing rules still take priority over the Iran rules.</string>
+    <string name="settings_section_servers">Servers</string>
+    <string name="settings_real_delay_test">Real delay test (HTTP)</string>
+    <string name="settings_real_delay_test_help">Tests each server by fetching a small URL through it — the same path your traffic takes — so wrong credentials or blocked protocols show as failures. Off = TCP handshake only.</string>
+    <string name="settings_delay_test_url">Test URL</string>
+    <string name="settings_delay_test_url_help">A URL that answers quickly with a small response, e.g. …/generate_204. http:// URLs fall back to the default.</string>
+    <string name="settings_delay_test_url_invalid">Enter an http(s):// URL. The default is used until this is valid.</string>
+    <string name="settings_sub_update_interval">Auto-update subscriptions</string>
+    <string name="settings_sub_update_off">Off</string>
+    <string name="settings_sub_update_hours">%1$d h</string>
+    <string name="settings_sub_update_interval_help">Background refresh of subscriptions that have auto-update enabled (needs a network; a longer interval suggested by the provider is respected).</string>
+    <string name="settings_sub_update_on_open">Refresh when the app opens</string>
+    <string name="settings_sub_update_on_open_help">Also refresh due subscriptions each time the app comes to the foreground (at most every 15 minutes).</string>
 </resources>

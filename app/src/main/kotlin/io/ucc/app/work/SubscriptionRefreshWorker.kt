@@ -25,7 +25,9 @@ class SubscriptionRefreshWorker(context: Context, params: WorkerParameters) : Co
 
     override suspend fun doWork(): Result {
         val graph = UccApplication.graph(applicationContext)
-        val outcomes = graph.subscriptionRefresher.refreshAllDue(minIntervalMs = TimeUnit.HOURS.toMillis(MIN_INTERVAL_HOURS))
+        val hours = graph.settingsStore.settings.value.subscriptionUpdateIntervalHours
+        if (hours <= 0) { Log.i(TAG, "periodic refresh disabled in settings"); return Result.success() }
+        val outcomes = graph.subscriptionRefresher.refreshAllDue(minIntervalMs = TimeUnit.HOURS.toMillis(hours.toLong()))
         val failed = outcomes.count { it !is SubscriptionRefresher.Outcome.Updated }
         Log.i(TAG, "subscription refresh: ${outcomes.size} due, $failed failed")
         // Only network failures across the board are worth WorkManager's backoff retry; everything else waits for the next period.
@@ -36,13 +38,21 @@ class SubscriptionRefreshWorker(context: Context, params: WorkerParameters) : Co
     companion object {
         private const val TAG = "SubRefresh"
         private const val UNIQUE_NAME = "subscription-refresh"
+        /** Pre-v1.0.2 fixed period; now the default of `ConnectionSettings.subscriptionUpdateIntervalHours` (24) applies. */
         const val MIN_INTERVAL_HOURS = 12L
 
-        fun schedule(context: Context) {
-            val request = PeriodicWorkRequestBuilder<SubscriptionRefreshWorker>(MIN_INTERVAL_HOURS, TimeUnit.HOURS)
+        /**
+         * (Re)schedules the periodic job for [intervalHours] (0 = cancel). `UPDATE` keeps the existing
+         * job's next-run time when only the period changed, so toggling settings does not trigger an
+         * immediate refresh. WorkManager's minimum period is 15 min; we never go below 6 h.
+         */
+        fun schedule(context: Context, intervalHours: Int) {
+            val wm = WorkManager.getInstance(context)
+            if (intervalHours <= 0) { wm.cancelUniqueWork(UNIQUE_NAME); return }
+            val request = PeriodicWorkRequestBuilder<SubscriptionRefreshWorker>(intervalHours.toLong(), TimeUnit.HOURS)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .build()
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(UNIQUE_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
+            wm.enqueueUniquePeriodicWork(UNIQUE_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
         }
     }
 }

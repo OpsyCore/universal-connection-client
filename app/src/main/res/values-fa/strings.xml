@@ -389,4 +389,29 @@
     <string name="servers_action_test_cancel">لغو آزمایش</string>
     <string name="servers_test_all_cancel">لغو آزمایش‌ها</string>
     <string name="action_back">بازگشت</string>
+    <!-- v1.0.2: servers list tools -->
+    <string name="servers_sort_latency">مرتب‌سازی بر اساس پینگ</string>
+    <string name="servers_hide_failed">پنهان کردن ناموفق‌ها</string>
+    <string name="servers_hide_failed_count">پنهان کردن ناموفق‌ها (%1$d پنهان)</string>
+    <string name="servers_delete_failed">حذف ناموفق‌ها (%1$d)</string>
+    <string name="servers_delete_failed_body">%1$d سرور که آخرین تست‌شان ناموفق بوده یا آفلاین علامت خورده‌اند حذف شوند؟ سرور فعال و سرور انتخاب‌شده هرگز حذف نمی‌شوند. سرورهای اشتراک، اگر هنوز در لیست باشند، با به‌روزرسانی بعدی برمی‌گردند.</string>
+    <!-- v1.0.2: smart routing + servers settings -->
+    <string name="settings_section_smart_routing">مسیریابی هوشمند</string>
+    <string name="settings_direct_iran">عبور مستقیم ترافیک ایران</string>
+    <string name="settings_direct_iran_help">سایت‌های ایرانی (geosite-ir) و بازه‌های IP ایران (geoip-ir) بدون پروکسی و با DNS مستقیم باز می‌شوند. از قواعد همراه برنامه استفاده می‌شود (تاریخ نسخه در بخش مجوزها).</string>
+    <string name="settings_block_ads">مسدودسازی تبلیغات</string>
+    <string name="settings_block_ads_help">اتصال‌ها و درخواست‌های DNS دامنه‌های شناخته‌شدهٔ تبلیغات و ردیاب (geosite-category-ads-all) رد می‌شوند. مسدودکنندهٔ کامل نیست؛ تبلیغاتی که از دامنهٔ خود سرویس می‌آیند همچنان بارگذاری می‌شوند.</string>
+    <string name="settings_smart_routing_note">هر دو در اتصال بعدی اعمال می‌شوند. قواعد فایل‌های محلی هستند و چیزی دانلود نمی‌شود. قوانین مسیریابی خودتان همچنان بر قواعد ایران اولویت دارند.</string>
+    <string name="settings_section_servers">سرورها</string>
+    <string name="settings_real_delay_test">تست تأخیر واقعی (HTTP)</string>
+    <string name="settings_real_delay_test_help">هر سرور با دریافت یک آدرس کوچک از طریق خودش تست می‌شود — همان مسیری که ترافیک شما طی می‌کند — بنابراین رمز اشتباه یا پروتکل مسدود، ناموفق نشان داده می‌شود. خاموش = فقط دست‌دهی TCP.</string>
+    <string name="settings_delay_test_url">آدرس تست</string>
+    <string name="settings_delay_test_url_help">آدرسی که سریع و با پاسخ کوچک جواب می‌دهد، مثلاً …/generate_204. آدرس‌های http:// به پیش‌فرض برمی‌گردند.</string>
+    <string name="settings_delay_test_url_invalid">یک آدرس http(s):// وارد کنید. تا معتبر شدن، از پیش‌فرض استفاده می‌شود.</string>
+    <string name="settings_sub_update_interval">به‌روزرسانی خودکار اشتراک‌ها</string>
+    <string name="settings_sub_update_off">خاموش</string>
+    <string name="settings_sub_update_hours">%1$d ساعت</string>
+    <string name="settings_sub_update_interval_help">به‌روزرسانی پس‌زمینهٔ اشتراک‌هایی که به‌روزرسانی خودکارشان روشن است (نیازمند شبکه؛ اگر ارائه‌دهنده بازهٔ طولانی‌تری پیشنهاد دهد رعایت می‌شود).</string>
+    <string name="settings_sub_update_on_open">به‌روزرسانی هنگام باز شدن برنامه</string>
+    <string name="settings_sub_update_on_open_help">هر بار که برنامه به پیش‌زمینه می‌آید، اشتراک‌های موعدرسیده هم به‌روزرسانی می‌شوند (حداکثر هر ۱۵ دقیقه).</string>
 </resources>

@@ -58,8 +58,10 @@ class ServersViewModelTest {
     private val healthStore = InMemoryServerHealthStore()
     private val runner = HealthCheckRunner(tester, healthStore, { 5L })
 
+    private val listPrefs = io.ucc.applogic.InMemoryServerListPrefs()
+
     private fun TestScope.vm(): Pair<ServersViewModel, Job> {
-        val vm = ServersViewModel(repo, refresher, selection, manager, runner, healthStore, now = { 5L })
+        val vm = ServersViewModel(repo, refresher, selection, manager, runner, healthStore, now = { 5L }, listPrefs = listPrefs)
         val job = vm.state.onEach { }.launchIn(this) // keep WhileSubscribed state hot
         return vm to job
     }
@@ -193,6 +195,57 @@ class ServersViewModelTest {
         assertEquals(HealthStatus.UNKNOWN, row(oslo.id).status, "UDP-only cannot be rated by a TCP test")
         assertEquals(HealthStatus.OFFLINE, row(berlin.id).status, "never worked and failed = offline")
         assertFalse(vm.state.value.testingAll)
+        job.cancel()
+    }
+
+    // ---- v1.0.1: sort by latency / hide failed / delete failed ----
+
+    @Test fun `sort by latency puts measured servers first, untested next, failed last`() = runTest(dispatcher) {
+        // Alpha: reachable (25 ms). Beta: times out. Gamma: hysteria2 → TCP tester says UNSUPPORTED (local reason, not failed).
+        val (alpha, beta, gamma) = seed("trojan://pw@1.2.3.4:443#Alpha\ntrojan://pw@beta.example.com:443#Beta\nhysteria2://pw@1.2.3.6:443#Gamma")
+        val (vm, job) = vm()
+        advanceUntilIdle()
+        fun ids() = vm.state.value.groups.flatMap { it.rows }.map { it.profile.id }
+        assertEquals(listOf(alpha.id, beta.id, gamma.id), ids(), "default order is by name")
+
+        vm.testVisibleReachability(); advanceUntilIdle()
+        vm.setSortByLatency(true); advanceUntilIdle()
+        assertTrue(vm.state.value.sortByLatency)
+        assertEquals(listOf(alpha.id, gamma.id, beta.id), ids(), "measured, then untested/unsupported, then failed")
+        assertEquals(setOf(beta.id), vm.state.value.failedIds, "only server-attributable failures count")
+        assertTrue(listPrefs.sortByLatency, "preference is persisted through the prefs store")
+        job.cancel()
+    }
+
+    @Test fun `hide failed removes failed rows but never the active or selected one`() = runTest(dispatcher) {
+        val (alpha, beta, delta) = seed("trojan://pw@1.2.3.4:443#Alpha\ntrojan://pw@beta.example.com:443#Beta\ntrojan://pw@delta.example.com:443#Delta")
+        val (vm, job) = vm()
+        advanceUntilIdle()
+        vm.testVisibleReachability(); advanceUntilIdle()
+        vm.select(delta.id); advanceUntilIdle()
+        vm.setHideFailed(true); advanceUntilIdle()
+        val visible = vm.state.value.groups.flatMap { it.rows }.map { it.profile.id }
+        assertEquals(listOf(alpha.id, delta.id), visible, "Beta hidden; Delta failed but is selected so it stays")
+        assertEquals(1, vm.state.value.hiddenCount)
+        assertEquals(3, vm.state.value.totalCount, "total still counts hidden rows")
+        assertEquals(setOf(beta.id), vm.state.value.failedIds)
+        job.cancel()
+    }
+
+    @Test fun `delete failed asks for confirmation and removes exactly the failed servers`() = runTest(dispatcher) {
+        val (alpha, beta, delta) = seed("trojan://pw@1.2.3.4:443#Alpha\ntrojan://pw@beta.example.com:443#Beta\ntrojan://pw@delta.example.com:443#Delta")
+        val (vm, job) = vm()
+        advanceUntilIdle()
+        vm.requestDeleteFailed(); advanceUntilIdle()
+        assertNull(vm.state.value.confirmDelete, "nothing failed yet → no dialog")
+
+        vm.testVisibleReachability(); advanceUntilIdle()
+        vm.requestDeleteFailed(); advanceUntilIdle()
+        val pending = assertIs<PendingDelete.Failed>(vm.state.value.confirmDelete)
+        assertEquals(setOf(beta.id, delta.id), pending.ids)
+        vm.confirmDelete(); advanceUntilIdle()
+        assertEquals(listOf(alpha.id), store.current().map { it.id })
+        assertNull(vm.state.value.confirmDelete)
         job.cancel()
     }
 }

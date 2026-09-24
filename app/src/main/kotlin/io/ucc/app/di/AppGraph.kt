@@ -34,6 +34,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
@@ -93,8 +94,29 @@ class AppGraph(context: Context) {
 
     /** Smart selection: pure policy from :core:smart, persistence + manager glue here. */
     val healthStore = io.ucc.app.data.JsonServerHealthStore(app)
+    /**
+     * Connection tester: real HTTP delay through the core's probe (v1.0.2) when the engine offers one and the
+     * setting is on; TCP handshake otherwise. Switching is per call, so the Settings toggle applies at once.
+     */
+    private val tcpTester = io.ucc.core.smart.TcpConnectionTester()
+    private val httpTester: io.ucc.core.smart.HttpDelayConnectionTester? = (core as? io.ucc.core.engine.CoreDelayProbe)?.let { probe ->
+        io.ucc.core.smart.HttpDelayConnectionTester(
+            probe = probe,
+            startOptions = { settingsStore.settings.value.toStartOptions(core.capabilities) },
+            url = { settingsStore.settings.value.effectiveDelayTestUrl },
+            fallback = tcpTester,
+        )
+    }
+    val connectionTester: io.ucc.core.smart.ConnectionTester = object : io.ucc.core.smart.BatchConnectionTester {
+        private fun active(): io.ucc.core.smart.ConnectionTester = httpTester?.takeIf { settingsStore.settings.value.realDelayTest } ?: tcpTester
+        override suspend fun test(profile: io.ucc.core.model.ConnectionProfile) = active().test(profile)
+        override suspend fun <T> batch(profiles: List<io.ucc.core.model.ConnectionProfile>, block: suspend () -> T): T {
+            val t = active()
+            return if (t is io.ucc.core.smart.BatchConnectionTester) t.batch(profiles, block) else block()
+        }
+    }
     val healthRunner = io.ucc.core.smart.HealthCheckRunner(
-        tester = io.ucc.core.smart.TcpConnectionTester(),
+        tester = connectionTester,
         store = healthStore,
         clock = { System.currentTimeMillis() },
         networkTransport = { smart.transport.value },
@@ -134,6 +156,18 @@ class AppGraph(context: Context) {
         appScope.launch { healthStore.load(); profileStore.load(); subscriptionStore.load() }
         smart // start observing the manager
 
-        SubscriptionRefreshWorker.schedule(app)
+        // Subscription auto-update (v1.0.2): periodic job follows the settings interval; optional refresh on foreground.
+        appScope.launch {
+            settingsStore.settings.map { it.subscriptionUpdateIntervalHours }.distinctUntilChanged().collect { SubscriptionRefreshWorker.schedule(app, it) }
+        }
+        androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.addObserver(object : androidx.lifecycle.DefaultLifecycleObserver {
+            override fun onStart(owner: androidx.lifecycle.LifecycleOwner) {
+                if (!settingsStore.settings.value.subscriptionUpdateOnOpen) return
+                appScope.launch {
+                    val outcomes = subscriptionRefresher.refreshAllDue(minIntervalMs = io.ucc.applogic.ConnectionSettings.ON_OPEN_MIN_INTERVAL_MS)
+                    if (outcomes.isNotEmpty()) android.util.Log.i("SubRefresh", "on-open refresh: ${outcomes.size} due, ${outcomes.count { it !is SubscriptionRefresher.Outcome.Updated }} failed")
+                }
+            }
+        })
     }
 }

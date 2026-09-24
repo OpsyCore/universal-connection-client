@@ -43,7 +43,7 @@ class MainActivity : AppCompatActivity() {
 
     private val serversViewModel: ServersViewModel by viewModels {
         val g = UccApplication.graph(this)
-        ServersViewModel.Factory(g.serverRepository, g.subscriptionRefresher, g.preferences, g.connectionManager, g.smart, g.healthStore, g.healthRunner)
+        ServersViewModel.Factory(g.serverRepository, g.subscriptionRefresher, g.preferences, g.connectionManager, g.smart, g.healthStore, g.healthRunner, g.preferences)
     }
 
     private val settingsViewModel: SettingsViewModel by viewModels {

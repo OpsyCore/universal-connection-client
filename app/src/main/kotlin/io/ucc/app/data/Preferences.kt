@@ -17,7 +17,7 @@ interface ThemeStore {
     var theme: ThemeMode
 }
 
-class Preferences(context: Context) : LastProfileStore, SelectionStore, ThemeStore {
+class Preferences(context: Context) : LastProfileStore, SelectionStore, ThemeStore, io.ucc.applogic.ServerListPrefs {
     private val prefs: SharedPreferences = context.applicationContext.getSharedPreferences("ucc_prefs", Context.MODE_PRIVATE)
 
     private val _selected = kotlinx.coroutines.flow.MutableStateFlow(prefs.getString(KEY_SELECTED, null))
@@ -43,6 +43,18 @@ class Preferences(context: Context) : LastProfileStore, SelectionStore, ThemeSto
         get() = _theme.value
         set(value) { _theme.value = value; prefs.edit().putString(KEY_THEME, value.name).apply() }
 
+    private val _sortLatency = kotlinx.coroutines.flow.MutableStateFlow(prefs.getBoolean(KEY_SORT_LATENCY, false))
+    override val sortByLatencyFlow: kotlinx.coroutines.flow.StateFlow<Boolean> = _sortLatency
+    override var sortByLatency: Boolean
+        get() = _sortLatency.value
+        set(value) { _sortLatency.value = value; prefs.edit().putBoolean(KEY_SORT_LATENCY, value).apply() }
+
+    private val _hideFailed = kotlinx.coroutines.flow.MutableStateFlow(prefs.getBoolean(KEY_HIDE_FAILED, false))
+    override val hideFailedFlow: kotlinx.coroutines.flow.StateFlow<Boolean> = _hideFailed
+    override var hideFailed: Boolean
+        get() = _hideFailed.value
+        set(value) { _hideFailed.value = value; prefs.edit().putBoolean(KEY_HIDE_FAILED, value).apply() }
+
     override fun write(profileId: String?) {
         prefs.edit().putString(KEY_LAST_ACTIVE, profileId).commit()
     }
@@ -54,5 +66,7 @@ class Preferences(context: Context) : LastProfileStore, SelectionStore, ThemeSto
         const val KEY_LAST_ACTIVE = "last_active_profile_id"
         const val KEY_THEME = "theme_mode"
         const val KEY_SMART = "smart_selection"
+        const val KEY_SORT_LATENCY = "servers_sort_latency"
+        const val KEY_HIDE_FAILED = "servers_hide_failed"
     }
 }

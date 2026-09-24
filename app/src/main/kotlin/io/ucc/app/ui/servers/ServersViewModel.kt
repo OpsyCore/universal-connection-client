@@ -39,7 +39,18 @@ data class ServerRow(
     val testing: Boolean = false,
     /** Same content as [ServersUiState.recommendedId]; true for at most one row. */
     val recommended: Boolean = false,
-)
+) {
+    /**
+     * Latest evidence says the server is down: a server-attributable failure in this session's test, or a
+     * persisted OFFLINE status. Local problems (no network, cancelled, unsupported) never count.
+     */
+    val isFailed: Boolean
+        get() {
+            val t = lastTest
+            if (t != null) return !t.success && t.failure?.attributableToServer == true
+            return status == HealthStatus.OFFLINE
+        }
+}
 
 data class ServerGroup(
     /** null = manual / ungrouped. */
@@ -60,6 +71,13 @@ data class ServersUiState(
     val testingAll: Boolean = false,
     /** Profile Smart would pick right now with the stored evidence; null when there is not enough data. */
     val recommendedId: String? = null,
+    /** v1.0.2: rows ordered by measured latency (best first). */
+    val sortByLatency: Boolean = false,
+    /** v1.0.2: rows with failing evidence are hidden; [hiddenCount] says how many. */
+    val hideFailed: Boolean = false,
+    val hiddenCount: Int = 0,
+    /** Servers whose latest evidence says "down" (candidates for "Delete failed servers"); never the active or selected one. */
+    val failedIds: Set<String> = emptySet(),
 ) {
     val isEmpty: Boolean get() = totalCount == 0
     val nothingMatches: Boolean get() = totalCount > 0 && groups.all { it.rows.isEmpty() }
@@ -67,6 +85,8 @@ data class ServersUiState(
 
 sealed class PendingDelete {
     data class Profiles(val ids: Set<String>) : PendingDelete()
+    /** v1.0.2: bulk removal of servers that failed their latest test / are offline. */
+    data class Failed(val ids: Set<String>) : PendingDelete()
     data class SubscriptionGroup(val subscription: Subscription, val memberCount: Int) : PendingDelete()
 }
 
@@ -89,6 +109,7 @@ class ServersViewModel(
     private val recommendation: kotlinx.coroutines.flow.Flow<String?> = kotlinx.coroutines.flow.flowOf(null),
     private val transport: kotlinx.coroutines.flow.StateFlow<String?> = MutableStateFlow(null),
     private val now: () -> Long = System::currentTimeMillis,
+    private val listPrefs: io.ucc.applogic.ServerListPrefs = io.ucc.applogic.InMemoryServerListPrefs(),
 ) : ViewModel() {
 
     private val reach = MutableStateFlow<Map<String, ConnectionTestResult>>(emptyMap())
@@ -112,25 +133,29 @@ class ServersViewModel(
 
     val state: StateFlow<ServersUiState> = combine(
         repo.groups, preferences.selectedProfileIdFlow, manager.state, combine(query, favoritesOnly, refreshing) { q, f, r -> Triple(q, f, r) },
-        combine(local, reach, testing, health.all, combine(recommendation, transport) { rec, tr -> rec to tr }) { l, r, t, h, (rec, tr) -> RowInputs(l, r, t, h, rec, tr) },
-    ) { groups, selectedId, conn, (q, favOnly, busy), (loc, reachMap, testingIds, healthMap, recommendedId, tr) ->
+        combine(local, reach, testing, health.all, combine(recommendation, transport, listPrefs.sortByLatencyFlow, listPrefs.hideFailedFlow) { rec, tr, srt, hide -> ListInputs(rec, tr, srt, hide) }) { l, r, t, h, li -> RowInputs(l, r, t, h, li) },
+    ) { groups, selectedId, conn, (q, favOnly, busy), (loc, reachMap, testingIds, healthMap, li) ->
         val activeId = conn.boundProfileId
         val nowMs = now()
         val needle = q.trim().lowercase()
         val total = groups.sumOf { it.profiles.size }
+        var hidden = 0
+        val failed = LinkedHashSet<String>()
         val visible = groups.map { g ->
             val rows = g.profiles.asSequence()
                 .filter { !favOnly || it.metadata.favorite }
                 .filter { needle.isEmpty() || it.matches(needle) }
-                .sortedWith(compareByDescending<ConnectionProfile> { it.metadata.favorite }.thenBy { it.name.lowercase() })
                 .map {
                     val h = healthMap[it.fingerprint] ?: ServerHealth.EMPTY
                     ServerRow(
                         it, selected = it.id == selectedId, active = it.id == activeId,
-                        health = h, status = ServerHealthEvaluator.status(h, nowMs, tr),
-                        lastTest = reachMap[it.id], testing = it.id in testingIds, recommended = it.id == recommendedId,
+                        health = h, status = ServerHealthEvaluator.status(h, nowMs, li.transport),
+                        lastTest = reachMap[it.id], testing = it.id in testingIds, recommended = it.id == li.recommendedId,
                     )
                 }
+                .onEach { if (it.isFailed && !it.active && !it.selected) failed += it.profile.id }
+                .filter { row -> if (li.hideFailed && row.isFailed && !row.active && !row.selected) { hidden++; false } else true }
+                .sortedWith(if (li.sortByLatency) LATENCY_ORDER else DEFAULT_ORDER)
                 .toList()
             ServerGroup(g.subscription, rows, refreshing = g.subscription?.id in busy)
         }
@@ -138,14 +163,26 @@ class ServersViewModel(
             query = q, favoritesOnly = favOnly, groups = visible, totalCount = total,
             selectionMode = loc.selectionMode, checked = loc.checked, renaming = loc.renaming, confirmDelete = loc.confirmDelete,
             testingAll = testAllJob?.isActive == true,
-            recommendedId = recommendedId,
+            recommendedId = li.recommendedId,
+            sortByLatency = li.sortByLatency, hideFailed = li.hideFailed, hiddenCount = hidden, failedIds = failed,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ServersUiState())
 
+    private data class ListInputs(val recommendedId: String?, val transport: String?, val sortByLatency: Boolean, val hideFailed: Boolean)
     private data class RowInputs(
         val local: LocalState, val reach: Map<String, ConnectionTestResult>, val testing: Set<String>,
-        val health: Map<String, ServerHealth>, val recommendedId: String?, val transport: String?,
+        val health: Map<String, ServerHealth>, val list: ListInputs,
     )
+
+    private companion object {
+        val DEFAULT_ORDER: Comparator<ServerRow> = compareByDescending<ServerRow> { it.profile.metadata.favorite }.thenBy { it.profile.name.lowercase() }
+        /** Measured servers first (session test beats stored EMA), then untested, then failed; name breaks ties. Deterministic. */
+        val LATENCY_ORDER: Comparator<ServerRow> = compareBy<ServerRow> { it.sortRank }.thenBy { it.sortLatency }.thenBy { it.profile.name.lowercase() }
+    }
+
+    /** Sort bucket: 0 = has a latency, 1 = untested / unknown, 2 = failed. */
+    private val ServerRow.sortRank: Int get() = when { sortLatency != Long.MAX_VALUE -> 0; isFailed -> 2; else -> 1 }
+    private val ServerRow.sortLatency: Long get() = lastTest?.takeIf { it.success }?.latencyMs ?: (if (lastTest == null && status != HealthStatus.OFFLINE) health.rollingLatencyMs else null) ?: Long.MAX_VALUE
 
     private fun ConnectionProfile.matches(needle: String): Boolean =
         name.lowercase().contains(needle) || address.lowercase().contains(needle) ||
@@ -183,6 +220,15 @@ class ServersViewModel(
         }
     }
     fun toggleFavoritesOnly() { favoritesOnly.value = !favoritesOnly.value }
+    fun setSortByLatency(v: Boolean) { listPrefs.sortByLatency = v }
+    fun setHideFailed(v: Boolean) { listPrefs.hideFailed = v }
+
+    /** Asks to delete every server in [ServersUiState.failedIds]; the active/selected one is never included. Confirmed via the delete dialog. */
+    fun requestDeleteFailed() {
+        val ids = state.value.failedIds
+        if (ids.isEmpty()) return
+        local.value = local.value.copy(confirmDelete = PendingDelete.Failed(ids))
+    }
 
     // ---- single-item actions ----
     fun select(id: String) { preferences.selectedProfileId = id }
@@ -218,6 +264,7 @@ class ServersViewModel(
         viewModelScope.launch {
             val r = when (pending) {
                 is PendingDelete.Profiles -> repo.delete(pending.ids)
+                is PendingDelete.Failed -> repo.delete(pending.ids)
                 is PendingDelete.SubscriptionGroup -> repo.deleteSubscription(pending.subscription.id)
             }
             if (r.blockedActive) _effects.tryEmit(ServersEffect.DeleteBlockedActive)
@@ -271,12 +318,14 @@ class ServersViewModel(
         private val smart: io.ucc.applogic.SmartConnectionCoordinator,
         private val health: ServerHealthStore,
         private val runner: HealthCheckRunner,
+        private val listPrefs: io.ucc.applogic.ServerListPrefs,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T = ServersViewModel(
             repo, refresher, preferences, manager, runner, health,
             recommendation = smart.recommendedId,
             transport = smart.transport,
+            listPrefs = listPrefs,
         ) as T
     }
 }

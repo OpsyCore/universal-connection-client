@@ -180,6 +180,36 @@ fun SettingsScreen(state: SettingsUiState, vm: SettingsViewModel, onBack: () -> 
             }
             Text(stringResource(R.string.settings_network_tweaks_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
+            // ---------------------------------------------------------------- Smart routing (v1.0.2; rule-set backed; default OFF)
+            if (state.capabilities?.ruleSets == true) {
+                Section(stringResource(R.string.settings_section_smart_routing))
+                SwitchRow(stringResource(R.string.settings_direct_iran), stringResource(R.string.settings_direct_iran_help), s.directIran, vm::setDirectIran)
+                SwitchRow(stringResource(R.string.settings_block_ads), stringResource(R.string.settings_block_ads_help), s.blockAds, vm::setBlockAds)
+                Text(stringResource(R.string.settings_smart_routing_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            // ---------------------------------------------------------------- Servers: delay test + subscription auto-update (v1.0.2)
+            Section(stringResource(R.string.settings_section_servers))
+            SwitchRow(stringResource(R.string.settings_real_delay_test), stringResource(R.string.settings_real_delay_test_help), s.realDelayTest, vm::setRealDelayTest)
+            if (s.realDelayTest) {
+                OutlinedTextField(
+                    value = s.delayTestUrl, onValueChange = vm::setDelayTestUrl, modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    label = { Text(stringResource(R.string.settings_delay_test_url)) },
+                    isError = Problem.DelayTestUrlInvalid in state.problems,
+                    supportingText = { Text(stringResource(if (Problem.DelayTestUrlInvalid in state.problems) R.string.settings_delay_test_url_invalid else R.string.settings_delay_test_url_help)) },
+                )
+            }
+            Text(stringResource(R.string.settings_sub_update_interval), style = MaterialTheme.typography.bodyLarge)
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                ConnectionSettings.SUBSCRIPTION_INTERVALS.forEachIndexed { i, h ->
+                    SegmentedButton(selected = s.subscriptionUpdateIntervalHours == h, onClick = { vm.setSubscriptionUpdateIntervalHours(h) }, shape = SegmentedButtonDefaults.itemShape(i, ConnectionSettings.SUBSCRIPTION_INTERVALS.size)) {
+                        Text(if (h == 0) stringResource(R.string.settings_sub_update_off) else stringResource(R.string.settings_sub_update_hours, h), maxLines = 1)
+                    }
+                }
+            }
+            Text(stringResource(R.string.settings_sub_update_interval_help), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SwitchRow(stringResource(R.string.settings_sub_update_on_open), stringResource(R.string.settings_sub_update_on_open_help), s.subscriptionUpdateOnOpen, vm::setSubscriptionUpdateOnOpen)
+
             // ---------------------------------------------------------------- Diagnostics
             Section(stringResource(R.string.settings_section_diagnostics))
             Text(stringResource(R.string.settings_log_level), style = MaterialTheme.typography.bodyMedium)

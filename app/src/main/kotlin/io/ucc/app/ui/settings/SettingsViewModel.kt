@@ -90,6 +90,12 @@ class SettingsViewModel(
     fun setFakeDns(v: Boolean) = update { it.copy(fakeDns = v) }
     fun setNotificationSpeed(v: Boolean) = update { it.copy(notificationSpeed = v) }
     fun setAutoConnectOnBoot(v: Boolean) = update { it.copy(autoConnectOnBoot = v) }
+    fun setDirectIran(v: Boolean) = update { it.copy(directIran = v) }
+    fun setBlockAds(v: Boolean) = update { it.copy(blockAds = v) }
+    fun setRealDelayTest(v: Boolean) = update { it.copy(realDelayTest = v) }
+    fun setDelayTestUrl(v: String) = update { it.copy(delayTestUrl = v.trim()) }
+    fun setSubscriptionUpdateIntervalHours(v: Int) = update { it.copy(subscriptionUpdateIntervalHours = v) }
+    fun setSubscriptionUpdateOnOpen(v: Boolean) = update { it.copy(subscriptionUpdateOnOpen = v) }
     fun setMtu(v: String) { v.toIntOrNull()?.let { m -> update { it.copy(mtu = m) } } }
     fun setLogLevel(v: ConnectionSettings.LogLevel) = update { it.copy(logLevel = v) }
     fun setPerAppMode(v: ConnectionSettings.PerAppMode) = update { it.copy(perAppMode = v) }
