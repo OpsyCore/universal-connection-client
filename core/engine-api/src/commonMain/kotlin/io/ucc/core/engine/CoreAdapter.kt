@@ -102,6 +102,13 @@ public data class CoreStartOptions(
      * and no upstream lookup happens before the connection (sing-box `fakeip` DNS server). Default off.
      */
     val fakeDns: Boolean = false,
+    /**
+     * Smart routing (v1.0.1): Iranian domains (`geosite-ir`) and IP ranges (`geoip-ir`) bypass the proxy and
+     * resolve via the direct resolver. Backed by bundled rule-set files; requires [CoreCapabilities.ruleSets]. Default off.
+     */
+    val directIran: Boolean = false,
+    /** Smart routing (v1.0.1): reject connections and DNS answers for known ad/tracker domains (`geosite-category-ads-all`). Default off. */
+    val blockAds: Boolean = false,
     /** Extra JSON fragments the routing/DNS layers contribute (rule-sets, Phase 6). Override the typed fields when set. */
     val routingConfig: String? = null,
     val dnsConfig: String? = null,

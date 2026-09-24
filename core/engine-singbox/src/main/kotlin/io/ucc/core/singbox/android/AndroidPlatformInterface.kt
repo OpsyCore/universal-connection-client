@@ -39,6 +39,11 @@ internal class AndroidPlatformInterface(
     private val context: Context,
     private val defaultNetwork: () -> Network?,
     private val interfaceMonitor: DefaultInterfaceBridge,
+    /**
+     * Delay-probe instances: no TUN of their own. When the tunnel is up they protect sockets through its
+     * provider (never measuring *through* the tunnel); when it is down there is nothing to protect.
+     */
+    private val protectOptional: Boolean = false,
 ) : PlatformInterface {
 
     @Volatile var tunProvider: TunProvider? = null
@@ -53,11 +58,12 @@ internal class AndroidPlatformInterface(
     override fun usePlatformAutoDetectInterfaceControl(): Boolean = true
 
     override fun autoDetectInterfaceControl(fd: Int) {
-        val provider = tunProvider ?: error("android: no active tunnel to protect socket")
+        val provider = tunProvider ?: if (protectOptional) return else error("android: no active tunnel to protect socket")
         if (!provider.protectSocket(fd)) error("android: VpnService.protect($fd) failed")
     }
 
     override fun openTun(options: TunOptions): Int {
+        if (protectOptional) error("android: delay-probe instance must not open a TUN")
         val provider = tunProvider ?: error("android: openTun called without a tunnel host")
         return provider.openTun(options.toRequest())
     }

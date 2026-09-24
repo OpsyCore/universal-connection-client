@@ -349,4 +349,90 @@ class SingBoxConfigGeneratorTest {
         val parsed = Json.parseToJsonElement(text).jsonObject
         assertEquals(JsonPrimitive("http"), parsed["outbounds"]!!.jsonArray[0].jsonObject["type"])
     }
+
+    // ------------------------------------------------------------------ v1.0.1 smart routing (rule-sets)
+
+    private val withSets = SingBoxConfigGenerator(ruleSetDirectory = "/data/rulesets/")
+    private val trojan = base(Protocol.TROJAN, Authentication.Trojan("pw"), TlsSettings(enabled = true))
+
+    @Test
+    fun `smart routing off emits no rule_set and no set rules`() {
+        val doc = withSets.generateDocument(trojan, CoreStartOptions())
+        val route = doc["route"]!!.jsonObject
+        assertNull(route["rule_set"])
+        assertTrue(route["rules"]!!.jsonArray.none { "rule_set" in it.jsonObject })
+        assertTrue(doc["dns"]!!.jsonObject["rules"]!!.jsonArray.none { "rule_set" in it.jsonObject })
+    }
+
+    @Test
+    fun `direct iran adds local rule-sets, direct route rules and a direct DNS rule before fakeip`() {
+        val doc = withSets.generateDocument(trojan, CoreStartOptions(directIran = true, fakeDns = true))
+        val route = doc["route"]!!.jsonObject
+        val sets = route["rule_set"]!!.jsonArray.map { it.jsonObject }
+        assertEquals(listOf("geosite-ir", "geoip-ir"), sets.map { it["tag"]!!.jsonPrimitive.content })
+        assertTrue(sets.all { it["type"]!!.jsonPrimitive.content == "local" && it["format"]!!.jsonPrimitive.content == "binary" })
+        assertEquals("/data/rulesets/geosite-ir.srs", sets[0]["path"]!!.jsonPrimitive.content)
+        val rules = route["rules"]!!.jsonArray.map { it.jsonObject }
+        val direct = rules.filter { it["outbound"]?.jsonPrimitive?.contentOrNull == "direct" && "rule_set" in it }
+        assertEquals(listOf("geosite-ir", "geoip-ir"), direct.map { it["rule_set"]!!.jsonArray[0].jsonPrimitive.content })
+        assertTrue(rules.none { it["action"]?.jsonPrimitive?.contentOrNull == "resolve" }, "no resolve action (would leak foreign names to the direct resolver)")
+        val dnsRules = doc["dns"]!!.jsonObject["rules"]!!.jsonArray.map { it.jsonObject }
+        val ir = dnsRules.indexOfFirst { it["rule_set"]?.jsonArray?.get(0)?.jsonPrimitive?.content == "geosite-ir" }
+        val fake = dnsRules.indexOfFirst { it["server"]?.jsonPrimitive?.contentOrNull == "dns-fakeip" }
+        assertTrue(ir in 0 until fake, "Iranian names must be answered directly before the FakeIP catch-all")
+        assertEquals("dns-direct", dnsRules[ir]["server"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `block ads rejects in route and dns and comes before user rules`() {
+        val doc = withSets.generateDocument(trojan, CoreStartOptions(blockAds = true, rules = listOf(RoutingRule(RouteAction.PROXY, domainSuffixes = listOf(".ads.example")))))
+        val route = doc["route"]!!.jsonObject
+        assertEquals(listOf("geosite-category-ads-all"), route["rule_set"]!!.jsonArray.map { it.jsonObject["tag"]!!.jsonPrimitive.content })
+        val rules = route["rules"]!!.jsonArray.map { it.jsonObject }
+        val ads = rules.indexOfFirst { it["rule_set"] != null }
+        val user = rules.indexOfFirst { it["domain_suffix"] != null }
+        assertTrue(ads in 0 until user)
+        assertEquals("reject", rules[ads]["action"]!!.jsonPrimitive.content)
+        val dns = doc["dns"]!!.jsonObject["rules"]!!.jsonArray.map { it.jsonObject }.first { it["rule_set"] != null }
+        assertEquals("reject", dns["action"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `smart routing without bundled rule-sets is an InvalidConfiguration, not a silent no-op`() {
+        val e = assertFailsWith<CoreException> { gen.generateDocument(trojan, CoreStartOptions(directIran = true)) }
+        assertTrue(e.error is io.ucc.core.engine.ConnectionError.InvalidConfiguration)
+        assertFailsWith<CoreException> { gen.generateDocument(trojan, CoreStartOptions(blockAds = true)) }
+    }
+
+    // ------------------------------------------------------------------ v1.0.1 delay probe instance
+
+    @Test
+    fun `probe document has no inbound, one outbound per profile tagged by id, loopback clash api and no cache file`() {
+        val a = trojan.copy(id = "a1")
+        val b = base(Protocol.HYSTERIA2, Authentication.Hysteria2(password = "pw"), TlsSettings(enabled = true, serverName = "h.example")).copy(id = "b2", port = 8443)
+        val wg = ConnectionProfile(id = "w", name = "wg", protocol = Protocol.WIREGUARD, address = "1.2.3.4", port = 51820,
+            authentication = Authentication.WireGuard(privateKey = "cHJpdg==", peerPublicKey = "cHVi", localAddresses = listOf("10.0.0.2/32")))
+        val doc = withSets.generateProbeDocument(listOf(a, b, wg), CoreStartOptions(tlsFragment = true), port = 24567, secret = "0123456789abcdef0123456789abcdef")
+        assertNull(doc["inbounds"])
+        assertNull(doc["endpoints"])
+        val outs = doc["outbounds"]!!.jsonArray.map { it.jsonObject }
+        assertEquals(listOf("a1", "b2", "direct"), outs.map { it["tag"]!!.jsonPrimitive.content })
+        assertTrue(outs[0]["tls"]!!.jsonObject["fragment"]!!.jsonPrimitive.boolean, "probe outbounds use the same start options as the tunnel")
+        val clash = doc["experimental"]!!.jsonObject["clash_api"]!!.jsonObject
+        assertEquals("127.0.0.1:24567", clash["external_controller"]!!.jsonPrimitive.content)
+        assertEquals("0123456789abcdef0123456789abcdef", clash["secret"]!!.jsonPrimitive.content)
+        assertNull(doc["experimental"]!!.jsonObject["cache_file"])
+        val route = doc["route"]!!.jsonObject
+        assertTrue(route["auto_detect_interface"]!!.jsonPrimitive.boolean)
+        assertEquals("direct", route["final"]!!.jsonPrimitive.content)
+        assertNull(route["rule_set"])
+        // Parses as JSON and does not depend on rule-set files even when smart routing is on.
+        Json.parseToJsonElement(gen.generateProbe(listOf(a), CoreStartOptions(directIran = true, blockAds = true), 30000, "0123456789abcdef0123456789abcdef"))
+    }
+
+    @Test
+    fun `probe document rejects weak secrets and bad ports`() {
+        assertFailsWith<IllegalArgumentException> { gen.generateProbeDocument(listOf(trojan), CoreStartOptions(), 1, "short") }
+        assertFailsWith<IllegalArgumentException> { gen.generateProbeDocument(listOf(trojan), CoreStartOptions(), 0, "0123456789abcdef0123456789abcdef") }
+    }
 }

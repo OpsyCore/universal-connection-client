@@ -19,6 +19,8 @@ import io.nekohasekai.libbox.SystemProxyStatus
 import io.ucc.core.engine.ConnectionError
 import io.ucc.core.engine.ErrorClassifier
 import io.ucc.core.engine.CoreAdapter
+import io.ucc.core.engine.CoreDelayProbe
+import io.ucc.core.engine.DelayProbeSession
 import io.ucc.core.engine.InterfaceObserver
 import io.ucc.core.engine.CoreCapabilities
 import io.ucc.core.engine.CoreDescriptor
@@ -57,8 +59,8 @@ public class SingBoxCoreAdapter(
     private val debug: Boolean,
     private val defaultNetwork: () -> Network?,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val generator: SingBoxConfigGenerator = SingBoxConfigGenerator(),
-) : CoreAdapter, InterfaceObserver {
+    generator: SingBoxConfigGenerator? = null,
+) : CoreAdapter, InterfaceObserver, CoreDelayProbe {
 
     private companion object {
         const val TAG = "SingBoxCore"
@@ -68,6 +70,18 @@ public class SingBoxCoreAdapter(
     private val appContext = context.applicationContext
     private val interfaceBridge = DefaultInterfaceBridge()
     private val platform = AndroidPlatformInterface(appContext, defaultNetwork, interfaceBridge)
+
+    /** Rule-sets live in private storage (installed from assets on first use); the generator only needs the path. */
+    private val generator: SingBoxConfigGenerator = generator ?: SingBoxConfigGenerator(ruleSetDirectory = RuleSetAssets.directory(appContext).path)
+
+    /** Delay-probe instances get their own bridge (fed by the same updates) so they never steal the tunnel's listener. */
+    private val probeBridge = DefaultInterfaceBridge()
+    private val delayProbe = SingBoxDelayProbe(
+        generator = this.generator,
+        newPlatform = { tun -> AndroidPlatformInterface(appContext, defaultNetwork, probeBridge, protectOptional = true).also { it.tunProvider = tun } },
+        activeTunProvider = { platform.tunProvider },
+        ioDispatcher = ioDispatcher,
+    )
 
     private val mutex = Mutex()
     private var server: CommandServer? = null
@@ -90,10 +104,21 @@ public class SingBoxCoreAdapter(
     /** Called by the VPN layer's network monitor; forwarded to the core's interface monitor. */
     override fun onDefaultInterface(name: String, index: Int, expensive: Boolean) {
         interfaceBridge.update(name, index, expensive)
+        probeBridge.update(name, index, expensive)
     }
 
     override fun onDefaultInterfaceLost() {
         interfaceBridge.lost()
+        probeBridge.lost()
+    }
+
+    // ------------------------------------------------------------------ delay probe (CoreDelayProbe)
+
+    override fun supports(profile: ConnectionProfile): Boolean = delayProbe.supports(profile)
+
+    override suspend fun <T> open(profiles: List<ConnectionProfile>, options: CoreStartOptions, block: suspend (DelayProbeSession) -> T): T {
+        LibboxRuntime.ensureInitialised(appContext, debug)
+        return delayProbe.open(profiles, options, block)
     }
 
     public fun setNotificationSink(sink: ((title: String, body: String) -> Unit)?) {
@@ -104,6 +129,7 @@ public class SingBoxCoreAdapter(
 
     override suspend fun start(profile: ConnectionProfile, options: CoreStartOptions, tun: TunProvider) {
         LibboxRuntime.ensureInitialised(appContext, debug)
+        if (options.directIran || options.blockAds) withContext(ioDispatcher) { RuleSetAssets.install(appContext) }
         val config = generator.generate(profile, options) // throws CoreException(Unsupported/Invalid)
         withContext(ioDispatcher) {
             mutex.withLock {
@@ -133,6 +159,7 @@ public class SingBoxCoreAdapter(
     }
 
     override suspend fun reload(profile: ConnectionProfile, options: CoreStartOptions) {
+        if (options.directIran || options.blockAds) withContext(ioDispatcher) { RuleSetAssets.install(appContext) }
         val config = generator.generate(profile, options)
         withContext(ioDispatcher) {
             mutex.withLock {

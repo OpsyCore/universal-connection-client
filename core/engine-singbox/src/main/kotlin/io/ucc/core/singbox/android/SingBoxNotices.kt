@@ -27,5 +27,7 @@ internal object SingBoxNotices {
         ThirdPartyNotice("tailscale (SagerNet fork)", "(per sing-box go.mod)", "BSD-3-Clause", "https://github.com/SagerNet/tailscale"),
         ThirdPartyNotice("gomobile (SagerNet fork)", "(per sing-box go.mod)", "BSD-3-Clause", "https://github.com/SagerNet/gomobile"),
         ThirdPartyNotice("Go runtime", "(CI toolchain)", "BSD-3-Clause", "https://go.dev"),
+        // Bundled routing data (assets/rulesets/*.srs): geosite-ir, geoip-ir, geosite-category-ads-all.
+        ThirdPartyNotice("Iran-sing-box-rules (rule-set snapshot 2026-09-22)", "rule-set@8a5dbd5", "GPL-3.0", "https://github.com/Chocolate4U/Iran-sing-box-rules"),
     )
 }

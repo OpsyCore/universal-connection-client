@@ -38,6 +38,11 @@ import kotlinx.serialization.json.putJsonObject
  */
 public class SingBoxConfigGenerator(
     private val json: Json = Json { prettyPrint = false },
+    /**
+     * Directory holding the bundled binary rule-sets ([RULE_SET_FILES]); null on platforms that
+     * ship none. Required only when [CoreStartOptions.directIran] / [CoreStartOptions.blockAds] is on.
+     */
+    private val ruleSetDirectory: String? = null,
 ) {
     public companion object {
         public const val PROXY_TAG: String = "proxy"
@@ -56,6 +61,16 @@ public class SingBoxConfigGenerator(
         private const val OUTBOUND_OVERRIDE_PREFIX = "singbox.outbound."
         /** sing-box default is also 500ms; stated explicitly so the generated config is self-describing. */
         public const val TLS_FRAGMENT_FALLBACK_DELAY: String = "500ms"
+
+        /** Rule-set tags (v1.0.1 smart routing) and the bundled file each one loads. */
+        public const val RULE_SET_GEOSITE_IR: String = "geosite-ir"
+        public const val RULE_SET_GEOIP_IR: String = "geoip-ir"
+        public const val RULE_SET_ADS: String = "geosite-category-ads-all"
+        public val RULE_SET_FILES: Map<String, String> = mapOf(
+            RULE_SET_GEOSITE_IR to "geosite-ir.srs",
+            RULE_SET_GEOIP_IR to "geoip-ir.srs",
+            RULE_SET_ADS to "geosite-category-ads-all.srs",
+        )
         private val FRAGMENTABLE_PROTOCOLS = setOf(Protocol.VLESS, Protocol.VMESS, Protocol.TROJAN, Protocol.HTTP)
     }
 
@@ -73,6 +88,9 @@ public class SingBoxConfigGenerator(
             putJsonObject("log") {
                 put("level", options.logLevel)
                 put("timestamp", true)
+            }
+            if ((options.directIran || options.blockAds) && ruleSetDirectory == null) {
+                throw invalid("smart routing rule-sets are not available on this platform")
             }
             put("dns", options.dnsConfig?.let(::parseObject) ?: defaultDns(profile, options))
             putJsonArray("inbounds") { add(tunInbound(options)) }
@@ -131,6 +149,17 @@ public class SingBoxConfigGenerator(
                 putJsonArray("domain") { add(JsonPrimitive(profile.address)) }
                 put("server", DNS_DIRECT_TAG)
             })
+            // Block Ads: answer ad/tracker names with a refusal before any upstream (or FakeIP) sees them.
+            if (options.blockAds) add(buildJsonObject {
+                putJsonArray("rule_set") { add(JsonPrimitive(RULE_SET_ADS)) }
+                put("action", "reject")
+            })
+            // Direct Iran: Iranian names resolve through the direct resolver (real answers, never FakeIP) so
+            // the connection can then match geoip-ir / geosite-ir and go direct with a domestic IP.
+            if (options.directIran) add(buildJsonObject {
+                putJsonArray("rule_set") { add(JsonPrimitive(RULE_SET_GEOSITE_IR)) }
+                put("server", DNS_DIRECT_TAG)
+            })
             if (options.fakeDns) {
                 // Local-network names must never receive a fake address: they would be routed to the proxy
                 // (fake IPs are not private) and become unreachable. Matched pre-resolution by suffix.
@@ -184,7 +213,18 @@ public class SingBoxConfigGenerator(
             add(buildJsonObject { put("protocol", "dns"); put("action", "hijack-dns") })
             // Block QUIC: sniffed QUIC (HTTP/3, UDP/443) is rejected so apps retry over TCP. No separate udp/443 rule.
             if (options.blockQuic) add(buildJsonObject { put("protocol", "quic"); put("action", "reject") })
+            // Block Ads before anything can route it; Direct Iran before user rules (user rules still win for
+            // anything not in the Iranian sets). No `resolve` action is added on purpose: an IP rule for a
+            // domain destination would otherwise force a direct-resolver lookup of every foreign name.
+            if (options.blockAds) add(buildJsonObject {
+                putJsonArray("rule_set") { add(JsonPrimitive(RULE_SET_ADS)) }
+                put("action", "reject")
+            })
             if (options.bypassPrivate) add(buildJsonObject { put("ip_is_private", true); put("outbound", DIRECT_TAG) })
+            if (options.directIran) {
+                add(buildJsonObject { putJsonArray("rule_set") { add(JsonPrimitive(RULE_SET_GEOSITE_IR)) }; put("outbound", DIRECT_TAG) })
+                add(buildJsonObject { putJsonArray("rule_set") { add(JsonPrimitive(RULE_SET_GEOIP_IR)) }; put("outbound", DIRECT_TAG) })
+            }
             options.rules.filter { !it.isEmpty }.forEach { rule ->
                 // domain matchers may share one rule (OR); ip_cidr must be separate or it would be AND-ed with domains.
                 if (rule.domains.isNotEmpty() || rule.domainSuffixes.isNotEmpty() || rule.domainKeywords.isNotEmpty()) {
@@ -203,10 +243,68 @@ public class SingBoxConfigGenerator(
                 }
             }
         }
+        val sets = buildList {
+            if (options.directIran) { add(RULE_SET_GEOSITE_IR); add(RULE_SET_GEOIP_IR) }
+            if (options.blockAds) add(RULE_SET_ADS)
+        }
+        if (sets.isNotEmpty()) putJsonArray("rule_set") {
+            val dir = ruleSetDirectory ?: throw invalid("smart routing rule-sets are not available on this platform")
+            sets.forEach { tag ->
+                add(buildJsonObject {
+                    put("type", "local")
+                    put("tag", tag)
+                    put("format", "binary")
+                    put("path", dir.trimEnd('/') + "/" + RULE_SET_FILES.getValue(tag))
+                })
+            }
+        }
         put("final", PROXY_TAG)
         put("auto_detect_interface", true)
         put("default_domain_resolver", DNS_DIRECT_TAG)
     }
+
+    /**
+     * Configuration of the **delay-probe instance** (see `CoreDelayProbe`): no inbound, one outbound per
+     * profile tagged with the profile id, a loopback Clash API guarded by [secret] through which the host
+     * runs `GET /proxies/{id}/delay`. No cache file (the tunnel instance owns `cache.db`), no rule-sets,
+     * no FakeIP. `auto_detect_interface` keeps probe sockets off an active tunnel via the platform
+     * protect hook. Profiles the core cannot build are skipped (the caller pre-filters with `supports`).
+     */
+    public fun generateProbeDocument(profiles: List<ConnectionProfile>, options: CoreStartOptions, port: Int, secret: String): JsonObject {
+        require(port in 1..65535) { "port" }
+        require(secret.length >= 16) { "secret too short" }
+        return buildJsonObject {
+            putJsonObject("log") { put("level", "warn"); put("timestamp", false) }
+            putJsonObject("dns") {
+                putJsonArray("servers") {
+                    add(dnsServer(DNS_DIRECT_TAG, options.directDns ?: DEFAULT_DIRECT_DNS, detour = null))
+                }
+                put("final", DNS_DIRECT_TAG)
+                put("strategy", if (options.ipv6) "prefer_ipv4" else "ipv4_only")
+            }
+            putJsonArray("outbounds") {
+                profiles.filter { it.protocol != Protocol.WIREGUARD }.forEach { p ->
+                    val ob = buildOutbound(p, options)
+                    add(JsonObject(ob.toMutableMap().apply { put("tag", JsonPrimitive(p.id)) }))
+                }
+                add(buildJsonObject { put("type", "direct"); put("tag", DIRECT_TAG) })
+            }
+            putJsonObject("route") {
+                put("final", DIRECT_TAG)
+                put("auto_detect_interface", true)
+                put("default_domain_resolver", DNS_DIRECT_TAG)
+            }
+            putJsonObject("experimental") {
+                putJsonObject("clash_api") {
+                    put("external_controller", "127.0.0.1:$port")
+                    put("secret", secret)
+                }
+            }
+        }
+    }
+
+    public fun generateProbe(profiles: List<ConnectionProfile>, options: CoreStartOptions, port: Int, secret: String): String =
+        json.encodeToString(JsonObject.serializer(), generateProbeDocument(profiles, options, port, secret))
 
     private fun kotlinx.serialization.json.JsonObjectBuilder.putAction(action: RouteAction) {
         when (action) {
