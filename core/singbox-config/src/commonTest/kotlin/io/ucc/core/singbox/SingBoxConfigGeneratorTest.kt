@@ -365,7 +365,7 @@ class SingBoxConfigGeneratorTest {
     }
 
     @Test
-    fun `direct iran adds local rule-sets, direct route rules and a direct DNS rule before fakeip`() {
+    fun `direct iran adds local rule-sets and direct route rules and a direct DNS rule before fakeip`() {
         val doc = withSets.generateDocument(trojan, CoreStartOptions(directIran = true, fakeDns = true))
         val route = doc["route"]!!.jsonObject
         val sets = route["rule_set"]!!.jsonArray.map { it.jsonObject }
@@ -398,7 +398,7 @@ class SingBoxConfigGeneratorTest {
     }
 
     @Test
-    fun `smart routing without bundled rule-sets is an InvalidConfiguration, not a silent no-op`() {
+    fun `smart routing without bundled rule-sets is an InvalidConfiguration and not a silent no-op`() {
         val e = assertFailsWith<CoreException> { gen.generateDocument(trojan, CoreStartOptions(directIran = true)) }
         assertTrue(e.error is io.ucc.core.engine.ConnectionError.InvalidConfiguration)
         assertFailsWith<CoreException> { gen.generateDocument(trojan, CoreStartOptions(blockAds = true)) }
@@ -407,7 +407,7 @@ class SingBoxConfigGeneratorTest {
     // ------------------------------------------------------------------ v1.0.1 delay probe instance
 
     @Test
-    fun `probe document has no inbound, one outbound per profile tagged by id, loopback clash api and no cache file`() {
+    fun `probe document has no inbound and one outbound per profile tagged by id with loopback clash api and no cache file`() {
         val a = trojan.copy(id = "a1")
         val b = base(Protocol.HYSTERIA2, Authentication.Hysteria2(password = "pw"), TlsSettings(enabled = true, serverName = "h.example")).copy(id = "b2", port = 8443)
         val wg = ConnectionProfile(id = "w", name = "wg", protocol = Protocol.WIREGUARD, address = "1.2.3.4", port = 51820,

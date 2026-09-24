@@ -7,7 +7,7 @@ import java.io.File
 import java.security.MessageDigest
 
 /**
- * Installs the bundled binary rule-sets (`assets/rulesets/*.srs`, snapshot of
+ * Installs the bundled binary rule-sets (`assets/rulesets/` `.srs` files, snapshot of
  * Chocolate4U/Iran-sing-box-rules — see THIRD_PARTY_NOTICES.md) into private
  * storage so sing-box can load them as `type: local`. Idempotent and cheap:
  * a file is rewritten only when its SHA-256 differs from the asset's. Writes
