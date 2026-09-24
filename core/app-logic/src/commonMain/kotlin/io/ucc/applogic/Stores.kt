@@ -39,6 +39,27 @@ interface SelectionStore {
     var smartMode: Boolean
 }
 
+/** Servers-screen list preferences (v1.0.2): persisted, non-secret, read by the view-model only. */
+interface ServerListPrefs {
+    /** Order rows by measured latency (best first; untested/failed last) instead of favourites + name. */
+    val sortByLatencyFlow: StateFlow<Boolean>
+    var sortByLatency: Boolean
+
+    /** Hide rows whose latest evidence says the server is down (offline status or a failed test this session). */
+    val hideFailedFlow: StateFlow<Boolean>
+    var hideFailed: Boolean
+}
+
+/** In-memory [ServerListPrefs] for tests and platforms without persistence. */
+class InMemoryServerListPrefs : ServerListPrefs {
+    private val _sort = kotlinx.coroutines.flow.MutableStateFlow(false)
+    private val _hide = kotlinx.coroutines.flow.MutableStateFlow(false)
+    override val sortByLatencyFlow: StateFlow<Boolean> = _sort
+    override var sortByLatency: Boolean get() = _sort.value; set(v) { _sort.value = v }
+    override val hideFailedFlow: StateFlow<Boolean> = _hide
+    override var hideFailed: Boolean get() = _hide.value; set(v) { _hide.value = v }
+}
+
 /** Connection settings persistence (read synchronously by the tunnel host at start). No secrets live here. */
 interface SettingsStore {
     val settings: StateFlow<ConnectionSettings>

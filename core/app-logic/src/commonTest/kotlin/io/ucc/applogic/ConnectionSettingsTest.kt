@@ -102,4 +102,37 @@ class ConnectionSettingsTest {
         assertTrue("\"BLOCK\"" in text)
         assertEquals(s, json.decodeFromString(ConnectionSettings.serializer(), text))
     }
+
+    // ---- v1.0.1 feature set 3 ----
+
+    @Test fun `smart routing and delay test defaults`() {
+        val d = ConnectionSettings()
+        assertFalse(d.directIran); assertFalse(d.blockAds)
+        assertTrue(d.realDelayTest)
+        assertEquals(ConnectionSettings.DEFAULT_DELAY_TEST_URL, d.delayTestUrl)
+        assertEquals(24, d.subscriptionUpdateIntervalHours); assertFalse(d.subscriptionUpdateOnOpen)
+        assertTrue(d.validate().isEmpty())
+    }
+
+    @Test fun `smart routing maps to start options only when the core has rule-sets`() {
+        val s = ConnectionSettings(directIran = true, blockAds = true)
+        val with = s.toStartOptions(testCapabilities.copy(ruleSets = true))
+        assertTrue(with.directIran); assertTrue(with.blockAds)
+        val without = s.toStartOptions(testCapabilities.copy(ruleSets = false))
+        assertFalse(without.directIran); assertFalse(without.blockAds)
+    }
+
+    @Test fun `delay test url is validated but never blocks connecting`() {
+        val bad = ConnectionSettings(delayTestUrl = "gstatic.com/generate_204")
+        assertTrue(ConnectionSettings.Problem.DelayTestUrlInvalid in bad.validate())
+        assertTrue(bad.blockingProblems.isEmpty())
+        assertEquals(ConnectionSettings.DEFAULT_DELAY_TEST_URL, bad.effectiveDelayTestUrl)
+        assertEquals("http://cp.cloudflare.com/", ConnectionSettings(delayTestUrl = " http://cp.cloudflare.com/ ").effectiveDelayTestUrl)
+    }
+
+    @Test fun `old persisted settings decode with the new fields at their defaults`() {
+        val decoded = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }.decodeFromString(ConnectionSettings.serializer(), """{"remoteDns":"https://dns.google/dns-query","ipv6":false}""")
+        assertFalse(decoded.directIran); assertFalse(decoded.blockAds); assertTrue(decoded.realDelayTest)
+        assertEquals(24, decoded.subscriptionUpdateIntervalHours)
+    }
 }

@@ -38,6 +38,21 @@ data class ConnectionSettings(
     val notificationSpeed: Boolean = false,
     /** Reconnect the selected/last profile after a device reboot. UI-only; requires prior VPN consent at boot time. Off by default. */
     val autoConnectOnBoot: Boolean = false,
+    // ---- v1.0.2 smart routing (rule-set backed; both default OFF) ----
+    /** Iranian domains/IPs bypass the proxy (`geosite-ir` + `geoip-ir`, bundled snapshot). */
+    val directIran: Boolean = false,
+    /** Reject known ad/tracker domains (`geosite-category-ads-all`, bundled snapshot). */
+    val blockAds: Boolean = false,
+    // ---- v1.0.2 delay test ----
+    /** Real HTTP delay test through each server (core probe) instead of a TCP handshake. UI/test-only; not a core option. */
+    val realDelayTest: Boolean = true,
+    /** URL fetched by the real delay test; must be http(s). */
+    val delayTestUrl: String = DEFAULT_DELAY_TEST_URL,
+    // ---- v1.0.2 subscription auto-update (per-subscription "auto update" flags still apply) ----
+    /** Periodic background refresh interval in hours; 0 = off. Allowed: [SUBSCRIPTION_INTERVALS]. */
+    val subscriptionUpdateIntervalHours: Int = 24,
+    /** Also refresh due subscriptions when the app comes to the foreground (throttled). */
+    val subscriptionUpdateOnOpen: Boolean = false,
 ) {
     enum class PerAppMode { OFF, INCLUDE, EXCLUDE }
 
@@ -103,6 +118,7 @@ data class ConnectionSettings(
         data object RemoteEqualsDirect : Problem()
         data class RuleItemInvalid(val ruleId: String, val item: String) : Problem()
         data class RuleEmpty(val ruleId: String) : Problem()
+        data object DelayTestUrlInvalid : Problem()
     }
 
     fun validate(): List<Problem> = buildList {
@@ -111,6 +127,7 @@ data class ConnectionSettings(
         if (directDns != null && !isValidDnsSpec(directDns)) add(Problem.DirectDnsInvalid)
         if (directDns != null && directDns.trim() == remoteDns.trim()) add(Problem.RemoteEqualsDirect)
         if (mtu !in MTU_RANGE) add(Problem.MtuOutOfRange)
+        if (!io.ucc.core.smart.HttpDelayConnectionTester.isValidTestUrl(delayTestUrl)) add(Problem.DelayTestUrlInvalid)
         for (r in rules) {
             if (r.items.isEmpty()) add(Problem.RuleEmpty(r.id))
             r.items.filter { Rule.classify(it) == Rule.Item.Invalid }.forEach { add(Problem.RuleItemInvalid(r.id, it)) }
@@ -119,7 +136,11 @@ data class ConnectionSettings(
 
     /** Errors that make the settings unusable (as opposed to warnings the user may accept). */
     val blockingProblems: List<Problem>
-        get() = validate().filter { it !is Problem.RemoteEqualsDirect }
+        get() = validate().filter { it !is Problem.RemoteEqualsDirect && it !is Problem.DelayTestUrlInvalid }
+
+    /** URL the delay test should use: the configured one when valid, else the default (never an unusable string). */
+    val effectiveDelayTestUrl: String
+        get() = if (io.ucc.core.smart.HttpDelayConnectionTester.isValidTestUrl(delayTestUrl)) delayTestUrl.trim() else DEFAULT_DELAY_TEST_URL
 
     fun toStartOptions(capabilities: CoreCapabilities): CoreStartOptions {
         val perApp = capabilities.perAppRouting && perAppMode != PerAppMode.OFF && perAppPackages.isNotEmpty()
@@ -137,11 +158,18 @@ data class ConnectionSettings(
             tlsFragment = tlsFragment,
             blockQuic = blockQuic,
             fakeDns = fakeDns && capabilities.fakeIp,
+            directIran = directIran && capabilities.ruleSets,
+            blockAds = blockAds && capabilities.ruleSets,
         )
     }
 
     companion object {
         const val DEFAULT_REMOTE_DNS = "https://1.1.1.1/dns-query"
+        const val DEFAULT_DELAY_TEST_URL = io.ucc.core.smart.HttpDelayConnectionTester.DEFAULT_URL
+        /** Choices offered by Settings for the periodic subscription refresh (hours; 0 = off). */
+        val SUBSCRIPTION_INTERVALS: List<Int> = listOf(0, 6, 12, 24)
+        /** Foreground refreshes never run more often than this, whatever the interval says. */
+        const val ON_OPEN_MIN_INTERVAL_MS: Long = 15L * 60_000
         val MTU_RANGE: IntRange = 1280..9000
 
         /** Presets shown as chips; anything else is typed by the user and validated. */
