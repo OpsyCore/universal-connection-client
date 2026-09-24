@@ -20,7 +20,7 @@ import io.ucc.core.platform.platformIoDispatcher
  * tunnel is active, must never log addresses or credentials, and must honour
  * coroutine cancellation.
  */
-public interface ConnectionTester {
+public fun interface ConnectionTester {
     public suspend fun test(profile: ConnectionProfile): ConnectionTestResult
 }
 
@@ -128,9 +128,14 @@ public class HealthCheckRunner(
 
     /** Tests all [profiles]; [onEach] is invoked as results arrive. Cancellation stops pending tests. */
     public suspend fun testAll(profiles: List<ConnectionProfile>, onEach: suspend (ConnectionProfile, ConnectionTestResult) -> Unit = { _, _ -> }) {
-        coroutineScope {
-            profiles.map { p -> async { onEach(p, test(p)) } }.awaitAll()
+        val run: suspend () -> Unit = {
+            coroutineScope {
+                profiles.map { p -> async { onEach(p, test(p)) } }.awaitAll()
+            }
         }
+        // Batch-capable testers (real HTTP delay) boot one probe instance for the whole list.
+        val t = tester
+        if (t is BatchConnectionTester) t.batch(profiles) { run() } else run()
     }
 
     public companion object {
