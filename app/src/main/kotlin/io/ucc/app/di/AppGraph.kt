@@ -134,8 +134,6 @@ class AppGraph(context: Context) {
         profiles = profileStore,
         subscriptions = subscriptionStore,
         manager = connectionManager,
-        // Only the pre-installed free list is curated (VLESS/VMess, capped); user subscriptions pass through untouched.
-        curate = { sub, parsed -> if (io.ucc.applogic.DefaultSubscription.isDefault(sub.id)) io.ucc.applogic.DefaultSubscription.curate(parsed) else parsed },
     )
 
     /** Completes once health, profile and subscription stores have been read from disk. */
@@ -164,25 +162,14 @@ class AppGraph(context: Context) {
         storesLoaded = appScope.launch { healthStore.load(); profileStore.load(); subscriptionStore.load() }
         smart // start observing the manager
 
-        // Default free subscription (v1.0.3): seeded once on first launch, then fetched immediately so the
-        // Servers list is not empty. Ordinary subscription afterwards (rename / disable auto-update / delete).
-        // MUST run after the stores are loaded: the JSON stores start empty and every write persists the
-        // in-memory list, so a seed/merge that raced the load overwrote the files with only the new records
-        // (1.0.3-rc regression: user's servers and subscriptions vanished after the update).
+        // The "public free servers" list seeded by the 1.0.3 release candidates was withdrawn: remove it (and its
+        // servers) once on upgrade. Runs after the stores are loaded — the JSON stores start empty in memory and
+        // every write persists the in-memory list, so a write racing the load would overwrite the files on disk.
         appScope.launch {
             awaitStoresLoaded()
-            val ds = io.ucc.applogic.DefaultSubscription
-            val existing = subscriptionStore.all.value.map { it.id }
-            // Upgrade path: the previous (bulk) default list and its servers are removed; the active profile is never deleted.
-            for (legacyId in ds.legacyToRemove(existing)) {
-                val r = serverRepository.deleteSubscription(legacyId)
-                android.util.Log.i("SubRefresh", "legacy default subscription removed: deleted=${r.deleted} blockedActive=${r.blockedActive}")
-            }
-            if (ds.shouldSeed(preferences.freeSubscriptionSeededVersion, existing)) {
-                subscriptionStore.upsert(ds.record(app.getString(io.ucc.app.R.string.free_subscription_name), System.currentTimeMillis()))
-                preferences.freeSubscriptionSeededVersion = ds.SEED_VERSION
-                val outcome = subscriptionRefresher.refresh(ds.ID)
-                android.util.Log.i("SubRefresh", "default free subscription seeded (v${ds.SEED_VERSION}): ${outcome::class.simpleName}")
+            for (id in io.ucc.applogic.DefaultSubscription.toRemove(subscriptionStore.all.value.map { it.id })) {
+                val r = serverRepository.deleteSubscription(id)
+                android.util.Log.i("SubRefresh", "withdrawn default subscription removed: deleted=${r.deleted} blockedActive=${r.blockedActive}")
             }
         }
         // Subscription auto-update (v1.0.2): periodic job follows the settings interval; optional refresh on foreground.
@@ -191,17 +178,9 @@ class AppGraph(context: Context) {
         }
         androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.addObserver(object : androidx.lifecycle.DefaultLifecycleObserver {
             override fun onStart(owner: androidx.lifecycle.LifecycleOwner) {
+                if (!settingsStore.settings.value.subscriptionUpdateOnOpen) return
                 appScope.launch {
                     awaitStoresLoaded()
-                    // The pre-installed list has never been fetched successfully (e.g. first launch offline or the
-                    // host was unreachable): retry on every app open until it succeeds, regardless of the on-open setting.
-                    val ds = io.ucc.applogic.DefaultSubscription
-                    val pending = subscriptionStore.byId(ds.ID)?.takeIf { it.lastFetchedAtEpochMs == null }
-                    if (pending != null) {
-                        val outcome = subscriptionRefresher.refresh(ds.ID)
-                        android.util.Log.i("SubRefresh", "default free subscription retry: ${outcome::class.simpleName}")
-                    }
-                    if (!settingsStore.settings.value.subscriptionUpdateOnOpen) return@launch
                     val outcomes = subscriptionRefresher.refreshAllDue(minIntervalMs = io.ucc.applogic.ConnectionSettings.ON_OPEN_MIN_INTERVAL_MS)
                     if (outcomes.isNotEmpty()) android.util.Log.i("SubRefresh", "on-open refresh: ${outcomes.size} due, ${outcomes.count { it !is SubscriptionRefresher.Outcome.Updated }} failed")
                 }

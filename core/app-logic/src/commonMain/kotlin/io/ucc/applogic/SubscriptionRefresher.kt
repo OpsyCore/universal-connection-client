@@ -4,7 +4,6 @@ import io.ucc.applogic.ServerRepository.Companion.boundProfileId
 import io.ucc.core.platform.currentTimeMillis
 import io.ucc.core.config.ConfigImporter
 import io.ucc.core.config.subscription.Subscription
-import io.ucc.core.model.ConnectionProfile
 import io.ucc.core.config.subscription.SubscriptionFetchError
 import io.ucc.core.config.subscription.SubscriptionFetcher
 import io.ucc.core.config.subscription.SubscriptionMerger
@@ -36,11 +35,6 @@ class SubscriptionRefresher(
     private val merger: SubscriptionMerger = SubscriptionMerger(),
     private val now: () -> Long = ::currentTimeMillis,
     private val parseDispatcher: CoroutineDispatcher = Dispatchers.Default,
-    /**
-     * Per-subscription curation applied to the parsed list before merging (v1.0.3). Default: identity.
-     * Used for the pre-installed free list (protocol allow-list + cap); user subscriptions are never filtered.
-     */
-    private val curate: (Subscription, List<ConnectionProfile>) -> List<ConnectionProfile> = { _, p -> p },
 ) {
     sealed class Outcome {
         data class Updated(val result: SubscriptionMerger.Result, val subscription: Subscription) : Outcome()
@@ -60,8 +54,7 @@ class SubscriptionRefresher(
             subscriptions.upsert(sub.copy(lastError = e.redactedLabel()))
             return Outcome.Failed(subscriptionId, e)
         }
-        val parsed = withContext(parseDispatcher) { importer.import(fetched.body, ProfileSource.Subscription(subscriptionId)) }
-        val report = parsed.copy(profiles = curate(sub, parsed.profiles))
+        val report = withContext(parseDispatcher) { importer.import(fetched.body, ProfileSource.Subscription(subscriptionId)) }
         if (report.profiles.isEmpty()) {
             subscriptions.upsert(sub.copy(lastError = "empty:${report.failures.size}"))
             return Outcome.EmptyBody(subscriptionId, report.failures.size)

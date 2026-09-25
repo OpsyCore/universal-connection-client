@@ -36,13 +36,11 @@ Safety rails:
 
 Manual refresh: Servers screen → group header → ↻. Auto-update per subscription can be toggled from the group menu.
 
-## Default free subscription (v1.0.3)
+## Pre-installed free list — withdrawn (v1.0.3)
 
-`DefaultSubscription` (app-logic, unit-tested) + `AppGraph`: when `Preferences.freeSubscriptionSeededVersion < SEED_VERSION` (4) and no record with the same id exists, the app inserts the publisher-chosen list (`DefaultSubscription.URL` = MatinGhanbari/v2ray-configs `subscriptions/filtered/subs/vless.txt` (VLESS-only feed), name `free_subscription_name` fa/en) and immediately runs `SubscriptionRefresher.refresh`. Upgrade: the v1 list (mahdibland aggregator) the dead v2 URL (yebekhe/TV2Ray, 404) and the mixed-protocol v3/v4 `super-sub.txt` list and their servers are deleted via `ServerRepository.deleteSubscription` (active profile never deleted). The id is `Subscription.idFor(URL)`, identical to a manual add. It is an ordinary subscription afterwards; deleting it sticks for that seed version.
+The 1.0.3 release candidates seeded a third-party "public free servers" subscription. It was **withdrawn** before release (publisher decision: the public aggregations were of no practical use). The shipped app seeds nothing; users add their own configurations/subscriptions. `DefaultSubscription` now only lists the withdrawn URLs so `AppGraph` can delete such a record (and its servers) once on upgrade via `ServerRepository.deleteSubscription` — user subscriptions are never touched and the active profile is never deleted.
 
-**Ordering invariant (1.0.3 regression fix):** seeding, the on-open refresh and the WorkManager refresh all `awaitStoresLoaded()` first. The JSON stores start empty in memory and every write persists the in-memory list, so a merge that raced the initial load overwrote `profiles`/`subscriptions` on disk with only the freshly fetched records — the cause of the empty Servers screen in the 1.0.3 release candidates. While the pre-installed list has never been fetched successfully (`lastFetchedAtEpochMs == null`) it is retried on every app open, independent of the on-open setting.
-
-**Curation (this subscription only — user subscriptions are never filtered):** `SubscriptionRefresher(curate=…)` applies `DefaultSubscription.curate` to the parsed list before merging: **VLESS only**, and only entries using **REALITY** or **WebSocket** (VMess, Trojan, Shadowsocks, plain-TCP / gRPC / H2 VLESS without REALITY, unsupported transports all dropped), one entry per address:port, ranked REALITY → WS+TLS → WS, capped at `MAX_SERVERS` = 25 with at most `MAX_REALITY` = 15 REALITY entries so WebSocket ones are represented (extra REALITY entries fill in if WS is scarce). "Working" is not knowable at import time; the real delay test / Smart selection decide afterwards. Disclosure: `docs/PRIVACY_POLICY.md` §5.
+**Ordering invariant (1.0.3 regression fix):** every store-mutating startup path (the upgrade cleanup, the on-open refresh, `SubscriptionRefreshWorker`) calls `AppGraph.awaitStoresLoaded()` first. The JSON stores start empty in memory and every write persists the in-memory list, so a write racing the initial load overwrote `profiles`/`subscriptions` on disk — the cause of the empty Servers screen in the release candidates.
 
 ## Servers screen
 

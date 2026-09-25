@@ -1,78 +1,26 @@
 package io.ucc.applogic
 
 import io.ucc.core.config.subscription.Subscription
-import io.ucc.core.model.ConnectionProfile
-import io.ucc.core.model.Protocol
-import io.ucc.core.model.Transport
 
 /**
- * The public free-server list that is seeded **once per [SEED_VERSION]** (v1.0.3). Product decision by the
- * publisher: users get connection options immediately. Consequences, stated plainly:
- *  - the list is a third-party aggregation of anonymous public servers (no guarantee of availability,
- *    speed or trustworthiness; traffic through them is visible to whoever runs them);
- *  - fetching it is one HTTPS GET to GitHub on first launch and then per the normal auto-update rules;
- *  - it is an ordinary subscription afterwards: the user can rename, disable auto-update or delete it,
- *    and it is not re-seeded for the same [SEED_VERSION], so a deletion sticks.
- * Nothing here connects automatically; Smart selection treats these servers like any other.
+ * The pre-installed "public free servers" subscription was **withdrawn** before the 1.0.3 release (publisher
+ * decision: the public aggregations were of no practical use). Nothing is seeded any more.
  *
- * Curation ([curate]) applies to THIS subscription only — never to subscriptions the user adds (publisher rule,
- * v1.0.3): **VLESS only**, and only **REALITY** or **WebSocket** entries (everything else — VMess, Trojan,
- * Shadowsocks, plain-TCP VLESS, gRPC/H2 without REALITY — is dropped), one entry per address:port, ordered
- * REALITY → WS+TLS → WS, capped at [MAX_SERVERS] with at most [MAX_REALITY] REALITY entries so both kinds are
- * represented. "Working" cannot be known at import time; the real delay test decides that afterwards.
+ * What remains is the upgrade cleanup: installs that ran a 1.0.3 release candidate may still carry one of the
+ * lists seeded then; [toRemove] names those so `AppGraph` can delete them (with their servers) once. Everything
+ * the user added themselves is untouched, and the active profile is never deleted.
  */
 object DefaultSubscription {
-    /** Bump when URL or curation changes so existing installs are re-seeded (old list removed, new one added). */
-    /** v5: VLESS-only feed + REALITY/WS curation. */
-    const val SEED_VERSION: Int = 5
-    /**
-     * v5: MatinGhanbari/v2ray-configs VLESS-only feed (~110 KB base64, refreshed hourly; ~300 VLESS of which
-     * ~120 REALITY and ~110 WebSocket on 2026-09-25, verified via the GitHub API). Curated below.
-     */
-    const val URL: String = "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/vless.txt"
-    /** Pre-v3 URLs; their subscriptions (and member servers) are removed on upgrade. */
-    const val LEGACY_URL_V1: String = "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt"
-    /** v2 pointed at a repository that does not exist (404) — the reason 1.0.3-rc `9183047` showed an empty list. */
-    const val LEGACY_URL_V2: String = "https://raw.githubusercontent.com/yebekhe/TV2Ray/main/subscriptions/v2ray/vless"
-    /** v3/v4: mixed-protocol "super-sub" (mostly VMess) — replaced by the VLESS-only feed. */
-    const val LEGACY_URL_V3: String = "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/v2ray/super-sub.txt"
-    const val MAX_SERVERS: Int = 25
-    const val MAX_REALITY: Int = 15
+    /** Every URL a 1.0.3 release candidate seeded. Kept only so the records can be recognised and removed. */
+    val WITHDRAWN_URLS: List<String> = listOf(
+        "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt",
+        "https://raw.githubusercontent.com/yebekhe/TV2Ray/main/subscriptions/v2ray/vless",
+        "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/v2ray/super-sub.txt",
+        "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/vless.txt",
+    )
 
-    val ID: String get() = Subscription.idFor(URL)
-    val LEGACY_IDS: List<String> get() = listOf(Subscription.idFor(LEGACY_URL_V1), Subscription.idFor(LEGACY_URL_V2), Subscription.idFor(LEGACY_URL_V3))
+    val WITHDRAWN_IDS: List<String> get() = WITHDRAWN_URLS.map(Subscription::idFor)
 
-
-    fun record(name: String, nowEpochMs: Long): Subscription = Subscription(id = ID, url = URL, name = name, addedAtEpochMs = nowEpochMs, autoUpdate = true)
-
-    /** Seed when this [SEED_VERSION] has not been seeded yet and the record is not already present. */
-    fun shouldSeed(seededVersion: Int, existingIds: Collection<String>): Boolean = seededVersion < SEED_VERSION && ID !in existingIds
-
-    /** Subscriptions from older seed versions that should be cleaned up (only those actually present). */
-    fun legacyToRemove(existingIds: Collection<String>): List<String> = LEGACY_IDS.filter { it in existingIds }
-
-    /** True for the pre-installed list (current or legacy) — the only subscriptions [curate] touches. */
-    fun isDefault(subscriptionId: String): Boolean = subscriptionId == ID || subscriptionId in LEGACY_IDS
-
-    fun curate(profiles: List<ConnectionProfile>): List<ConnectionProfile> {
-        val eligible = profiles.asSequence()
-            .filter { it.protocol == Protocol.VLESS }
-            .filter { it.transport !is Transport.Unsupported }
-            .filter { it.tls.reality != null || it.transport is Transport.WebSocket }
-            .distinctBy { "${it.address.lowercase()}:${it.port}" }
-            .sortedBy { rank(it) }
-            .toList()
-        val reality = eligible.filter { it.tls.reality != null }.take(MAX_REALITY)
-        val ws = eligible.filter { it.tls.reality == null }.take(MAX_SERVERS - reality.size)
-        // Fill up with further REALITY entries if there are not enough WS ones.
-        val more = eligible.filter { it.tls.reality != null }.drop(reality.size).take(MAX_SERVERS - reality.size - ws.size)
-        return reality + more + ws
-    }
-
-    /** Lower = preferred. Deterministic so repeated refreshes keep a stable set (merge stays quiet). */
-    internal fun rank(p: ConnectionProfile): Int = when {
-        p.tls.reality != null -> 0
-        p.tls.enabled -> 1 // WS + TLS
-        else -> 2          // WS plain
-    }
+    /** Subscriptions from the release candidates that are actually present and should be deleted. */
+    fun toRemove(existingIds: Collection<String>): List<String> = WITHDRAWN_IDS.filter { it in existingIds }
 }

@@ -432,5 +432,4 @@
     <string name="home_ping_tap">Ping</string>
     <string name="home_ping_refresh">Measure ping again</string>
     <!-- v1.0.3: default free subscription (seeded once on first launch) -->
-    <string name="free_subscription_name">🚀 Public Free Servers</string>
 </resources>

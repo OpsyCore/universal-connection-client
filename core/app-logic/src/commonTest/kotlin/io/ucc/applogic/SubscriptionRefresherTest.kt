@@ -109,22 +109,4 @@ class SubscriptionRefresherTest {
         val refreshed = outcomes.filterIsInstance<SubscriptionRefresher.Outcome.Updated>().map { it.subscription.id }.toSet()
         assertEquals(setOf("due", "never"), refreshed)
     }
-
-    @Test fun `curate hook filters only the subscription it targets`() = runTest {
-        val curated = SubscriptionRefresher(
-            importer = testImporter(), fetcher = fetcher, profiles = store, subscriptions = subs, manager = manager,
-            now = { clock }, parseDispatcher = Dispatchers.Unconfined,
-            curate = { sub, list -> if (sub.id == "free") list.filter { it.protocol == io.ucc.core.model.Protocol.VLESS } else list },
-        )
-        val vless = "vless://b831381d-6324-4d53-ad4f-8cda48b30811@1.2.3.9:443?security=tls#V"
-        addSubscription(id = "free", body = "$a\n$vless")
-        val o = assertIs<SubscriptionRefresher.Outcome.Updated>(curated.refresh("free"))
-        assertEquals(1, o.result.added)
-        assertEquals(setOf("V"), store.current().filter { it.metadata.groupId == "free" }.map { it.name }.toSet())
-        // Different servers (the merger de-duplicates identical servers across groups, which is unrelated to curation).
-        val vless2 = "vless://b831381d-6324-4d53-ad4f-8cda48b30811@1.2.3.10:443?security=tls#V2"
-        addSubscription(id = "mine", body = "$b\n$vless2")
-        curated.refresh("mine")
-        assertEquals(setOf("B", "V2"), store.current().filter { it.metadata.groupId == "mine" }.map { it.name }.toSet(), "user subscriptions are not filtered")
-    }
 }

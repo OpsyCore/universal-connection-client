@@ -430,5 +430,4 @@
     <string name="home_ping_tap">پینگ</string>
     <string name="home_ping_refresh">سنجش دوبارهٔ پینگ</string>
     <!-- v1.0.3: default free subscription (seeded once on first launch) -->
-    <string name="free_subscription_name">🚀 سرورهای رایگان عمومی</string>
 </resources>

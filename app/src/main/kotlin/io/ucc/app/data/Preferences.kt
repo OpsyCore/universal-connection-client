@@ -55,14 +55,6 @@ class Preferences(context: Context) : LastProfileStore, SelectionStore, ThemeSto
         get() = _hideFailed.value
         set(value) { _hideFailed.value = value; prefs.edit().putBoolean(KEY_HIDE_FAILED, value).apply() }
 
-    /**
-     * v1.0.3: highest `DefaultSubscription.SEED_VERSION` that has been seeded on this install (0 = never).
-     * A user deletion sticks for that version; a bumped version re-seeds. The pre-release boolean flag counts as v1.
-     */
-    var freeSubscriptionSeededVersion: Int
-        get() = if (prefs.contains(KEY_FREE_SUB_SEED_VERSION)) prefs.getInt(KEY_FREE_SUB_SEED_VERSION, 0) else if (prefs.getBoolean(KEY_FREE_SUB_SEEDED, false)) 1 else 0
-        set(value) { prefs.edit().putInt(KEY_FREE_SUB_SEED_VERSION, value).remove(KEY_FREE_SUB_SEEDED).apply() }
-
     override fun write(profileId: String?) {
         prefs.edit().putString(KEY_LAST_ACTIVE, profileId).commit()
     }
@@ -75,8 +67,6 @@ class Preferences(context: Context) : LastProfileStore, SelectionStore, ThemeSto
         const val KEY_THEME = "theme_mode"
         const val KEY_SMART = "smart_selection"
         const val KEY_SORT_LATENCY = "servers_sort_latency"
-        const val KEY_FREE_SUB_SEEDED = "free_subscription_seeded"
-        const val KEY_FREE_SUB_SEED_VERSION = "free_subscription_seed_version"
         const val KEY_HIDE_FAILED = "servers_hide_failed"
     }
 }
