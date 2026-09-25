@@ -15,30 +15,33 @@ import io.ucc.core.model.Transport
  *    and it is not re-seeded for the same [SEED_VERSION], so a deletion sticks.
  * Nothing here connects automatically; Smart selection treats these servers like any other.
  *
- * Curation ([curate]) applies to THIS subscription only — never to subscriptions the user adds:
- * VLESS/VMess only (Trojan, Shadowsocks, SOCKS, HTTP, Hysteria, TUIC, WireGuard dropped), one entry per
- * address:port, ordered REALITY → TLS + WS/gRPC → TLS → plain, capped at [MAX_SERVERS]. "Working" cannot be
- * known at import time; the real delay test decides that afterwards.
+ * Curation ([curate]) applies to THIS subscription only — never to subscriptions the user adds (publisher rule,
+ * v1.0.3): **VLESS only**, and only **REALITY** or **WebSocket** entries (everything else — VMess, Trojan,
+ * Shadowsocks, plain-TCP VLESS, gRPC/H2 without REALITY — is dropped), one entry per address:port, ordered
+ * REALITY → WS+TLS → WS, capped at [MAX_SERVERS] with at most [MAX_REALITY] REALITY entries so both kinds are
+ * represented. "Working" cannot be known at import time; the real delay test decides that afterwards.
  */
 object DefaultSubscription {
     /** Bump when URL or curation changes so existing installs are re-seeded (old list removed, new one added). */
-    /** v4 = same URL as v3; bumped so installs that ran the racy 1.0.3-rc (record possibly lost) are seeded again. */
-    const val SEED_VERSION: Int = 4
+    /** v5: VLESS-only feed + REALITY/WS curation. */
+    const val SEED_VERSION: Int = 5
     /**
-     * v3/v4: MatinGhanbari/v2ray-configs "super-sub" — small (~75 KB base64), refreshed hourly, mixed protocols
-     * (curated below to VLESS/VMess). Existence verified via the GitHub API on 2026-09-25.
+     * v5: MatinGhanbari/v2ray-configs VLESS-only feed (~110 KB base64, refreshed hourly; ~300 VLESS of which
+     * ~120 REALITY and ~110 WebSocket on 2026-09-25, verified via the GitHub API). Curated below.
      */
-    const val URL: String = "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/v2ray/super-sub.txt"
+    const val URL: String = "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/vless.txt"
     /** Pre-v3 URLs; their subscriptions (and member servers) are removed on upgrade. */
     const val LEGACY_URL_V1: String = "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt"
     /** v2 pointed at a repository that does not exist (404) — the reason 1.0.3-rc `9183047` showed an empty list. */
     const val LEGACY_URL_V2: String = "https://raw.githubusercontent.com/yebekhe/TV2Ray/main/subscriptions/v2ray/vless"
+    /** v3/v4: mixed-protocol "super-sub" (mostly VMess) — replaced by the VLESS-only feed. */
+    const val LEGACY_URL_V3: String = "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/v2ray/super-sub.txt"
     const val MAX_SERVERS: Int = 25
+    const val MAX_REALITY: Int = 15
 
     val ID: String get() = Subscription.idFor(URL)
-    val LEGACY_IDS: List<String> get() = listOf(Subscription.idFor(LEGACY_URL_V1), Subscription.idFor(LEGACY_URL_V2))
+    val LEGACY_IDS: List<String> get() = listOf(Subscription.idFor(LEGACY_URL_V1), Subscription.idFor(LEGACY_URL_V2), Subscription.idFor(LEGACY_URL_V3))
 
-    private val ALLOWED = setOf(Protocol.VLESS, Protocol.VMESS)
 
     fun record(name: String, nowEpochMs: Long): Subscription = Subscription(id = ID, url = URL, name = name, addedAtEpochMs = nowEpochMs, autoUpdate = true)
 
@@ -51,26 +54,25 @@ object DefaultSubscription {
     /** True for the pre-installed list (current or legacy) — the only subscriptions [curate] touches. */
     fun isDefault(subscriptionId: String): Boolean = subscriptionId == ID || subscriptionId in LEGACY_IDS
 
-    fun curate(profiles: List<ConnectionProfile>): List<ConnectionProfile> =
-        profiles.asSequence()
-            .filter { it.protocol in ALLOWED }
+    fun curate(profiles: List<ConnectionProfile>): List<ConnectionProfile> {
+        val eligible = profiles.asSequence()
+            .filter { it.protocol == Protocol.VLESS }
             .filter { it.transport !is Transport.Unsupported }
+            .filter { it.tls.reality != null || it.transport is Transport.WebSocket }
             .distinctBy { "${it.address.lowercase()}:${it.port}" }
             .sortedBy { rank(it) }
-            .take(MAX_SERVERS)
             .toList()
+        val reality = eligible.filter { it.tls.reality != null }.take(MAX_REALITY)
+        val ws = eligible.filter { it.tls.reality == null }.take(MAX_SERVERS - reality.size)
+        // Fill up with further REALITY entries if there are not enough WS ones.
+        val more = eligible.filter { it.tls.reality != null }.drop(reality.size).take(MAX_SERVERS - reality.size - ws.size)
+        return reality + more + ws
+    }
 
     /** Lower = preferred. Deterministic so repeated refreshes keep a stable set (merge stays quiet). */
-    internal fun rank(p: ConnectionProfile): Int {
-        val reality = p.tls.reality != null
-        val tls = p.tls.enabled
-        val modernTransport = p.transport is Transport.WebSocket || p.transport is Transport.Grpc || p.transport is Transport.HttpUpgradeOrH2
-        return when {
-            reality -> 0
-            tls && modernTransport -> 1
-            tls -> 2
-            modernTransport -> 3
-            else -> 4
-        }
+    internal fun rank(p: ConnectionProfile): Int = when {
+        p.tls.reality != null -> 0
+        p.tls.enabled -> 1 // WS + TLS
+        else -> 2          // WS plain
     }
 }
