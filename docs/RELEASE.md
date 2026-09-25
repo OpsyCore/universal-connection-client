@@ -146,6 +146,9 @@ DNS resolves through tunnel → Smart connect picks a server → Test all → im
 subscription refresh → Persian RTL → About shows `<versionName> · <versionCode> · release · singbox` (v1.0.1 = `1.0.1 · 2`).
 **Status for v1.0.0: PASSED on a real device (owner report, 2026-09-23; incl. section E DNS with IPv6 on/off). Not reproducible from the build environment.**
 
+## v1.0.3 published
+Tag `v1.0.3` = `e33eff2d14f0f006a021f92f10abbe7dceaea2aa`; release https://github.com/OpsyCore/universal-connection-client/releases/tag/v1.0.3 (CI run 36129746924, 460 tests / 0 failures; APK `bd30947e…`, AAB `3cea8594…`, same signer certificate as v1.0.0). Contents: real delay test + auto-sort + hide/delete failed, live ping on Home, subscription auto-update, Direct-Iran / Block-ads routing presets, navigation drawer, new branding, official-channel card, start-up store-load ordering fix. The pre-installed free-server list tried in the release candidates was withdrawn before publishing. Play Store status unchanged: **NOT READY — BLOCKERS REMAIN** (Console/legal items in `docs/PLAY_STORE_CHECKLIST.md`).
+
 ## v1.0.0 published
 Tag `v1.0.0` = `875b954fc3d6c31063734471a0cbaef4747f544a`; release https://github.com/OpsyCore/universal-connection-client/releases/tag/v1.0.0 (assets + SHA-256 + signer cert in the release notes). Signed builds are delivered via a CI-created *draft* release because Actions artifact storage is quota-blocked for the account; the CI step never modifies a published release.
 

@@ -446,6 +446,14 @@ retrievable final artefact). iOS → v1.1, Windows → v1.2. Tag `v1.0.0` delibe
 - Artifact delivery: Actions artifact storage is quota-blocked for the account, so signed builds are published as a *draft* GitHub release by CI (`Publish signed build as GitHub draft release`); the published `v1.0.0` release is never overwritten by that step.
 - Still outside the repository: Play Console declarations, Data Safety form, hosted privacy policy URL, Play App Signing enrolment, GPL source publication decision (docs/GOOGLE_PLAY_RELEASE.md).
 
+## v1.0.3 — RELEASED (Android)
+- Tag `v1.0.3` → commit `e33eff2d14f0f006a021f92f10abbe7dceaea2aa`; release https://github.com/OpsyCore/universal-connection-client/releases/tag/v1.0.3 — published 2026-09-25 (owner go-ahead after device use of the release candidates).
+- CI run 36129746924: 460 tests / 0 failures; signer cert SHA-256 `5f37d4dce9ad18ee561e71dad7169ef6f6a7bb440228ac84b7b9677bb03b2685`.
+- APK SHA-256 `bd30947ec46dcef096ee5b701c71fd1ee4235869eda126dbec5a9f64b876ef96`; AAB SHA-256 `3cea859458221c73bec456359c4295849896461cf2a3696b87736d984ae6ef97`.
+- v1.0.2 (`1.0.2` / `3`) was a CI candidate only and never published; its features shipped in v1.0.3.
+- Release candidates `9183047`…`e08a384` seeded a public free-server subscription; it was withdrawn (owner decision) and is deleted once on upgrade. A start-up race (store writes before the on-disk load) found in those candidates is fixed in `788a0d8`.
+- Next: Google Play submission — all remaining items are outside the repository (`docs/PLAY_STORE_CHECKLIST.md`).
+
 ## v1.0.1 backlog (approved by owner 2026-09-23; work starts only on explicit instruction)
 Scope: Settings UI upgrade. Rules unchanged: no fake toggles, every switch must be wired and JVM-tested, all strings in `fa`+`en` resources, sing-box 1.13.21 syntax only, networking core changes minimal and behind default-OFF switches, documented in docs/SETTINGS.md.
 
