@@ -22,14 +22,20 @@ import io.ucc.core.model.Transport
  */
 object DefaultSubscription {
     /** Bump when URL or curation changes so existing installs are re-seeded (old list removed, new one added). */
-    const val SEED_VERSION: Int = 2
-    const val URL: String = "https://raw.githubusercontent.com/yebekhe/TV2Ray/main/subscriptions/v2ray/vless"
-    /** Pre-v2 URL; its subscription (and member servers) are removed on upgrade. */
+    const val SEED_VERSION: Int = 3
+    /**
+     * v3: MatinGhanbari/v2ray-configs "super-sub" — small (~75 KB base64), refreshed hourly, mixed protocols
+     * (curated below to VLESS/VMess). Existence verified via the GitHub API on 2026-09-25.
+     */
+    const val URL: String = "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/v2ray/super-sub.txt"
+    /** Pre-v3 URLs; their subscriptions (and member servers) are removed on upgrade. */
     const val LEGACY_URL_V1: String = "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt"
+    /** v2 pointed at a repository that does not exist (404) — the reason 1.0.3-rc `9183047` showed an empty list. */
+    const val LEGACY_URL_V2: String = "https://raw.githubusercontent.com/yebekhe/TV2Ray/main/subscriptions/v2ray/vless"
     const val MAX_SERVERS: Int = 25
 
     val ID: String get() = Subscription.idFor(URL)
-    val LEGACY_IDS: List<String> get() = listOf(Subscription.idFor(LEGACY_URL_V1))
+    val LEGACY_IDS: List<String> get() = listOf(Subscription.idFor(LEGACY_URL_V1), Subscription.idFor(LEGACY_URL_V2))
 
     private val ALLOWED = setOf(Protocol.VLESS, Protocol.VMESS)
 

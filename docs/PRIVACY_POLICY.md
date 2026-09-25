@@ -179,7 +179,7 @@ this SDK; if so it must be mirrored in the Play Data Safety form.)
 |---|---|---|
 | your proxy server(s) | connect, connection test, failover | tunnel traffic, protocol handshake with the credentials you configured |
 | your subscription provider(s) | add / manual refresh / background refresh (default every 24 h, configurable, or off) | HTTPS GET of the URL you added, with the User-Agent described in 2.2 |
-| `https://raw.githubusercontent.com/yebekhe/TV2Ray/main/subscriptions/v2ray/vless` (GitHub) — the pre-installed **"Public Free Servers"** subscription (v1.0.3) | once on first launch, then like any other subscription until you delete it or turn its auto-update off | HTTPS GET of the list; the servers in it are run by unknown third parties — traffic you send through them is visible to their operators. The app never connects to them on its own. |
+| `https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/v2ray/super-sub.txt` (GitHub) — the pre-installed **"Public Free Servers"** subscription (v1.0.3) | once on first launch, then like any other subscription until you delete it or turn its auto-update off | HTTPS GET of the list; the servers in it are run by unknown third parties — traffic you send through them is visible to their operators. The app never connects to them on its own. |
 | `https://www.gstatic.com/generate_204` | after a tunnel is up and during reconnect | one small HTTP request through the tunnel |
 | your configured DNS resolver (default `https://1.1.1.1/dns-query`) | while connected | DNS queries of tunnelled apps |
 

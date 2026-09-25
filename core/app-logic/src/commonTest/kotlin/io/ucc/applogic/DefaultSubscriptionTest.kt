@@ -29,13 +29,17 @@ class DefaultSubscriptionTest {
     @Test fun `seeds once per seed version and never over an existing record`() {
         assertTrue(DefaultSubscription.shouldSeed(seededVersion = 0, existingIds = emptyList()))
         assertTrue(DefaultSubscription.shouldSeed(seededVersion = 1, existingIds = emptyList()), "upgrade from the v1 list re-seeds")
+        assertTrue(DefaultSubscription.shouldSeed(seededVersion = 2, existingIds = emptyList()), "upgrade from the dead v2 list re-seeds")
         assertFalse(DefaultSubscription.shouldSeed(seededVersion = DefaultSubscription.SEED_VERSION, existingIds = emptyList()), "deleted by the user → stays deleted")
         assertFalse(DefaultSubscription.shouldSeed(seededVersion = 0, existingIds = listOf(DefaultSubscription.ID)), "already present")
     }
 
     @Test fun `legacy list is removed only when present`() {
         val legacy = Subscription.idFor(DefaultSubscription.LEGACY_URL_V1)
+        val legacy2 = Subscription.idFor(DefaultSubscription.LEGACY_URL_V2)
         assertEquals(listOf(legacy), DefaultSubscription.legacyToRemove(listOf(legacy, "other")))
+        assertEquals(listOf(legacy, legacy2), DefaultSubscription.legacyToRemove(listOf(legacy2, legacy)))
+        assertTrue(DefaultSubscription.isDefault(legacy2))
         assertEquals(emptyList(), DefaultSubscription.legacyToRemove(listOf("other")))
     }
 
