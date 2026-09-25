@@ -138,6 +138,12 @@ class AppGraph(context: Context) {
         curate = { sub, parsed -> if (io.ucc.applogic.DefaultSubscription.isDefault(sub.id)) io.ucc.applogic.DefaultSubscription.curate(parsed) else parsed },
     )
 
+    /** Completes once health, profile and subscription stores have been read from disk. */
+    private val storesLoaded: kotlinx.coroutines.Job
+
+    /** Suspends until the persisted stores are in memory. Call before any write that merges into a store. */
+    suspend fun awaitStoresLoaded() = storesLoaded.join()
+
     init {
         VpnServiceRegistry.connectionManager = connectionManager
         VpnServiceRegistry.stateForNotification = connectionManager.state
@@ -155,12 +161,16 @@ class AppGraph(context: Context) {
             Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         // Health before profiles: the coordinator prunes health against the profile list once it is non-empty.
-        appScope.launch { healthStore.load(); profileStore.load(); subscriptionStore.load() }
+        storesLoaded = appScope.launch { healthStore.load(); profileStore.load(); subscriptionStore.load() }
         smart // start observing the manager
 
         // Default free subscription (v1.0.3): seeded once on first launch, then fetched immediately so the
         // Servers list is not empty. Ordinary subscription afterwards (rename / disable auto-update / delete).
+        // MUST run after the stores are loaded: the JSON stores start empty and every write persists the
+        // in-memory list, so a seed/merge that raced the load overwrote the files with only the new records
+        // (1.0.3-rc regression: user's servers and subscriptions vanished after the update).
         appScope.launch {
+            awaitStoresLoaded()
             val ds = io.ucc.applogic.DefaultSubscription
             val existing = subscriptionStore.all.value.map { it.id }
             // Upgrade path: the previous (bulk) default list and its servers are removed; the active profile is never deleted.
@@ -181,8 +191,17 @@ class AppGraph(context: Context) {
         }
         androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.addObserver(object : androidx.lifecycle.DefaultLifecycleObserver {
             override fun onStart(owner: androidx.lifecycle.LifecycleOwner) {
-                if (!settingsStore.settings.value.subscriptionUpdateOnOpen) return
                 appScope.launch {
+                    awaitStoresLoaded()
+                    // The pre-installed list has never been fetched successfully (e.g. first launch offline or the
+                    // host was unreachable): retry on every app open until it succeeds, regardless of the on-open setting.
+                    val ds = io.ucc.applogic.DefaultSubscription
+                    val pending = subscriptionStore.byId(ds.ID)?.takeIf { it.lastFetchedAtEpochMs == null }
+                    if (pending != null) {
+                        val outcome = subscriptionRefresher.refresh(ds.ID)
+                        android.util.Log.i("SubRefresh", "default free subscription retry: ${outcome::class.simpleName}")
+                    }
+                    if (!settingsStore.settings.value.subscriptionUpdateOnOpen) return@launch
                     val outcomes = subscriptionRefresher.refreshAllDue(minIntervalMs = io.ucc.applogic.ConnectionSettings.ON_OPEN_MIN_INTERVAL_MS)
                     if (outcomes.isNotEmpty()) android.util.Log.i("SubRefresh", "on-open refresh: ${outcomes.size} due, ${outcomes.count { it !is SubscriptionRefresher.Outcome.Updated }} failed")
                 }

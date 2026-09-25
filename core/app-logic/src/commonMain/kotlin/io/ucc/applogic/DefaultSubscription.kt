@@ -22,9 +22,10 @@ import io.ucc.core.model.Transport
  */
 object DefaultSubscription {
     /** Bump when URL or curation changes so existing installs are re-seeded (old list removed, new one added). */
-    const val SEED_VERSION: Int = 3
+    /** v4 = same URL as v3; bumped so installs that ran the racy 1.0.3-rc (record possibly lost) are seeded again. */
+    const val SEED_VERSION: Int = 4
     /**
-     * v3: MatinGhanbari/v2ray-configs "super-sub" — small (~75 KB base64), refreshed hourly, mixed protocols
+     * v3/v4: MatinGhanbari/v2ray-configs "super-sub" — small (~75 KB base64), refreshed hourly, mixed protocols
      * (curated below to VLESS/VMess). Existence verified via the GitHub API on 2026-09-25.
      */
     const val URL: String = "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/v2ray/super-sub.txt"

@@ -25,6 +25,7 @@ class SubscriptionRefreshWorker(context: Context, params: WorkerParameters) : Co
 
     override suspend fun doWork(): Result {
         val graph = UccApplication.graph(applicationContext)
+        graph.awaitStoresLoaded() // never merge into stores that have not been read from disk yet
         val hours = graph.settingsStore.settings.value.subscriptionUpdateIntervalHours
         if (hours <= 0) { Log.i(TAG, "periodic refresh disabled in settings"); return Result.success() }
         val outcomes = graph.subscriptionRefresher.refreshAllDue(minIntervalMs = TimeUnit.HOURS.toMillis(hours.toLong()))
