@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | applicationId | `io.ucc.app` (debug: `io.ucc.app.debug`, versionName suffix `-debug`) |
-| versionName / versionCode | `1.0.3` / `4` (v1.0.2 = `1.0.2` / `3` — CI candidate only, never published; v1.0.1 = `1.0.1` / `2`, v1.0.0 = `1.0.0` / `1`) — bump both in `app/build.gradle.kts` for every store release |
+| versionName / versionCode | `1.0.4` / `5` (v1.0.3 = `1.0.3` / `4`; v1.0.2 = `1.0.2` / `3` — CI candidate only, never published; v1.0.1 = `1.0.1` / `2`, v1.0.0 = `1.0.0` / `1`) — bump both in `app/build.gradle.kts` for every store release |
 | Flavour | `singbox` (only flavour; selects the engine module) |
 | Core | sing-box / libbox `v1.13.21` (`core/engine-singbox/singbox.version`, SHA-256 pinned in `libbox.sha256`) |
 | min / target / compile SDK | 24 / 36 / 36 |

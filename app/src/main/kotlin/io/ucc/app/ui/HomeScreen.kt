@@ -81,10 +81,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -318,7 +321,7 @@ private fun HeroCard(state: HomeUiState, onConnect: () -> Unit, onDisconnect: ()
         is ConnectionState.Starting, is ConnectionState.Connecting, is ConnectionState.Stopping -> StateColors.transitioning
         ConnectionState.Disconnected -> StateColors.idle
     }
-    Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainer, tonalElevation = 0.dp, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = MaterialTheme.shapes.large, color = Color.Transparent, tonalElevation = 0.dp, modifier = Modifier.fillMaxWidth().io.ucc.app.ui.components.glass()) {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             // Status pill — always present, content animates.
             StatusPill(conn, accent)
@@ -379,10 +382,12 @@ private fun StatusPill(conn: ConnectionState, accent: Color) {
     val context = LocalContext.current
     Surface(shape = CircleShape, color = accent.copy(alpha = 0.12f), border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.35f))) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val pulse = if (conn.isTransitioning) {
-                rememberInfiniteTransition(label = "pulse").animateFloat(0.35f, 1f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "pulseA").value
-            } else 1f
-            Box(Modifier.size(8.dp).clip(CircleShape).background(accent.copy(alpha = pulse)))
+            // v1.0.4: the pulse State is read inside drawBehind, so the animation ticks in the draw phase only
+            // (no per-frame recomposition of the pill or its text).
+            val pulse: State<Float> = if (conn.isTransitioning) {
+                rememberInfiniteTransition(label = "pulse").animateFloat(0.35f, 1f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "pulseA")
+            } else remember { mutableStateOf(1f) }
+            Box(Modifier.size(8.dp).clip(CircleShape).drawBehind { drawRect(accent.copy(alpha = pulse.value)) })
             Text(conn.label(context), style = MaterialTheme.typography.labelLarge, color = accent, fontWeight = FontWeight.Medium)
         }
     }
@@ -391,8 +396,11 @@ private fun StatusPill(conn: ConnectionState, accent: Color) {
 @Composable
 private fun PowerButton(conn: ConnectionState, accent: Color, enabled: Boolean, onClick: () -> Unit) {
     val cd = stringResource(if (conn.isActive || conn is ConnectionState.Starting) R.string.action_disconnect else R.string.action_connect)
-    val ringAlpha by animateFloatAsState(if (conn is ConnectionState.Connected) 1f else if (conn.isTransitioning) 0.7f else 0.35f, tween(400), label = "ring")
-    val sweep = if (conn.isTransitioning) rememberInfiniteTransition(label = "spin").animateFloat(0f, 360f, infiniteRepeatable(tween(1200)), label = "spinA").value else 0f
+    // v1.0.4: both animations are State objects read only inside the Canvas draw lambda, so every frame of the
+    // spinner / ring fade invalidates the draw phase alone — PowerButton and its Surface are not recomposed per frame.
+    val ringAlpha = animateFloatAsState(if (conn is ConnectionState.Connected) 1f else if (conn.isTransitioning) 0.7f else 0.35f, tween(400), label = "ring")
+    val sweep: State<Float> = if (conn.isTransitioning) rememberInfiniteTransition(label = "spin").animateFloat(0f, 360f, infiniteRepeatable(tween(1200)), label = "spinA") else remember { mutableStateOf(0f) }
+    val transitioning = conn.isTransitioning
     Box(
         Modifier
             .size(148.dp)
@@ -406,10 +414,10 @@ private fun PowerButton(conn: ConnectionState, accent: Color, enabled: Boolean, 
             val arcSize = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke)
             val topLeft = Offset(inset, inset)
             drawArc(color = accent.copy(alpha = 0.18f), startAngle = 0f, sweepAngle = 360f, useCenter = false, topLeft = topLeft, size = arcSize, style = Stroke(stroke))
-            if (conn.isTransitioning) {
-                drawArc(color = accent.copy(alpha = ringAlpha), startAngle = sweep - 90f, sweepAngle = 110f, useCenter = false, topLeft = topLeft, size = arcSize, style = Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            if (transitioning) {
+                drawArc(color = accent.copy(alpha = ringAlpha.value), startAngle = sweep.value - 90f, sweepAngle = 110f, useCenter = false, topLeft = topLeft, size = arcSize, style = Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
             } else {
-                drawArc(color = accent.copy(alpha = ringAlpha), startAngle = -90f, sweepAngle = 360f, useCenter = false, topLeft = topLeft, size = arcSize, style = Stroke(stroke))
+                drawArc(color = accent.copy(alpha = ringAlpha.value), startAngle = -90f, sweepAngle = 360f, useCenter = false, topLeft = topLeft, size = arcSize, style = Stroke(stroke))
             }
         }
         Surface(

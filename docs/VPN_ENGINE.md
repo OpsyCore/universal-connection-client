@@ -48,3 +48,10 @@ Pinned: `v1.13.21` (`core/engine-singbox/singbox.version`). To upgrade:
 3. Diff `TunOptions` (1.14 changes `GetDNSServerAddress` to an iterator + `GetDNSMode`).
 4. Run `SingBoxConfigGeneratorTest`; check `Libbox.checkConfig` in an instrumentation test.
 5. Pin the new AAR SHA-256 in `core/engine-singbox/libbox.sha256`.
+
+
+## Reconnection model — why there is no "make-before-break" (v1.0.4 note)
+
+Network changes (Wi-Fi ↔ mobile, default network restored) do **not** tear the tunnel down: `DefaultConnectionManager.reconnectLoop(restartCore = false)` keeps the `VpnService` and the TUN file descriptor as they are and only calls `CoreAdapter.onNetworkChanged()` (libbox re-binds its outbound sockets to the new default network) followed by a probe. Apps keep their TUN routes throughout; the only user-visible gap is the upstream handshake, which no client can avoid. The core is restarted (`restartCore = true`) solely after a *fatal core error*, and even then the existing TUN is reused (`tun ?: tunnelHost.acquire(profile)`), so the interface is not re-established and Android shows no VPN-off moment.
+
+A literal make-before-break (second core + second TUN running in parallel, then swap) is not implemented and is not planned: Android allows one `VpnService` interface per app (`establish()` replaces the previous fd), libbox is a single instance per process, and the swap would double memory and open a real leak window while both are alive. The current model is the zero-gap variant that is actually achievable on Android; it is device-verified and part of the locked networking layer.

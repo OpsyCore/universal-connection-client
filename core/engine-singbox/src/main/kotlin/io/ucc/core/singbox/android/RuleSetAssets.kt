@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import io.ucc.core.singbox.SingBoxConfigGenerator
 import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
 import java.security.MessageDigest
 
 /**
@@ -27,19 +29,46 @@ internal object RuleSetAssets {
         val dir = directory(app).apply { mkdirs() }
         for (file in SingBoxConfigGenerator.RULE_SET_FILES.values) {
             try {
-                val bytes = app.assets.open("$ASSET_DIR/$file").use { it.readBytes() }
                 val target = File(dir, file)
-                if (target.isFile && target.length() == bytes.size.toLong() && sha256(target.readBytes()) == sha256(bytes)) continue
                 val tmp = File(dir, "$file.tmp")
-                tmp.outputStream().use { it.write(bytes); it.fd.sync() }
+                // v1.0.4: streamed — the asset is hashed while being copied to the temp file and the installed
+                // file is hashed from its stream, so no rule-set is ever held in memory as a whole (fixed 64 KiB buffer).
+                val (assetDigest, size) = tmp.outputStream().use { out -> copyAndDigest(app.assets.open("$ASSET_DIR/$file"), out) }
+                if (target.isFile && target.length() == size && digestOf(target) == assetDigest) { tmp.delete(); continue }
                 if (!tmp.renameTo(target)) { target.delete(); check(tmp.renameTo(target)) { "rename $file" } }
-                Log.i(TAG, "installed $file (${bytes.size} bytes)")
+                Log.i(TAG, "installed $file ($size bytes)")
             } catch (e: Exception) {
+                File(dir, "$file.tmp").delete()
                 Log.w(TAG, "rule-set $file unavailable: ${e.javaClass.simpleName}")
             }
         }
         return dir
     }
+
+    /** Streams [input] into [out] (fsync'd), returning the SHA-256 hex of the bytes and their count. Closes [input]. */
+    private fun copyAndDigest(input: InputStream, out: FileOutputStream): Pair<String, Long> {
+        val md = MessageDigest.getInstance("SHA-256")
+        var total = 0L
+        val buf = ByteArray(BUFFER)
+        input.use { i ->
+            while (true) {
+                val n = i.read(buf); if (n < 0) break
+                md.update(buf, 0, n); out.write(buf, 0, n); total += n
+            }
+        }
+        out.flush(); out.fd.sync()
+        return md.digest().toHex() to total
+    }
+
+    private fun digestOf(file: File): String {
+        val md = MessageDigest.getInstance("SHA-256")
+        val buf = ByteArray(BUFFER)
+        file.inputStream().use { i -> while (true) { val n = i.read(buf); if (n < 0) break; md.update(buf, 0, n) } }
+        return md.digest().toHex()
+    }
+
+    private const val BUFFER = 64 * 1024
+    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 
     /** True when every bundled rule-set is present on disk (checked before generating a config that needs them). */
     fun allPresent(context: Context): Boolean {
@@ -47,5 +76,4 @@ internal object RuleSetAssets {
         return SingBoxConfigGenerator.RULE_SET_FILES.values.all { File(dir, it).let { f -> f.isFile && f.length() > 0 } }
     }
 
-    private fun sha256(b: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(b).joinToString("") { "%02x".format(it) }
 }

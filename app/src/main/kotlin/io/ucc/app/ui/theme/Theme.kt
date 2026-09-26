@@ -10,16 +10,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 /**
- * Restrained "premium network tool" palette: charcoal background, graphite
- * surfaces, one teal accent, white/soft-grey text. Deliberately not dynamic
+ * Restrained "premium network tool" palette: brand-navy background (#081420), tinted
+ * navy surfaces, one teal accent, white/soft-grey text. Deliberately not dynamic
  * colour — the brand should look identical on every device.
  */
 object UccColors {
-    val Background = Color(0xFF0E1114)
-    val Surface = Color(0xFF151A1F)
-    val SurfaceHigh = Color(0xFF1C2229)
-    val SurfaceHighest = Color(0xFF232B33)
-    val Outline = Color(0xFF2E3740)
+    /** v1.0.4: brand navy (same as the launcher icon background) — dark surfaces are tinted steps above it. */
+    val Background = Color(0xFF081420)
+    val Surface = Color(0xFF0F1D2E)
+    val SurfaceHigh = Color(0xFF16283C)
+    val SurfaceHighest = Color(0xFF1D3249)
+    val Outline = Color(0xFF2A4058)
     val Accent = Color(0xFF3CC8C2)
     val AccentDim = Color(0xFF1F6F6C)
     val OnAccent = Color(0xFF031617)

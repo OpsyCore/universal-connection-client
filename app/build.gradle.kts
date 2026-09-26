@@ -52,8 +52,8 @@ android {
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         // Release versioning: semantic versionName, monotonically increasing versionCode (bump both per release).
-        versionCode = 4
-        versionName = "1.0.3"
+        versionCode = 5
+        versionName = "1.0.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         resourceConfigurations += listOf("en", "fa")
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }

@@ -67,3 +67,10 @@ one-per-line — which is handed to the **same** `AddConfigViewModel.importQr` �
 parse → validate → capability check → secret-free preview → confirm → atomic save
 pipeline. No-QR and unreadable-image cases surface as snackbars; cancel returns to
 the scanner. Nothing is auto-connected.
+
+
+## v1.0.4 — visual and performance notes
+
+- **Palette:** dark background is the brand navy `#081420` (identical to the launcher background); surfaces are tinted navy steps (`UccColors`). Window background (`ucc_window_dark`) matches so there is no flash before Compose draws. Light theme unchanged.
+- **Glass cards:** `Modifier.glass()` (`ui/components/Glass.kt`) — translucent veil + top-left highlight + hairline border, all drawn in `drawBehind`. No `RenderEffect` blur: the background is flat, so blur would cost GPU time for nothing and exclude API < 31. Used on the Home hero card and the channel card.
+- **Home button animations:** the spinner sweep, ring alpha and status-dot pulse are `State` objects read only inside draw lambdas (`Canvas` / `drawBehind`), so each animation frame invalidates the draw phase only; `PowerButton`, `StatusPill` and their text are not recomposed per frame. Frame rate itself is device-bound (Compose animates on the display's vsync); "60 FPS" is not something the app can assert — verify with the Android Studio layout-inspector recomposition counts / `adb shell dumpsys gfxinfo io.ucc.app`.

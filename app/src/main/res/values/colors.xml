@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Window background shown before Compose draws; must match UccTheme backgrounds. -->
-    <color name="ucc_window_dark">#0E1114</color>
+    <color name="ucc_window_dark">#081420</color>
     <color name="ucc_window_light">#F4F6F8</color>
 </resources>
