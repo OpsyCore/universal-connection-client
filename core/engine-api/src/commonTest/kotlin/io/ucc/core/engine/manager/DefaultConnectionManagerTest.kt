@@ -10,7 +10,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
@@ -33,8 +37,13 @@ class DefaultConnectionManagerTest {
         private val seenFlow = MutableStateFlow<List<ConnectionState>>(emptyList())
         val seen: List<ConnectionState> get() = seenFlow.value
 
+        /** Completes once the transitions collector is subscribed (replaces a wall-clock delay that was flaky on slow CI runners). */
+        val subscribed = CompletableDeferred<Unit>()
+
         init {
-            scope.launch { manager.transitions.collect { st -> seenFlow.update { it + st } } }
+            scope.launch {
+                (manager.transitions as SharedFlow<ConnectionState>).onSubscription { subscribed.complete(Unit) }.collect { st -> seenFlow.update { it + st } }
+            }
         }
 
         fun close() = scope.cancel()
@@ -56,7 +65,7 @@ class DefaultConnectionManagerTest {
         val h = Harness()
         try {
             // let reactive collectors subscribe before emitting
-            delay(20)
+            withTimeout(5_000) { h.subscribed.await() }
             h.block()
         } finally {
             h.close()

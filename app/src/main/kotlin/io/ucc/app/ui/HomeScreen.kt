@@ -88,6 +88,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import io.ucc.app.ui.components.glass
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -321,7 +322,7 @@ private fun HeroCard(state: HomeUiState, onConnect: () -> Unit, onDisconnect: ()
         is ConnectionState.Starting, is ConnectionState.Connecting, is ConnectionState.Stopping -> StateColors.transitioning
         ConnectionState.Disconnected -> StateColors.idle
     }
-    Surface(shape = MaterialTheme.shapes.large, color = Color.Transparent, tonalElevation = 0.dp, modifier = Modifier.fillMaxWidth().io.ucc.app.ui.components.glass()) {
+    Surface(shape = MaterialTheme.shapes.large, color = Color.Transparent, tonalElevation = 0.dp, modifier = Modifier.fillMaxWidth().glass()) {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             // Status pill — always present, content animates.
             StatusPill(conn, accent)
