@@ -1,0 +1,413 @@
+name: Android CI
+
+on:
+  push:
+    branches: ["main", "arena/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  libbox:
+    uses: ./.github/workflows/libbox.yml
+
+  apple-kmp:
+    name: Apple KMP compile (iosArm64 + iosSimulatorArm64 klibs, Linux cross-compilation)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - name: Core boundary check
+        run: tools/check-core-boundary.sh
+      - name: Compile iosArm64 (main + test klibs)
+        id: arm64
+        run: |
+          set -o pipefail; mkdir -p build
+          ./gradlew --no-daemon --continue \
+            $(for m in platform model engine-api config smart singbox-config app-logic ios-infra ios-vpn engine-singbox-apple; do echo ":core:$m:compileKotlinIosArm64 :core:$m:compileTestKotlinIosArm64"; done) \
+            2>&1 | tee build/gradle-ios-arm64.log
+      - name: Compile iosSimulatorArm64 (main + test klibs)
+        id: sim
+        if: always()
+        run: |
+          set -o pipefail; mkdir -p build
+          ./gradlew --no-daemon --continue \
+            $(for m in platform model engine-api config smart singbox-config app-logic ios-infra ios-vpn engine-singbox-apple; do echo ":core:$m:compileKotlinIosSimulatorArm64 :core:$m:compileTestKotlinIosSimulatorArm64"; done) \
+            2>&1 | tee build/gradle-ios-sim.log
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "iosArm64 compile: ${{ steps.arm64.outcome }}"
+            echo "iosSimulatorArm64 compile: ${{ steps.sim.outcome }}"
+            echo "iOS test EXECUTION: NOT RUN (Linux host cannot run Apple binaries; klibs compiled only)"
+            echo "===== Apple compile tasks (every :core:*:compile*Ios* task seen in the logs, with outcome)"
+            cat build/gradle-ios-arm64.log build/gradle-ios-sim.log 2>/dev/null | grep -oE "> Task :core:[a-z-]+:compile(Test)?KotlinIos(Arm64|SimulatorArm64)( [A-Z-]+)?" | sed 's/^> Task //' | sort | uniq -c
+            echo "===== produced klib outputs"; find core -path '*/build/classes/kotlin/ios*' \( -name '*.klib' -o -name 'manifest' \) -not -path '*/jvm/*' | sort
+            echo "===== expected 40 tasks (10 modules x main+test x 2 targets); klib outputs per target:"; for t in iosArm64 iosSimulatorArm64; do echo "$t main=$(ls -d core/*/build/classes/kotlin/$t/main 2>/dev/null | wc -l) test=$(ls -d core/*/build/classes/kotlin/$t/test 2>/dev/null | wc -l)"; done
+            for f in build/gradle-ios-arm64.log build/gradle-ios-sim.log; do
+              [ -f "$f" ] || { echo "===== $f MISSING"; continue; }
+              echo "===== $f"
+              grep -A6 -E "^e: " "$f" | head -150; grep -E "^w: .*(deprecat|cross)|What went wrong|Could not resolve|> Task .* FAILED|BUILD (SUCCESSFUL|FAILED)|cinterop|cross-compil" "$f" | head -60
+              grep -A 25 "What went wrong" "$f" | head -60
+              echo "--- tail:"; tail -15 "$f"
+            done
+          } > build/apple-excerpt.txt || true
+          cat build/apple-excerpt.txt
+          python3 - <<'PY'
+          import json, os, subprocess
+          text = open("build/apple-excerpt.txt", errors="replace").read()[:60000]
+          body = {"name": "apple-kmp-errors", "head_sha": os.environ["GITHUB_SHA"], "status": "completed", "conclusion": "neutral",
+                  "output": {"title": "Apple KMP compile excerpt", "summary": "see text", "text": "```\n" + text + "\n```"}}
+          subprocess.run(["gh", "api", f"repos/{os.environ['GITHUB_REPOSITORY']}/check-runs", "--input", "-"], input=json.dumps(body).encode(), check=False)
+          PY
+      - name: Fail if either target did not compile
+        if: always()
+        run: |
+          [ "${{ steps.arm64.outcome }}" = "success" ] && [ "${{ steps.sim.outcome }}" = "success" ]
+
+  build:
+    name: Build & test
+    needs: libbox
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write   # only for 'Publish signed build as GitHub draft release' (Actions artifact storage is quota-blocked)
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Restore libbox.aar
+        uses: actions/cache/restore@v4
+        with:
+          path: core/engine-singbox/libs
+          key: ${{ needs.libbox.outputs.cache-key }}
+          fail-on-cache-miss: true
+
+      - name: Verify libbox checksum pin
+        run: |
+          set -e
+          ACTUAL=$(sha256sum core/engine-singbox/libs/libbox.aar | cut -d' ' -f1)
+          PIN=$(tr -d ' \n' < core/engine-singbox/libbox.sha256)
+          echo "actual=$ACTUAL pin=$PIN"
+          if [ "$PIN" != "unpinned" ] && [ "$PIN" != "$ACTUAL" ]; then
+            echo "::error::libbox.aar checksum does not match core/engine-singbox/libbox.sha256"; exit 1
+          fi
+          if [ "$PIN" = "unpinned" ]; then echo "::warning::libbox.sha256 is unpinned — pin it to $ACTUAL"; fi
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Core boundary check (no engine leakage into core-agnostic modules)
+        run: tools/check-core-boundary.sh
+
+      - name: Secret scan
+        run: tools/check-secrets.sh
+
+      - name: Licence / notice check
+        run: tools/check-notices.sh
+
+      - name: Unit tests (JVM modules + Android unit tests)
+        if: always()
+        run: |
+          set -o pipefail; mkdir -p build
+          ./gradlew --no-daemon --continue :core:app-logic:jvmTest :core:ios-infra:jvmTest :core:ios-vpn:jvmTest :core:engine-singbox-apple:jvmTest jvmTest test testSingboxDebugUnitTest 2>&1 | tee build/gradle-test.log
+          # Per-module test totals from JUnit XML (readable via the gradle-errors check-run).
+          echo "--- test tasks executed (from gradle log)"; grep -oE "> Task :[a-z:-]+:(jvmTest|test|testSingbox(Debug|Release)UnitTest|allTests)( [A-Z-]+)?" build/gradle-test.log | sort | uniq -c | tee build/test-tasks.txt
+          echo "--- test-result directories"; find . -path '*/build/test-results/*' -name '*.xml' | sed -E 's#/TEST-.*##' | sort | uniq -c
+          python3 - <<'PY' | tee build/test-summary.txt
+          import glob, xml.etree.ElementTree as ET, collections
+          tot = collections.Counter(); fail = collections.Counter()
+          for f in sorted(set(glob.glob('**/build/test-results/**/*.xml', recursive=True))):
+              r = ET.parse(f).getroot(); mod = f.split('/build/')[0]; task = f.split('test-results/')[1].split('/')[0]
+              tot[(mod, task)] += int(r.get('tests', 0)); fail[(mod, task)] += int(r.get('failures', 0)) + int(r.get('errors', 0))
+          for k in sorted(tot): print(f"{k[0]:28s} {k[1]:28s} tests={tot[k]:4d} failed={fail[k]}")
+          print(f"TOTAL tests={sum(tot.values())} failed={sum(fail.values())}")
+          PY
+          for m in platform model engine-api config smart singbox-config app-logic ios-infra ios-vpn engine-singbox-apple; do
+            ls core/$m/build/test-results/jvmTest/*.xml >/dev/null 2>&1 || { echo "::error::no jvmTest results for :core:$m — KMP tests did not run"; exit 1; }
+          done
+
+      - name: Assemble debug APK
+        if: always()
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon :app:assembleSingboxDebug 2>&1 | tee build/gradle-assemble.log
+
+      - name: Lint
+        if: always()
+        run: ./gradlew --no-daemon :app:lintSingboxDebug 2>&1 | tee build/gradle-lint.log
+
+      # ---- Release artifacts (minified). Signing only when the four secrets are
+      #      configured; otherwise the artifacts are produced UNSIGNED and named so.
+      - name: Materialise release keystore (only if secrets exist)
+        id: keystore
+        if: always()
+        env:
+          KEYSTORE_B64: ${{ secrets.UCC_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "file=$RUNNER_TEMP/release.jks" >> "$GITHUB_OUTPUT"; echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"; echo "::notice::No UCC_KEYSTORE_BASE64 secret — release artifacts will be UNSIGNED"
+          fi
+
+      - name: Build minified release APK + AAB
+        if: always()
+        env:
+          UCC_KEYSTORE_FILE: ${{ steps.keystore.outputs.file }}
+          UCC_KEYSTORE_PASSWORD: ${{ secrets.UCC_KEYSTORE_PASSWORD }}
+          UCC_KEY_ALIAS: ${{ secrets.UCC_KEY_ALIAS }}
+          UCC_KEY_PASSWORD: ${{ secrets.UCC_KEY_PASSWORD }}
+        run: |
+          set -o pipefail
+          # Clean release outputs so the inspected artifacts are provably from this run.
+          rm -rf app/build/outputs/apk/singbox/release app/build/outputs/bundle/singboxRelease \
+                 app/build/intermediates/merged_manifest/singboxRelease app/build/intermediates/manifest_merge_blame_file/singboxRelease
+          ./gradlew --no-daemon :app:assembleSingboxRelease :app:bundleSingboxRelease 2>&1 | tee build/gradle-release.log
+          ls -la app/build/outputs/apk/singbox/release app/build/outputs/bundle/singboxRelease
+
+      - name: Merged release manifest and permission blame
+        if: always()
+        run: |
+          {
+            echo "=== merged release manifest: uses-permission"
+            grep -h "uses-permission" app/build/intermediates/merged_manifest/singboxRelease/*/AndroidManifest.xml | sed 's/^ *//' | sort
+            echo "=== manifest-merger blame (who contributes each permission)"
+            BLAME=$(ls app/build/intermediates/manifest_merge_blame_file/singboxRelease/*/manifest-merger-blame-*-report.txt | head -1)
+            echo "report: $BLAME"
+            grep -A1 "<uses-permission" "$BLAME" | grep -v "^--$"
+          } 2>&1 | tee build/manifest-permissions.txt
+
+      - name: Inspect release artifacts
+        if: always()
+        run: |
+          set -o pipefail
+          APK=$(ls app/build/outputs/apk/singbox/release/*.apk | head -1)
+          AAB=$(ls app/build/outputs/bundle/singboxRelease/*.aab | head -1)
+          BT=1.18.3; curl -fsSL -o "$RUNNER_TEMP/bundletool.jar" "https://github.com/google/bundletool/releases/download/$BT/bundletool-all-$BT.jar" && export BUNDLETOOL_JAR="$RUNNER_TEMP/bundletool.jar" || echo "bundletool download failed; AAB manifest will be reported as NOT INSPECTED"
+          export MERGER_BLAME=$(ls app/build/intermediates/manifest_merge_blame_file/singboxRelease/*/manifest-merger-blame-*-report.txt 2>/dev/null | head -1)
+          tools/inspect-release.sh "$APK" "$AAB" 2>&1 | tee build/release-inspection.txt
+          echo "--- debug vs release size"; du -h app/build/outputs/apk/singbox/debug/*.apk "$APK" "$AAB"
+          echo "--- R8 mapping: $(wc -l < app/build/outputs/mapping/singboxRelease/mapping.txt) lines"
+          echo "--- resources removed by shrinker:"; grep -c "Skipped unused resource" app/build/outputs/mapping/singboxRelease/resources.txt 2>/dev/null || true
+
+      - name: Stage release artifacts with unmistakable names and verify the staged files
+        if: always()
+        id: stage
+        run: |
+          set -o pipefail
+          SIGNED="${{ steps.keystore.outputs.signed }}"; SUFFIX=$([ "$SIGNED" = "true" ] && echo signed || echo unsigned)
+          # Single source of truth for the version: app/build.gradle.kts (also checked by tools/inspect-release.sh).
+          VNAME=$(sed -n 's/^\s*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -1)
+          VCODE=$(sed -n 's/^\s*versionCode = \([0-9]*\).*/\1/p' app/build.gradle.kts | head -1)
+          [ -n "$VNAME" ] && [ -n "$VCODE" ] || { echo "::error::cannot read versionName/versionCode from app/build.gradle.kts"; exit 1; }
+          echo "version_name=$VNAME" >> "$GITHUB_OUTPUT"; echo "version_code=$VCODE" >> "$GITHUB_OUTPUT"
+          mkdir -p build/release-artifacts
+          APK=$(ls app/build/outputs/apk/singbox/release/*.apk | head -1)
+          AAB=$(ls app/build/outputs/bundle/singboxRelease/*.aab | head -1)
+          OUT_APK="build/release-artifacts/universal-connection-client-$VNAME-release-$SUFFIX.apk"
+          OUT_AAB="build/release-artifacts/universal-connection-client-$VNAME-release-$SUFFIX.aab"
+          cp "$APK" "$OUT_APK"; cp "$AAB" "$OUT_AAB"
+          # Re-verify the *staged* file (the exact bytes that get uploaded), independent of inspect-release.sh.
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          B=$("$AAPT" dump badging "$OUT_APK")
+          echo "$B" | grep -E "^package:|^native-code" | tee build/release-artifacts/badging.txt
+          echo "$B" | grep -q "name='io.ucc.app' versionCode='$VCODE' versionName='$VNAME'" || { echo "::error::staged APK identity mismatch"; exit 1; }
+          "$AAPT" dump xmltree --file AndroidManifest.xml "$OUT_APK" | grep -q 'debuggable.*=true' && { echo "::error::staged APK debuggable"; exit 1; } || echo "debuggable=false"
+          unzip -l "$OUT_APK" | grep -q 'assets/licenses/GPL-3.0.txt' && echo "GPL asset present" || { echo "::error::GPL asset missing"; exit 1; }
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          if [ "$SIGNED" = "true" ]; then
+            # A signed build must carry a valid v2/v3 signature; anything else fails the job.
+            # exit status is authoritative; then require a v2 or v3 signature (v1 is disabled for minSdk 24)
+            if ! "$APKSIGNER" verify --verbose --print-certs "$OUT_APK" > build/release-artifacts/apksigner-verify.txt 2>&1; then
+              cat build/release-artifacts/apksigner-verify.txt; echo "::error::apksigner did not verify the signed APK"; exit 1
+            fi
+            cat build/release-artifacts/apksigner-verify.txt
+            grep -qE "Verified using v(2|3) scheme \(APK Signature Scheme v(2|3)(\.1)?\): true" build/release-artifacts/apksigner-verify.txt || { echo "::error::no v2/v3 signature reported"; exit 1; }
+          else
+            "$APKSIGNER" verify --verbose "$OUT_APK" > build/release-artifacts/apksigner-verify.txt 2>&1 || true
+            echo "UNSIGNED build: apksigner verify expected to fail (no UCC_KEYSTORE_BASE64 secret)"; tail -1 build/release-artifacts/apksigner-verify.txt
+          fi
+          sha256sum "$OUT_APK" "$OUT_AAB" | tee build/release-artifacts/SHA256SUMS.txt
+          cp build/release-inspection.txt build/release-artifacts/ 2>/dev/null || true
+          {
+            echo "# Release artifact provenance"
+            echo "commit: $GITHUB_SHA"; echo "run: $GITHUB_RUN_ID"; echo "signed: $SIGNED"
+            if [ "$SIGNED" = "true" ]; then echo "signer certificate:"; grep -E "Signer.*certificate (DN|SHA-256 digest)" build/release-artifacts/apksigner-verify.txt || true; fi
+            echo "built by: ./gradlew :app:assembleSingboxRelease :app:bundleSingboxRelease (minifyEnabled + shrinkResources, R8)"
+            echo; cat build/release-artifacts/SHA256SUMS.txt
+          } > build/release-artifacts/PROVENANCE.txt
+          echo "suffix=$SUFFIX" >> "$GITHUB_OUTPUT"
+
+      - name: Remove keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"
+
+      - name: Publish error excerpt as check-run output (readable via API)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            for f in build/gradle-test.log build/gradle-assemble.log; do
+              [ -f "$f" ] || { echo "===== $f MISSING"; continue; }
+              echo "===== $f (errors first)"
+              grep -E "^e: |Unresolved reference|What went wrong|Could not resolve|Could not find|> Task .* FAILED|BUILD (SUCCESSFUL|FAILED)" "$f" | head -80
+              grep -A 20 "What went wrong" "$f" | head -50
+            done
+            for f in build/test-tasks.txt build/test-summary.txt build/release-artifacts/SHA256SUMS.txt build/release-artifacts/PROVENANCE.txt; do [ -f "$f" ] && { echo "===== $f (full)"; cat "$f"; }; done
+            for f in build/manifest-permissions.txt build/release-inspection.txt build/release-artifacts/apksigner-verify.txt; do [ -f "$f" ] && { echo "===== $f (condensed)"; grep -vE "^\s+(lib/|base/lib/|[0-9]+-->)" "$f" | grep -vE "^[0-9]+\s+<uses-permission" | head -70; }; done
+            for f in build/gradle-test.log build/gradle-assemble.log build/gradle-lint.log build/gradle-release.log; do
+              [ -f "$f" ] || continue
+              echo "===== $f"
+              grep -E "^e: |Unresolved reference|What went wrong|Could not resolve|Could not find|> Task .* FAILED|tests completed|BUILD (SUCCESSFUL|FAILED)|FAILED$|Exception|error" "$f" | head -120
+              echo "--- tail:"; tail -25 "$f"
+              echo "--- context after 'What went wrong':"
+              grep -A 25 "What went wrong" "$f" | head -60
+            done
+            echo "===== failed tests"
+            grep -rh -B1 -A3 -E "<failure|<error" --include='TEST-*.xml' . 2>/dev/null | tr -d '\r' | head -120
+          } > build/error-excerpt.txt || true
+          python3 - <<'PY'
+          import json, os, subprocess
+          text = open("build/error-excerpt.txt", errors="replace").read()[:60000]
+          body = {"name": "gradle-errors", "head_sha": os.environ["GITHUB_SHA"], "status": "completed", "conclusion": "neutral",
+                  "output": {"title": "Gradle error excerpt", "summary": "see text", "text": "```\n" + text + "\n```"}}
+          subprocess.run(["gh", "api", f"repos/{os.environ['GITHUB_REPOSITORY']}/check-runs", "--input", "-"], input=json.dumps(body).encode(), check=False)
+          PY
+
+      - name: Upload APK
+        if: always()
+        continue-on-error: true  # artifact storage quota must not turn a green build red; see 'Artifact upload status'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/singbox/debug/*.apk
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload release APK
+        if: always()
+        continue-on-error: true  # artifact storage quota must not turn a green build red; see 'Artifact upload status'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-${{ steps.keystore.outputs.signed == 'true' && 'signed' || 'UNSIGNED' }}
+          path: |
+            build/release-artifacts/*.apk
+            build/release-artifacts/SHA256SUMS.txt
+            build/release-artifacts/PROVENANCE.txt
+            build/release-artifacts/release-inspection.txt
+            build/release-artifacts/apksigner-verify.txt
+          if-no-files-found: ignore
+
+      - name: Upload release AAB
+        if: always()
+        continue-on-error: true  # artifact storage quota must not turn a green build red; see 'Artifact upload status'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-bundle-${{ steps.keystore.outputs.signed == 'true' && 'signed' || 'UNSIGNED' }}
+          path: |
+            build/release-artifacts/*.aab
+            build/release-artifacts/SHA256SUMS.txt
+          if-no-files-found: ignore
+
+      - name: Upload R8 mapping (needed to de-obfuscate crash traces of this build)
+        if: always()
+        continue-on-error: true  # artifact storage quota must not turn a green build red; see 'Artifact upload status'
+        uses: actions/upload-artifact@v4
+        with:
+          name: r8-mapping
+          path: app/build/outputs/mapping/singboxRelease/
+          if-no-files-found: ignore
+
+      - name: Upload reports
+        if: always()
+        continue-on-error: true  # artifact storage quota must not turn a green build red; see 'Artifact upload status'
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            **/build/reports/tests/**
+            **/build/reports/lint-results-*.html
+            **/build/test-results/**/*.xml
+            build/release-inspection.txt
+            build/manifest-permissions.txt
+          if-no-files-found: ignore
+
+      - name: Artifact upload status
+        if: always()
+        run: |
+          echo "Artifact uploads are best-effort: the account's Actions artifact storage has been full (every upload refused)."
+          echo "Build/test verdicts above are authoritative; SHA256SUMS.txt / PROVENANCE.txt are echoed in the gradle-errors check-run."
+
+      # Actions artifact storage is quota-blocked for this account, so a production-signed build is
+      # additionally published as a *draft* GitHub release (release assets are not counted against the
+      # Actions storage quota). A draft creates no tag and is visible only to repository members; the
+      # candidate that passes the device test plan is then published under that tag (same bytes, same hashes).
+      - name: Publish signed build as GitHub draft release
+        if: success() && steps.keystore.outputs.signed == 'true' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          VNAME: ${{ steps.stage.outputs.version_name }}
+        run: |
+          set -euo pipefail
+          SHORT="${SHA:0:7}"
+          TAG="v${VNAME}"                  # draft: no git tag is created until the release is published
+          TITLE="${TAG} release candidate — ${SHORT} (CI run ${RUN_NUMBER})"
+          D="build/release-artifacts"; R="build/release-candidate"; mkdir -p "$R"
+          cp "$D"/universal-connection-client-${VNAME}-release-signed.apk "$R/universal-connection-client-${VNAME}-${SHORT}-release-signed.apk"
+          cp "$D"/universal-connection-client-${VNAME}-release-signed.aab "$R/universal-connection-client-${VNAME}-${SHORT}-release-signed.aab"
+          cp "$D"/PROVENANCE.txt "$R/PROVENANCE-${SHORT}.txt"
+          cp "$D"/apksigner-verify.txt "$R/apksigner-verify-${SHORT}.txt"
+          if [ -f "$D"/release-inspection.txt ]; then cp "$D"/release-inspection.txt "$R/release-inspection-${SHORT}.txt"; fi
+          ( cd app/build/outputs/mapping/singboxRelease && zip -q -r "$GITHUB_WORKSPACE/$R/r8-mapping-${SHORT}.zip" . )
+          ( cd "$R" && sha256sum * > "SHA256SUMS-${SHORT}.txt" && cat "SHA256SUMS-${SHORT}.txt" )
+          {
+            echo "**DRAFT — release candidate, not a release.** Commit \`${SHA}\`, CI run [${RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID})."
+            echo
+            echo "Pending before publishing as ${TAG}: device test plan (docs/DEVICE_TEST_PLAN.md) on a real device and the owner's go-ahead."
+            echo
+            echo '```'; cat "$R/SHA256SUMS-${SHORT}.txt"; echo '```'
+            echo
+            echo "Signer certificate (apksigner):"; echo '```'
+            grep -E "Signer.*certificate (DN|SHA-256 digest)" "$D"/apksigner-verify.txt || true
+            echo '```'
+          } > "$R/notes.md"
+          # Never touch a published release; replace only a previous *draft* candidate of the same name.
+          if EXISTING=$(gh release view "$TAG" --json isDraft,url --jq '"\(.isDraft) \(.url)"' 2>/dev/null); then
+            if [ "${EXISTING%% *}" = "true" ]; then echo "replacing previous draft ${EXISTING#* }"; gh release delete "$TAG" --yes
+            else echo "::notice::$TAG is already published (${EXISTING#* }); not creating a new draft."; exit 0; fi
+          fi
+          gh release create "$TAG" --draft --target "$SHA" --title "$TITLE" --notes-file "$R/notes.md" \
+            "$R"/universal-connection-client-${VNAME}-${SHORT}-release-signed.apk \
+            "$R"/universal-connection-client-${VNAME}-${SHORT}-release-signed.aab \
+            "$R"/r8-mapping-${SHORT}.zip "$R"/SHA256SUMS-${SHORT}.txt "$R"/PROVENANCE-${SHORT}.txt \
+            "$R"/apksigner-verify-${SHORT}.txt $( [ -f "$R/release-inspection-${SHORT}.txt" ] && echo "$R/release-inspection-${SHORT}.txt" )
+          gh release view "$TAG" --json url,isDraft,assets --jq '"draft=\(.isDraft) url=\(.url)", (.assets[] | "  \(.name) \(.size)B")' || true

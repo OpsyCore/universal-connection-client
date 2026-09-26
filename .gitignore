@@ -32,3 +32,8 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Native core artifacts are built by CI, never committed (~90 MB)
+core/engine-singbox/libs/*.aar
+*.p12
+app/keystore.properties
