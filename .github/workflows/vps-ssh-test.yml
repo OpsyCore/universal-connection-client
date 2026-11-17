@@ -24,7 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ ! "$VPS_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]] || [[ -z "$VPS_SSH_PRIVATE_KEY" ]]; then
-            echo 'Missing or invalid SSH connection settings.' >&2
+            echo '::error::Missing or invalid SSH connection settings.' >&2
             exit 1
           fi
           work=$(mktemp -d)
@@ -34,7 +34,7 @@ jobs:
           unset VPS_SSH_PRIVATE_KEY
 
           if ! ssh-keyscan -T 10 -p 22 -t ed25519 "$VPS_HOST" > "$work/scanned" 2>/dev/null; then
-            echo 'Could not retrieve SSH host key.' >&2
+            echo '::error::Could not retrieve SSH host key.' >&2
             exit 1
           fi
           python3 - "$work/scanned" "$work/known_hosts" <<'PY'
@@ -56,7 +56,7 @@ jobs:
               if fingerprint == expected:
                   matches.append(line)
           if not matches:
-              sys.exit('SSH host key fingerprint mismatch; connection stopped.')
+              sys.exit('::error::SSH host key fingerprint mismatch; connection stopped.')
           with open(sys.argv[2], 'w', encoding='utf-8') as known_hosts:
               known_hosts.writelines(matches)
           PY
@@ -65,12 +65,18 @@ jobs:
             -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 \
             -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$work/known_hosts" \
             -o GlobalKnownHostsFile=/dev/null -o ClearAllForwardings=yes \
-            -o LogLevel=ERROR "ucc-audit@$VPS_HOST" test); then
-            echo 'SSH connection or authentication failed.' >&2
+            -o LogLevel=ERROR "ucc-audit@$VPS_HOST" test 2> "$work/ssh-error"); then
+            if grep -qi 'permission denied' "$work/ssh-error"; then
+              echo '::error::SSH authentication was denied.' >&2
+            elif grep -qiE 'invalid format|error in libcrypto' "$work/ssh-error"; then
+              echo '::error::SSH private key could not be loaded.' >&2
+            else
+              echo '::error::SSH connection or authentication failed.' >&2
+            fi
             exit 1
           fi
           if [[ "$result" != UCC_SSH_TEST_OK ]]; then
-            echo 'Unexpected response from the restricted account.' >&2
+            echo '::error::Unexpected response from the restricted account.' >&2
             exit 1
           fi
           echo 'Restricted SSH connection succeeded.'
