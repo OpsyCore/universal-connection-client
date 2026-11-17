@@ -1,0 +1,76 @@
+name: VPS SSH connection test
+
+# Pushing a change to this file on this branch starts the test. No checkout or
+# third-party actions are needed, and the SSH account enforces a fixed command.
+on:
+  push:
+    branches:
+      - arena/b8c7fda3-universal-connection-client
+    paths:
+      - .github/workflows/vps-ssh-test.yml
+
+permissions: {}
+
+jobs:
+  test-connection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Verify host key and test restricted account
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$VPS_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]] || [[ -z "$VPS_SSH_PRIVATE_KEY" ]]; then
+            echo 'Missing or invalid SSH connection settings.' >&2
+            exit 1
+          fi
+          work=$(mktemp -d)
+          trap 'rm -rf "$work"' EXIT
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$work/key"
+          chmod 600 "$work/key"
+          unset VPS_SSH_PRIVATE_KEY
+
+          if ! ssh-keyscan -T 10 -p 22 -t ed25519 "$VPS_HOST" > "$work/scanned" 2>/dev/null; then
+            echo 'Could not retrieve SSH host key.' >&2
+            exit 1
+          fi
+          python3 - "$work/scanned" "$work/known_hosts" <<'PY'
+          import base64
+          import hashlib
+          import sys
+
+          expected = 'WHOqeqJS9R15ght0TNPDoxg93hHD7wp1vfqQyrmc3u8'
+          matches = []
+          for line in open(sys.argv[1], encoding='utf-8'):
+              parts = line.split()
+              if len(parts) < 3 or parts[1] != 'ssh-ed25519':
+                  continue
+              try:
+                  blob = base64.b64decode(parts[2], validate=True)
+              except ValueError:
+                  continue
+              fingerprint = base64.b64encode(hashlib.sha256(blob).digest()).decode().rstrip('=')
+              if fingerprint == expected:
+                  matches.append(line)
+          if not matches:
+              sys.exit('SSH host key fingerprint mismatch; connection stopped.')
+          with open(sys.argv[2], 'w', encoding='utf-8') as known_hosts:
+              known_hosts.writelines(matches)
+          PY
+
+          if ! result=$(ssh -T -p 22 -i "$work/key" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$work/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o ClearAllForwardings=yes \
+            -o LogLevel=ERROR "ucc-audit@$VPS_HOST" test); then
+            echo 'SSH connection or authentication failed.' >&2
+            exit 1
+          fi
+          if [[ "$result" != UCC_SSH_TEST_OK ]]; then
+            echo 'Unexpected response from the restricted account.' >&2
+            exit 1
+          fi
+          echo 'Restricted SSH connection succeeded.'
