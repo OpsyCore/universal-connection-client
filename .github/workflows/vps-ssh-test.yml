@@ -1,7 +1,7 @@
 name: VPS SSH connection test
 
 # Pushing a change to this file on this branch starts the test. No checkout or
-# third-party actions are needed, and the SSH account enforces a fixed command.
+# third-party actions are needed. The SSH account enforces a fixed test command.
 on:
   push:
     branches:
