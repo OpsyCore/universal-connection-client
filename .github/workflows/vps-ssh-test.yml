@@ -1,7 +1,7 @@
 name: VPS SSH connection test
 
-# Pushing a change to this file on this branch starts the test. No checkout or
-# third-party actions are needed. The SSH account enforces a fixed test command.
+# Pushing a change to this file on this branch starts the audit. No checkout or
+# third-party actions are needed. The SSH account enforces a fixed audit command.
 on:
   push:
     branches:
@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Verify host key and test restricted account
+      - name: Verify host key and retrieve restricted audit
         shell: bash
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -70,22 +70,42 @@ jobs:
               known_hosts.writelines(matches)
           PY
 
-          if ! result=$(ssh -T -p 22 -i "$work/key" \
+          if ! ssh -T -p 22 -i "$work/key" \
             -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 \
             -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$work/known_hosts" \
             -o GlobalKnownHostsFile=/dev/null -o ClearAllForwardings=yes \
-            -o LogLevel=ERROR "ucc-audit@$VPS_HOST" test 2> "$work/ssh-error"); then
+            -o LogLevel=ERROR "ucc-audit@$VPS_HOST" audit > "$work/result" 2> "$work/ssh-error"; then
             if grep -qi 'permission denied' "$work/ssh-error"; then
               echo '::error::SSH authentication was denied.' >&2
             elif grep -qiE 'invalid format|error in libcrypto' "$work/ssh-error"; then
               echo '::error::SSH private key could not be loaded.' >&2
             else
-              echo '::error::SSH connection or authentication failed.' >&2
+              echo '::error::SSH connection or audit failed.' >&2
             fi
             exit 1
           fi
-          if [[ "$result" != UCC_SSH_TEST_OK ]]; then
-            echo '::error::Unexpected response from the restricted account.' >&2
-            exit 1
-          fi
-          echo 'Restricted SSH connection succeeded.'
+          python3 - "$work/result" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          data = Path(sys.argv[1]).read_bytes()
+          if len(data) > 20000:
+              sys.exit('::error::Audit response too large; withheld.')
+          try:
+              lines = data.decode('ascii').splitlines()
+          except UnicodeDecodeError:
+              sys.exit('::error::Unexpected audit response; withheld.')
+          patterns = [
+              r'LISTENERS (?:done|unavailable)',
+              r'LISTENER protocol=(?:tcp|udp) port=(?:443|8000|8443|2052|2053|2083|1080) bind=(?:loopback|wildcard|other)',
+              r'FILE (?:done|unavailable)',
+              r'FILE label=(?:vless-ws|vmess-ws|vless-plain|other) protocol=(?:vless|vmess|shadowsocks|trojan|other) port=[0-9]{1,5} bind=(?:loopback|wildcard|other) network=(?:tcp|raw|ws|grpc|xhttp|other) security=(?:none|tls|reality|other) clients=(?:-1|[0-9]{1,7})',
+          ]
+          if not lines or len(lines) > 100 or any(not any(re.fullmatch(p, line) for p in patterns) for line in lines):
+              sys.exit('::error::Unexpected audit response; withheld.')
+          if not any(line in ('LISTENERS done', 'LISTENERS unavailable') for line in lines) or not any(line in ('FILE done', 'FILE unavailable') for line in lines):
+              sys.exit('::error::Incomplete audit response; withheld.')
+          for line in lines:
+              print('::notice::' + line)
+          PY
