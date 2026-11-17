@@ -1,0 +1,155 @@
+name: Restricted external VMess test
+
+on:
+  push:
+    branches:
+      - arena/b8c7fda3-universal-connection-client
+    paths:
+      - .github/workflows/vps-vmess-test.yml
+
+permissions: {}
+
+jobs:
+  vmess-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Download pinned sing-box binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/sing-box.tar.gz"
+          curl -fsSL --retry 2 --max-time 90 \
+            https://github.com/SagerNet/sing-box/releases/download/v1.13.21/sing-box-1.13.21-linux-amd64.tar.gz \
+            -o "$archive"
+          printf '%s  %s\n' 24f9ef8e7234e13e71e74c3598a4164c5fe07b7b67ccc6e96cf68b54789f72cd "$archive" | sha256sum -c -
+          tar -xzf "$archive" -C "$RUNNER_TEMP" --strip-components=1 sing-box-1.13.21-linux-amd64/sing-box
+          rm -f "$archive"
+      - name: Test the VMess profile without exposing it
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_VMESS_TEST_LINK: ${{ secrets.VPS_VMESS_TEST_LINK }}
+        run: |
+          set -euo pipefail
+          umask 077
+          work=$(mktemp -d)
+          pid=''
+          cleanup() {
+            if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
+            rm -rf "$work"
+          }
+          trap cleanup EXIT
+          python3 - "$work/config.json" <<'PY'
+          import base64
+          import hashlib
+          import json
+          import os
+          import socket
+          import sys
+          import uuid
+
+          try:
+              link = os.environ['VPS_VMESS_TEST_LINK'].strip()
+              host = os.environ['VPS_HOST'].strip()
+              if not link.startswith('vmess://') or not host:
+                  raise ValueError()
+              body = link[len('vmess://'):].split('#', 1)[0].split('?', 1)[0]
+              payload = base64.b64decode(body + '=' * (-len(body) % 4), altchars=b'-_', validate=True)
+              item = json.loads(payload.decode('utf-8'))
+              server = item['add']
+              if server != host or int(item['port']) != 443 or item.get('net') != 'ws':
+                  raise ValueError()
+              if item.get('path') != '/vmess' or item.get('tls') != 'tls':
+                  raise ValueError()
+              name = item['sni']
+              if item.get('host') != name or hashlib.sha256(name.lower().encode('ascii')).hexdigest() != 'e6e886ef166080036aa8f586fdb8a65b7512e480a196081e739b6b95a8097173':
+                  raise ValueError()
+              fingerprint = item.get('fp') or 'chrome'
+              if fingerprint not in ('chrome', 'firefox', 'safari', 'edge', 'random', 'randomized'):
+                  raise ValueError()
+              security = item.get('scy') or 'auto'
+              if security not in ('auto', 'aes-128-gcm', 'chacha20-poly1305', 'zero', 'none'):
+                  raise ValueError()
+              if int(item.get('aid') or 0) != 0:
+                  raise ValueError()
+              user_id = str(uuid.UUID(item['id']))
+              alpn = [part.strip() for part in (item.get('alpn') or 'http/1.1').split(',') if part.strip()]
+              if alpn != ['http/1.1']:
+                  raise ValueError()
+              with socket.socket() as sock:
+                  sock.bind(('127.0.0.1', 0))
+                  port = sock.getsockname()[1]
+              config = {
+                  'log': {'level': 'error'},
+                  'inbounds': [{'type': 'socks', 'tag': 'local', 'listen': '127.0.0.1', 'listen_port': port}],
+                  'outbounds': [{
+                      'type': 'vmess', 'tag': 'proxy', 'server': server, 'server_port': 443,
+                      'uuid': user_id, 'security': security, 'alter_id': 0,
+                      'tls': {'enabled': True, 'server_name': name, 'alpn': alpn,
+                              'utls': {'enabled': True, 'fingerprint': fingerprint}},
+                      'transport': {'type': 'ws', 'path': '/vmess', 'headers': {'Host': name}},
+                  }],
+                  'route': {'final': 'proxy'},
+              }
+              with open(sys.argv[1], 'w', encoding='utf-8') as f:
+                  json.dump(config, f)
+              with open(os.path.join(os.path.dirname(sys.argv[1]), 'port'), 'w', encoding='ascii') as f:
+                  f.write(str(port))
+          except Exception:
+              print('::error::VMess test secret is missing, malformed, or does not match the expected server and transport.')
+              raise SystemExit(1)
+          print('::notice::VMess test profile validated without displaying credentials.')
+          PY
+          unset VPS_VMESS_TEST_LINK VPS_HOST
+          "$RUNNER_TEMP/sing-box" run -c "$work/config.json" > "$work/core.log" 2>&1 &
+          pid=$!
+          if ! python3 - "$work/port" <<'PY'
+          import socket
+          import sys
+          import time
+          port = int(open(sys.argv[1], encoding='ascii').read())
+          for _ in range(40):
+              try:
+                  with socket.create_connection(('127.0.0.1', port), timeout=0.25):
+                      break
+              except OSError:
+                  time.sleep(0.25)
+          else:
+              print('::error::The local test proxy did not start; details withheld.')
+              raise SystemExit(1)
+          PY
+          then exit 1; fi
+          port=$(cat "$work/port")
+          direct=$(curl -sS --noproxy '*' --connect-timeout 10 --max-time 20 -o /dev/null -w '%{http_code}' https://www.gstatic.com/generate_204 2>/dev/null || true)
+          if [[ "$direct" == 204 ]]; then
+            echo '::notice::External direct reference request succeeded.'
+          else
+            echo '::notice::External direct reference request failed or returned a different status.'
+          fi
+          result=$(curl -sS --noproxy '' --proxy "socks5h://127.0.0.1:$port" --connect-timeout 10 --max-time 25 -o /dev/null -w '%{http_code}' https://www.gstatic.com/generate_204 2>/dev/null || true)
+          if [[ "$result" == 204 ]]; then
+            echo '::notice::VMess real proxy request succeeded with HTTP 204.'
+          else
+            echo '::notice::VMess real proxy request did not succeed; sanitized error category follows.'
+            python3 - "$work/core.log" <<'PY'
+          import sys
+          try:
+              data = open(sys.argv[1], encoding='utf-8', errors='replace').read().lower()
+          except OSError:
+              data = ''
+          if 'first record does not look like a tls handshake' in data:
+              result = 'TLS_NON_TLS_RESPONSE'
+          elif 'certificate' in data and ('verify' in data or 'x509' in data):
+              result = 'TLS_CERTIFICATE_ERROR'
+          elif 'websocket' in data and ('handshake' in data or 'status' in data):
+              result = 'WEBSOCKET_ERROR'
+          elif 'timeout' in data or 'deadline exceeded' in data:
+              result = 'TIMEOUT'
+          elif 'connection refused' in data:
+              result = 'CONNECTION_REFUSED'
+          else:
+              result = 'OTHER_OR_NO_CORE_ERROR'
+          print('::notice::VMess failure category: ' + result)
+          PY
+          fi
