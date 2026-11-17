@@ -32,6 +32,15 @@ jobs:
           printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$work/key"
           chmod 600 "$work/key"
           unset VPS_SSH_PRIVATE_KEY
+          if ! ssh-keygen -y -P '' -f "$work/key" > "$work/key.pub" 2>/dev/null; then
+            echo '::error::The GitHub SSH private key could not be loaded.' >&2
+            exit 1
+          fi
+          key_fingerprint=$(ssh-keygen -lf "$work/key.pub" -E sha256 | awk '{print $2}')
+          if [[ "$key_fingerprint" != 'SHA256:RqWmH3ncHMzc3yU0Bh/S/aSEXA0AN1qqbi+zfOeVnqg' ]]; then
+            echo '::error::The GitHub SSH key does not match the authorized server key.' >&2
+            exit 1
+          fi
 
           if ! ssh-keyscan -T 10 -p 22 -t ed25519 "$VPS_HOST" > "$work/scanned" 2>/dev/null; then
             echo '::error::Could not retrieve SSH host key.' >&2
