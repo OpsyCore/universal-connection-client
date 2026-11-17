@@ -14,35 +14,120 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Check TCP and TLS without SNI
+      - name: Check TLS and WebSocket paths externally
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
           python3 - <<'PY'
+          import base64
+          import hashlib
           import os
+          import re
           import socket
           import ssl
+          import subprocess
 
           host = os.environ.get('VPS_HOST', '')
+          expected_name_hash = 'e6e886ef166080036aa8f586fdb8a65b7512e480a196081e739b6b95a8097173'
+
+          def notice(message):
+              print('::notice::' + message)
+
           if not host:
               print('::error::VPS host is not configured.')
               raise SystemExit(1)
+
+          # Recover the expected SNI from the default certificate without publishing
+          # it. The hash pins the expected name; the next connection verifies it
+          # with the system trust store. This first connection alone is untrusted.
           try:
-              conn = socket.create_connection((host, 443), timeout=8)
-          except OSError:
-              print('::notice::External TCP connection did not complete.')
+              bootstrap = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+              bootstrap.check_hostname = False
+              bootstrap.verify_mode = ssl.CERT_NONE
+              with socket.create_connection((host, 443), timeout=8) as raw:
+                  with bootstrap.wrap_socket(raw, server_hostname=None) as conn:
+                      cert_der = conn.getpeercert(binary_form=True)
+              names = subprocess.run(
+                  ['openssl', 'x509', '-inform', 'DER', '-noout', '-ext', 'subjectAltName'],
+                  input=cert_der, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                  check=True, timeout=8,
+              ).stdout.decode('ascii', errors='ignore')
+              candidates = re.findall(r'DNS:([^,\s]+)', names)
+              server_name = next((name for name in candidates if hashlib.sha256(
+                  name.lower().encode('ascii')).hexdigest() == expected_name_hash), None)
+          except (OSError, ssl.SSLError, subprocess.SubprocessError, ValueError):
+              notice('External bootstrap TLS probe did not complete.')
               raise SystemExit(0)
-          print('::notice::External TCP connection established.')
+          if server_name is None:
+              notice('Expected SNI was not present in the default certificate; further checks not performed.')
+              raise SystemExit(0)
+
+          context = ssl.create_default_context()
+          context.set_alpn_protocols(['http/1.1'])
+
+          def connect_verified():
+              raw = socket.create_connection((host, 443), timeout=8)
+              try:
+                  return context.wrap_socket(raw, server_hostname=server_name)
+              except Exception:
+                  raw.close()
+                  raise
+
           try:
-              context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-              # This limited probe is deliberately without SNI and certificate
-              # validation. It tests only whether a TLS handshake completes.
-              context.check_hostname = False
-              context.verify_mode = ssl.CERT_NONE
-              with context.wrap_socket(conn, server_hostname=None):
-                  print('::notice::External TLS handshake without SNI completed; certificate not verified.')
+              with connect_verified():
+                  notice('External TLS with expected SNI and certificate verification succeeded.')
+          except ssl.SSLCertVerificationError:
+              notice('External TLS certificate or hostname verification failed.')
+              raise SystemExit(0)
           except (ssl.SSLError, OSError):
-              print('::notice::External TLS handshake without SNI did not complete; certificate not verified.')
-          finally:
-              conn.close()
+              notice('External TLS with expected SNI did not complete.')
+              raise SystemExit(0)
+
+          def websocket(path):
+              key = base64.b64encode(os.urandom(16)).decode('ascii')
+              expected_accept = base64.b64encode(hashlib.sha1(
+                  (key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').encode('ascii')
+              ).digest()).decode('ascii')
+              request = (
+                  f'GET {path} HTTP/1.1\r\nHost: {server_name}\r\n'
+                  'Connection: Upgrade\r\nUpgrade: websocket\r\n'
+                  f'Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n'
+              ).encode('ascii')
+              try:
+                  with connect_verified() as conn:
+                      conn.settimeout(8)
+                      conn.sendall(request)
+                      response = b''
+                      while b'\r\n\r\n' not in response and len(response) < 16384:
+                          chunk = conn.recv(2048)
+                          if not chunk:
+                              break
+                          response += chunk
+                  header = response.split(b'\r\n\r\n', 1)[0].decode('iso-8859-1')
+                  lines = header.split('\r\n')
+                  status = re.fullmatch(r'HTTP/1\.[01] ([0-9]{3})(?: .*)?', lines[0])
+                  if not status:
+                      notice(f'WebSocket {path}: invalid HTTP response.')
+                      return
+                  code = status.group(1)
+                  if code != '101':
+                      notice(f'WebSocket {path}: HTTP {code}; upgrade failed.')
+                      return
+                  headers = {}
+                  for line in lines[1:]:
+                      key_name, sep, value = line.partition(':')
+                      if sep:
+                          headers[key_name.strip().lower()] = value.strip()
+                  connection = {part.strip().lower() for part in headers.get('connection', '').split(',')}
+                  if (headers.get('upgrade', '').lower() == 'websocket'
+                          and 'upgrade' in connection
+                          and headers.get('sec-websocket-accept') == expected_accept):
+                      notice(f'WebSocket {path}: upgrade 101 verified; proxy authentication not tested.')
+                  else:
+                      notice(f'WebSocket {path}: HTTP 101 with invalid upgrade headers.')
+              except (ssl.SSLError, OSError, ValueError):
+                  notice(f'WebSocket {path}: network or TLS test did not complete.')
+
+          websocket('/xray')
+          websocket('/vmess')
           PY
