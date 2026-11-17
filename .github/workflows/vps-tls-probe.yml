@@ -1,0 +1,48 @@
+name: VPS external TLS probe
+
+on:
+  push:
+    branches:
+      - arena/b8c7fda3-universal-connection-client
+    paths:
+      - .github/workflows/vps-tls-probe.yml
+
+permissions: {}
+
+jobs:
+  tls-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check TCP and TLS without SNI
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import socket
+          import ssl
+
+          host = os.environ.get('VPS_HOST', '')
+          if not host:
+              print('::error::VPS host is not configured.')
+              raise SystemExit(1)
+          try:
+              conn = socket.create_connection((host, 443), timeout=8)
+          except OSError:
+              print('::notice::External TCP connection did not complete.')
+              raise SystemExit(0)
+          print('::notice::External TCP connection established.')
+          try:
+              context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+              # This limited probe is deliberately without SNI and certificate
+              # validation. It tests only whether a TLS handshake completes.
+              context.check_hostname = False
+              context.verify_mode = ssl.CERT_NONE
+              with context.wrap_socket(conn, server_hostname=None):
+                  print('::notice::External TLS handshake without SNI completed; certificate not verified.')
+          except (ssl.SSLError, OSError):
+              print('::notice::External TLS handshake without SNI did not complete; certificate not verified.')
+          finally:
+              conn.close()
+          PY
