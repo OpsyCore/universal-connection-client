@@ -1,7 +1,7 @@
 name: VPS SSH connection test
 
 # Pushing a change to this file on this branch starts the audit. No checkout or
-# third-party actions are needed. The SSH account enforces a fixed audit command.
+# No third-party actions are needed. SSH enforces a fixed, sanitized audit.
 on:
   push:
     branches:
